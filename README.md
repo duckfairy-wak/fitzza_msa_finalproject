@@ -27,6 +27,8 @@ docker compose up --build -d
 
 Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
+`JWT_SECRET`은 user-service가 Access Token 서명에 쓰는 32바이트 이상 문자열입니다. 로컬은 `.env.example`의 값으로 동작하며, 배포 환경에서는 반드시 다른 값으로 교체합니다.
+
 ```powershell
 .\scripts\health-check.ps1
 ```
