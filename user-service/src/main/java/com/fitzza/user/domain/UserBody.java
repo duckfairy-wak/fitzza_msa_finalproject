@@ -9,10 +9,13 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Table(name = "user_body")
 public class UserBody {
+
+    private static final String STYLE_DELIMITER = ",";
 
     @Id
     @Column(name = "user_id")
@@ -75,10 +78,58 @@ public class UserBody {
         this.updatedAt = Instant.now();
     }
 
+    public void apply(UserBodyUpdate update) {
+        update.height().ifPresent(value -> this.height = value);
+        update.weight().ifPresent(value -> this.weight = value);
+        update.gender().ifPresent(value -> this.gender = value);
+        update.bodyType().ifPresent(value -> this.bodyType = value);
+        update.preferredFit().ifPresent(value -> this.preferredFit = value);
+        update.preferredStyles().ifPresent(value -> this.preferredStyles = joinStyles(value));
+        update.shoeSize().ifPresent(value -> this.shoeSize = value);
+    }
+
     /**
      * 프로필의 기본 키이자 소유자인 사용자 ID를 반환한다.
      */
     public Long getUserId() {
         return userId;
+    }
+
+    public Float getHeight() {
+        return height;
+    }
+
+    public Float getWeight() {
+        return weight;
+    }
+
+    public Gender getGender() {
+        return gender;
+    }
+
+    public String getBodyType() {
+        return bodyType;
+    }
+
+    public String getPreferredFit() {
+        return preferredFit;
+    }
+
+    public List<String> getPreferredStyles() {
+        if (preferredStyles == null || preferredStyles.isBlank()) {
+            return List.of();
+        }
+        return List.of(preferredStyles.split(STYLE_DELIMITER));
+    }
+
+    public Integer getShoeSize() {
+        return shoeSize;
+    }
+
+    private String joinStyles(List<String> styles) {
+        if (styles == null || styles.isEmpty()) {
+            return null;
+        }
+        return String.join(STYLE_DELIMITER, styles);
     }
 }

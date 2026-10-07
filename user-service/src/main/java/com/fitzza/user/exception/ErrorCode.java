@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "입력값을 확인해주세요."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 혹은 비밀번호가 틀렸습니다."),
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
     DUPLICATE_ACCOUNT(HttpStatus.CONFLICT, "이미 사용 중인 이메일 또는 닉네임입니다.");
