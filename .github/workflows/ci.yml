@@ -32,5 +32,5 @@ jobs:
           cache-dependency-path: ${{ matrix.service }}/requirements.txt
       - run: pip install -r requirements.txt
         working-directory: ${{ matrix.service }}
-      - run: pytest tests
+      - run: python -m pytest tests
         working-directory: ${{ matrix.service }}
