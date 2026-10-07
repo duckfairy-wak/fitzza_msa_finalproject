@@ -1,0 +1,203 @@
+name: fitzza
+
+x-java-environment: &java-environment
+  CONFIG_SERVER_URL: http://config-service:8888
+  EUREKA_URL: http://discovery-service:8761/eureka/
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: ${POSTGRES_DB:-fitzza}
+  POSTGRES_USER: ${POSTGRES_USER:-fitzza}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitzza_local}
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-fitzza_local}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+  AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-2}
+  AWS_ENDPOINT_URL: http://localstack:4566
+
+x-domain-dependencies: &domain-dependencies
+  config-service:
+    condition: service_healthy
+  discovery-service:
+    condition: service_healthy
+  postgres:
+    condition: service_healthy
+
+x-java-healthcheck: &java-healthcheck
+  test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 30s
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fitzza}
+      POSTGRES_USER: ${POSTGRES_USER:-fitzza}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitzza_local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-fitzza_local}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-fitzza_local}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: s3,sqs
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-2}
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - ./infra/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  config-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args: { MODULE: config-service }
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8888/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  discovery-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args: { MODULE: discovery-service }
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  user-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: user-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8081:8081"]
+
+  product-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: product-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8082:8082"]
+
+  order-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: order-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8083:8083"]
+
+  community-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: community-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8084:8084"]
+
+  review-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: review-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8085:8085"]
+
+  notification-service:
+    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: notification-service } }
+    environment: *java-environment
+    depends_on: *domain-dependencies
+    ports: ["8086:8086"]
+
+  virtual-tryon-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args: { SERVICE_DIR: virtual-tryon-service }
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD:-fitzza_local}@redis:6379/0
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-2}
+    depends_on:
+      redis: { condition: service_healthy }
+      localstack: { condition: service_healthy }
+    ports: ["8091:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/tryon/status')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  recommendation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+      args: { SERVICE_DIR: recommendation-service }
+    environment:
+      REDIS_URL: redis://:${REDIS_PASSWORD:-fitzza_local}@redis:6379/1
+    depends_on:
+      redis: { condition: service_healthy }
+    ports: ["8092:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/recommendations/status')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.java
+      args: { MODULE: gateway-service }
+    environment:
+      <<: *java-environment
+      VIRTUAL_TRYON_URL: http://virtual-tryon-service:8000
+      RECOMMENDATION_URL: http://recommendation-service:8000
+    depends_on:
+      config-service: { condition: service_healthy }
+      discovery-service: { condition: service_healthy }
+      virtual-tryon-service: { condition: service_healthy }
+      recommendation-service: { condition: service_healthy }
+    ports: ["8080:8080"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  localstack-data:

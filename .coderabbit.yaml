@@ -1,0 +1,31 @@
+# .coderabbit.yaml
+language: "ko-KR"
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    base_branches:
+      - "^develop$"
+
+  path_instructions:
+    - path: "**/*.java"
+      instructions: |
+        - 서비스 간 데이터베이스 직접 접근을 지적한다.
+        - Controller, Service, Repository 책임 분리를 확인한다.
+        - 외부 입력 검증과 예외 처리를 확인한다.
+        - 변경된 동작에 대응하는 테스트가 있는지 확인한다.
+
+    - path: "**/*.py"
+      instructions: |
+        - FastAPI 라우터에 비즈니스 로직이나 모델 추론 로직이 누적되지 않았는지 확인한다.
+        - Pydantic 입력 검증과 외부 I/O 실패 처리를 확인한다.
+
+    - path: "**/*.yml"
+      instructions: |
+        - 비밀번호, 토큰, API Key가 하드코딩되지 않았는지 확인한다.
+        - 서비스명, 포트, 환경 변수 이름의 일관성을 확인한다.

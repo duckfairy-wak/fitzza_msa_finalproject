@@ -1,0 +1,6 @@
+server:
+  port: 8085
+spring:
+  datasource:
+    hikari:
+      schema: review_service

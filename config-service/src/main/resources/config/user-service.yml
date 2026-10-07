@@ -1,0 +1,6 @@
+server:
+  port: 8081
+spring:
+  datasource:
+    hikari:
+      schema: user_service

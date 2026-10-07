@@ -1,2 +1,79 @@
-# fitzza_msa_finalproject
-LG CNS Inspire camp 5기의 리테일조 최종프로젝트 , 패션 AI 커머스 플랫폼 Fitzza입니다. 
+# Fitzza MSA Backend
+
+Fitzza 패션 커머스의 최소 실행형 MSA 골격입니다. 각 서비스는 독립 배포 단위이며, 현재는 상태 확인용 API와 인프라 연결 설정까지만 제공합니다.
+
+팀 브랜치·커밋·PR·코드 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따릅니다. AI 코딩 도구는 작업 전에 [AGENTS.md](AGENTS.md)를 먼저 확인해야 합니다.
+
+## 구성
+
+| 영역 | 서비스 | 포트 |
+| --- | --- | ---: |
+| Platform | Config Server | 8888 |
+| Platform | Eureka Discovery | 8761 |
+| Edge | API Gateway | 8080 |
+| Commerce | User / Product / Order / Community / Review | 8081-8085 |
+| Messaging | Notification | 8086 |
+| AI | Virtual Try-On / Recommendation (FastAPI) | 8091-8092 |
+| Infra | PostgreSQL / Redis / LocalStack(S3, SQS) | 5432 / 6379 / 4566 |
+
+## 빠른 시작
+
+요구 사항: Docker Desktop 및 Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
+
+```powershell
+.\scripts\health-check.ps1
+```
+
+- Gateway 상태: <http://localhost:8080/actuator/health>
+- Eureka 대시보드: <http://localhost:8761>
+- LocalStack 상태: <http://localhost:4566/_localstack/health>
+
+Gateway를 통한 예시 호출:
+
+```bash
+curl http://localhost:8080/api/v1/users/status
+curl http://localhost:8080/api/v1/products/status
+curl http://localhost:8080/api/v1/recommendations/status
+```
+
+## 로컬 빌드
+
+Java 21이 필요합니다. 별도 Gradle 설치 없이 Wrapper를 사용합니다.
+
+```bash
+./gradlew test
+```
+
+FastAPI 서비스는 각 디렉터리의 `requirements.txt`로 별도 설치할 수 있습니다.
+
+## 디렉터리
+
+```text
+config-service/          Spring Cloud Config (native repository)
+discovery-service/       Netflix Eureka
+gateway-service/         Spring Cloud Gateway
+user-service/            사용자 도메인
+product-service/         상품 도메인
+order-service/           주문 도메인
+community-service/       커뮤니티 도메인
+review-service/          리뷰 도메인
+notification-service/    알림 도메인
+virtual-tryon-service/   FastAPI 가상 피팅 작업 API
+recommendation-service/  FastAPI 추천 API
+infra/                   PostgreSQL 초기화
+scripts/                 운영 보조 스크립트
+```
+
+## 구현 원칙
+
+- 서비스별 데이터 소유권을 전제로 PostgreSQL 스키마를 분리했습니다.
+- 비동기 연동의 개발 환경은 LocalStack의 SQS/S3로 대체합니다.
+- 운영 비밀값은 저장소에 커밋하지 않고 환경 변수로 주입합니다.
+- 현재 API는 골격 검증용입니다. 인증, 도메인 모델, 이벤트 계약, 관측성 대시보드는 다음 단계에서 구체화합니다.
