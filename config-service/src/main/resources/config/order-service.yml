@@ -1,0 +1,6 @@
+server:
+  port: 8083
+spring:
+  datasource:
+    hikari:
+      schema: order_service

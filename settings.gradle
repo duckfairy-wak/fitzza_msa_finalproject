@@ -1,0 +1,11 @@
+rootProject.name = 'fitzza-msa'
+
+include 'config-service'
+include 'discovery-service'
+include 'gateway-service'
+include 'user-service'
+include 'product-service'
+include 'order-service'
+include 'community-service'
+include 'review-service'
+include 'notification-service'

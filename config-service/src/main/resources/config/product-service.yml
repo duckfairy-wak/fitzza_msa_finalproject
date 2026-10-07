@@ -1,0 +1,6 @@
+server:
+  port: 8082
+spring:
+  datasource:
+    hikari:
+      schema: product_service
