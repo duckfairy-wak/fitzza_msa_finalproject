@@ -1,7 +1,9 @@
 package com.fitzza.community.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.startsWith;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -20,6 +22,7 @@ import org.springframework.web.client.RestClient;
 class UserServiceClientTest {
 
     private static final String NICKNAME_API = "http://user-service/internal/users";
+    private static final String INTERNAL_TOKEN = "test-internal-token";
 
     private MockRestServiceServer server;
     private UserServiceClient client;
@@ -28,13 +31,14 @@ class UserServiceClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new UserServiceClient(builder, "http://user-service");
+        client = new UserServiceClient(builder, "http://user-service", INTERNAL_TOKEN);
     }
 
     @Test
     void returnsNicknamesKeyedByUserId() {
         server.expect(requestTo(startsWith(NICKNAME_API + "?userIds=")))
                 .andExpect(method(HttpMethod.GET))
+                .andExpect(header(UserServiceClient.INTERNAL_TOKEN_HEADER, INTERNAL_TOKEN))
                 .andRespond(withSuccess(
                         "[{\"userId\":7,\"nickname\":\"fitzza\"},{\"userId\":8,\"nickname\":\"coordi\"}]",
                         MediaType.APPLICATION_JSON));
@@ -61,5 +65,11 @@ class UserServiceClientTest {
 
         assertThat(nicknames).isEmpty();
         server.verify();
+    }
+
+    @Test
+    void refusesToStartWithoutAnInternalToken() {
+        assertThatThrownBy(() -> new UserServiceClient(RestClient.builder(), "http://user-service", " "))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

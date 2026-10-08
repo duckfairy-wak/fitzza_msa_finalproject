@@ -18,6 +18,8 @@ import org.springframework.web.client.RestClientException;
 public class UserServiceClient implements UserDirectory {
 
     private static final Logger log = LoggerFactory.getLogger(UserServiceClient.class);
+    // user-service의 /internal API는 이 헤더의 값이 INTERNAL_CALL_TOKEN과 같아야 응답한다.
+    static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
     private static final ParameterizedTypeReference<List<UserNickname>> NICKNAME_LIST =
             new ParameterizedTypeReference<>() {};
 
@@ -25,8 +27,15 @@ public class UserServiceClient implements UserDirectory {
 
     public UserServiceClient(
             @LoadBalanced RestClient.Builder restClientBuilder,
-            @Value("${fitzza.user-service.base-url:http://user-service}") String baseUrl) {
-        this.restClient = restClientBuilder.baseUrl(baseUrl).build();
+            @Value("${fitzza.user-service.base-url:http://user-service}") String baseUrl,
+            @Value("${internal.call-token}") String internalCallToken) {
+        if (internalCallToken == null || internalCallToken.isBlank()) {
+            throw new IllegalArgumentException("INTERNAL_CALL_TOKEN must be set and non-blank");
+        }
+        this.restClient = restClientBuilder
+                .baseUrl(baseUrl)
+                .defaultHeader(INTERNAL_TOKEN_HEADER, internalCallToken)
+                .build();
     }
 
     // 회원 서비스가 잠깐 죽어도 글 목록과 댓글은 보여야 하므로, 실패하면 닉네임 없이 진행한다.
