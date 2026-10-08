@@ -2,6 +2,7 @@ package com.fitzza.user.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fitzza.user.dto.LoginRequest;
 import com.fitzza.user.dto.LoginResponse;
+import com.fitzza.user.dto.RefreshTokenRequest;
+import com.fitzza.user.dto.TokenResponse;
 import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.GlobalExceptionHandler;
 import com.fitzza.user.exception.UserApiException;
@@ -39,8 +42,9 @@ class AuthControllerTest {
      * 인증 결과가 HTTP 200과 토큰·사용자 정보 JSON으로 전달되는지 검증한다.
      */
     @Test
-    void loginReturnsAccessTokenAndUserInfo() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginResponse("token", 7L, "fitzza"));
+    void loginReturnsBothTokensAndUserInfo() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenReturn(new LoginResponse("access", "refresh", 7L, "fitzza"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -48,7 +52,8 @@ class AuthControllerTest {
                                 {"email": "fit@example.com", "password": "password1"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("token"))
+                .andExpect(jsonPath("$.accessToken").value("access"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh"))
                 .andExpect(jsonPath("$.userId").value(7))
                 .andExpect(jsonPath("$.nickname").value("fitzza"));
     }
@@ -83,5 +88,55 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
         verifyNoInteractions(authService);
+    }
+
+    @Test
+    void reissueReturnsANewTokenPair() throws Exception {
+        when(authService.reissue(new RefreshTokenRequest("old-refresh")))
+                .thenReturn(new TokenResponse("new-access", "new-refresh"));
+
+        mockMvc.perform(post("/api/v1/auth/reissue")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken": "old-refresh"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("new-access"))
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh"));
+    }
+
+    @Test
+    void reissueReturnsUnauthorizedForInvalidRefreshToken() throws Exception {
+        when(authService.reissue(any(RefreshTokenRequest.class)))
+                .thenThrow(new UserApiException(ErrorCode.INVALID_REFRESH_TOKEN));
+
+        mockMvc.perform(post("/api/v1/auth/reissue")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken": "used-refresh"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+    }
+
+    @Test
+    void reissueRejectsMissingRefreshTokenBeforeCallingService() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/reissue")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void logoutPassesTheRefreshTokenAndReturnsOk() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken": "refresh"}
+                                """))
+                .andExpect(status().isOk());
+        verify(authService).logout(new RefreshTokenRequest("refresh"));
     }
 }

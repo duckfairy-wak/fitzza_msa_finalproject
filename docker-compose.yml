@@ -111,9 +111,10 @@ services:
 
   user-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: user-service } }
-    environment: *java-environment
+    environment:
+      <<: *java-environment
+      INTERNAL_CALL_TOKEN: ${INTERNAL_CALL_TOKEN:?INTERNAL_CALL_TOKEN must be set}
     depends_on: *domain-dependencies
-    ports: ["8081:8081"]
 
   product-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: product-service } }
