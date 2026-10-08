@@ -8,6 +8,7 @@ import com.fitzza.user.dto.TokenResponse;
 import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.UserApiException;
 import com.fitzza.user.repository.UserRepository;
+import com.fitzza.user.security.AccessTokenBlacklist;
 import com.fitzza.user.security.JwtTokenProvider;
 import com.fitzza.user.security.RefreshTokenStore;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +22,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenStore refreshTokenStore;
+    private final AccessTokenBlacklist accessTokenBlacklist;
 
     /**
      * 계정 조회, 비밀번호 대조 및 토큰 발급에 사용할 의존성을 주입한다.
@@ -29,11 +31,13 @@ public class AuthService {
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtTokenProvider jwtTokenProvider,
-            RefreshTokenStore refreshTokenStore) {
+            RefreshTokenStore refreshTokenStore,
+            AccessTokenBlacklist accessTokenBlacklist) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenStore = refreshTokenStore;
+        this.accessTokenBlacklist = accessTokenBlacklist;
     }
 
     /**
@@ -74,7 +78,11 @@ public class AuthService {
     }
 
     // 이미 지워졌거나 모르는 토큰이어도 결과는 같다(다시 요청해도 성공).
-    public void logout(RefreshTokenRequest request) {
+    // Access Token은 만료 전까지 스스로 무효가 되지 않으므로, 같이 왔으면 블랙리스트에 올려 게이트웨이가 거부하게 한다.
+    public void logout(RefreshTokenRequest request, String accessToken) {
         refreshTokenStore.revoke(request.refreshToken());
+        if (accessToken != null && !accessToken.isBlank()) {
+            accessTokenBlacklist.revoke(accessToken);
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.fitzza.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +17,7 @@ import com.fitzza.user.dto.TokenResponse;
 import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.UserApiException;
 import com.fitzza.user.repository.UserRepository;
+import com.fitzza.user.security.AccessTokenBlacklist;
 import com.fitzza.user.security.JwtTokenProvider;
 import com.fitzza.user.security.RefreshTokenStore;
 import java.util.Optional;
@@ -42,6 +44,9 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenStore refreshTokenStore;
 
+    @Mock
+    private AccessTokenBlacklist accessTokenBlacklist;
+
     private AuthService authService;
 
     /**
@@ -49,7 +54,8 @@ class AuthServiceTest {
      */
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtTokenProvider, refreshTokenStore);
+        authService = new AuthService(
+                userRepository, passwordEncoder, jwtTokenProvider, refreshTokenStore, accessTokenBlacklist);
     }
 
     /**
@@ -109,9 +115,18 @@ class AuthServiceTest {
 
     @Test
     void logoutRevokesTheRefreshToken() {
-        authService.logout(new RefreshTokenRequest("refresh"));
+        authService.logout(new RefreshTokenRequest("refresh"), null);
 
         verify(refreshTokenStore).revoke("refresh");
+        verify(accessTokenBlacklist, never()).revoke(anyString());
+    }
+
+    @Test
+    void logoutAlsoRevokesTheAccessTokenSentWithIt() {
+        authService.logout(new RefreshTokenRequest("refresh"), "access");
+
+        verify(refreshTokenStore).revoke("refresh");
+        verify(accessTokenBlacklist).revoke("access");
     }
 
     /**

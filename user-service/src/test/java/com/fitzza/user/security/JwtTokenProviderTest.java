@@ -8,7 +8,9 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import javax.crypto.SecretKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -59,6 +61,34 @@ class JwtTokenProviderTest {
     void rejectsExpirationOutsideAllowedRange(long expirationSeconds) {
         assertThatThrownBy(() -> new JwtTokenProvider(SECRET, expirationSeconds))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void remainingValidityOfAFreshTokenIsItsConfiguredLifetime() {
+        JwtTokenProvider provider = new JwtTokenProvider(SECRET, EXPIRATION_SECONDS);
+
+        assertThat(provider.remainingValidity(provider.createAccessToken(42L)))
+                .hasValueSatisfying(remaining -> assertThat(remaining)
+                        .isGreaterThan(Duration.ofSeconds(EXPIRATION_SECONDS - 5))
+                        .isLessThanOrEqualTo(Duration.ofSeconds(EXPIRATION_SECONDS)));
+    }
+
+    @Test
+    void remainingValidityIsEmptyForTokensThatCanNoLongerBeUsed() {
+        JwtTokenProvider provider = new JwtTokenProvider(SECRET, EXPIRATION_SECONDS);
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        String expired = Jwts.builder()
+                .subject("42")
+                .expiration(Date.from(Instant.now().minusSeconds(60)))
+                .signWith(key, Jwts.SIG.HS256)
+                .compact();
+        String forged = new JwtTokenProvider("another-secret-that-is-also-at-least-32-bytes", EXPIRATION_SECONDS)
+                .createAccessToken(42L);
+
+        assertThat(provider.remainingValidity(expired)).isEmpty();
+        assertThat(provider.remainingValidity(forged)).isEmpty();
+        assertThat(provider.remainingValidity("not-a-token")).isEmpty();
+        assertThat(provider.remainingValidity(null)).isEmpty();
     }
 
     /**

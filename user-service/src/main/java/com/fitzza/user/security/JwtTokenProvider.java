@@ -1,10 +1,14 @@
 package com.fitzza.user.security;
 
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -16,6 +20,7 @@ public class JwtTokenProvider {
     private static final long MAX_EXPIRATION_SECONDS = 900;
 
     private final SecretKey signingKey;
+    private final JwtParser parser;
     private final long expirationSeconds;
 
     /**
@@ -36,6 +41,7 @@ public class JwtTokenProvider {
             throw new IllegalArgumentException("JWT expiration must be between 1 and 900 seconds.");
         }
         this.signingKey = Keys.hmacShaKeyFor(secretBytes);
+        this.parser = Jwts.parser().verifyWith(signingKey).build();
         this.expirationSeconds = expirationSeconds;
     }
 
@@ -53,5 +59,24 @@ public class JwtTokenProvider {
                 .expiration(Date.from(issuedAt.plusSeconds(expirationSeconds)))
                 .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    /**
+     * 이 서비스가 서명했고 아직 만료되지 않은 토큰이면 만료까지 남은 시간을 돌려준다.
+     *
+     * @param token 확인할 액세스 토큰
+     * @return 남은 유효 시간. 서명이 다르거나 형식이 잘못됐거나 이미 만료된 토큰이면 비어 있다.
+     */
+    public Optional<Duration> remainingValidity(String token) {
+        try {
+            Date expiration = parser.parseSignedClaims(token).getPayload().getExpiration();
+            if (expiration == null) {
+                return Optional.empty();
+            }
+            Duration remaining = Duration.between(Instant.now(), expiration.toInstant());
+            return remaining.isPositive() ? Optional.of(remaining) : Optional.empty();
+        } catch (JwtException | IllegalArgumentException exception) {
+            return Optional.empty();
+        }
     }
 }

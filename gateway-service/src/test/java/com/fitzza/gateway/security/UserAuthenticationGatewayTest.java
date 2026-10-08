@@ -1,6 +1,8 @@
 package com.fitzza.gateway.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -8,9 +10,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -37,6 +41,15 @@ class UserAuthenticationGatewayTest {
 
     @Autowired
     private RouteLocator routes;
+
+    // 테스트에는 Redis가 없으므로 블랙리스트 조회만 대역으로 바꾼다.
+    @MockBean
+    private AccessTokenBlacklist accessTokenBlacklist;
+
+    @BeforeEach
+    void nothingIsRevokedByDefault() {
+        when(accessTokenBlacklist.isRevoked(anyString())).thenReturn(Mono.just(false));
+    }
 
     @DynamicPropertySource
     static void downstream(DynamicPropertyRegistry registry) {
@@ -72,6 +85,19 @@ class UserAuthenticationGatewayTest {
         client().patch().uri("/api/v1/users/me/body").header("X-User-Id", "999")
                 .headers(headers -> headers.setBearerAuth(token))
                 .exchange().expectStatus().isOk().expectBody(String.class).isEqualTo("/api/v1/users/me/body:42");
+    }
+
+    @Test
+    void rejectsATokenRevokedByLogoutOnTheUserRoute() {
+        String token = Jwts.builder().subject("42").issuedAt(new Date())
+                .expiration(Date.from(Instant.now().plusSeconds(900)))
+                .signWith(Keys.hmacShaKeyFor("test-only-jwt-secret-with-32-bytes-or-more"
+                        .getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256).compact();
+        when(accessTokenBlacklist.isRevoked(token)).thenReturn(Mono.just(true));
+
+        client().get().uri("/api/v1/users/me")
+                .headers(headers -> headers.setBearerAuth(token))
+                .exchange().expectStatus().isUnauthorized();
     }
 
     @Test
