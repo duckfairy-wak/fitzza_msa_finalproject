@@ -289,6 +289,9 @@ class PostControllerTest {
                 2,
                 10,
                 null,
-                null);
+                null,
+                null,
+                false,
+                List.of());
     }
 }

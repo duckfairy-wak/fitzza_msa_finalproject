@@ -15,6 +15,9 @@ import com.fitzza.community.domain.Post;
 import com.fitzza.community.domain.PostCategory;
 import com.fitzza.community.domain.PostLikeId;
 import com.fitzza.community.domain.PostType;
+import com.fitzza.community.domain.VoteItemType;
+import com.fitzza.community.domain.VoteOption;
+import com.fitzza.community.domain.VoteOptionSource;
 import com.fitzza.community.dto.LikeCountResponse;
 import com.fitzza.community.dto.PostCreateRequest;
 import com.fitzza.community.dto.PostCreatedResponse;
@@ -27,6 +30,8 @@ import com.fitzza.community.repository.CommentRepository;
 import com.fitzza.community.repository.IdCount;
 import com.fitzza.community.repository.PostLikeRepository;
 import com.fitzza.community.repository.PostRepository;
+import com.fitzza.community.repository.VoteOptionRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,9 +56,10 @@ class PostServiceTest {
     private final PostRepository postRepository = mock(PostRepository.class);
     private final PostLikeRepository postLikeRepository = mock(PostLikeRepository.class);
     private final CommentRepository commentRepository = mock(CommentRepository.class);
+    private final VoteOptionRepository voteOptionRepository = mock(VoteOptionRepository.class);
     private final UserDirectory userDirectory = mock(UserDirectory.class);
-    private final PostService postService =
-            new PostService(postRepository, postLikeRepository, commentRepository, userDirectory);
+    private final PostService postService = new PostService(
+            postRepository, postLikeRepository, commentRepository, voteOptionRepository, userDirectory);
 
     @Test
     void createStoresTrimmedNormalPostForTheHeaderUser() {
@@ -142,6 +148,32 @@ class PostServiceTest {
         assertThat(detail.liked()).isTrue();
         assertThat(detail.likeCount()).isEqualTo(4);
         assertThat(detail.commentCount()).isEqualTo(2);
+        assertThat(detail.voteEndAt()).isNull();
+        assertThat(detail.voteClosed()).isFalse();
+        assertThat(detail.voteOptions()).isEmpty();
+        verifyNoInteractions(voteOptionRepository);
+    }
+
+    @Test
+    void detailOfAVotePostCarriesItsOptionsAndDeadline() {
+        Post votePost = Post.createVote(AUTHOR_ID, "제목", "내용", PostCategory.COORDI_QUESTION, Instant.now());
+        ReflectionTestUtils.setField(votePost, "id", POST_ID);
+        VoteOption option = VoteOption.of(
+                POST_ID, 1, VoteOptionSource.UPLOAD, VoteItemType.IMAGE, null, IMAGE_URL, null, null);
+        ReflectionTestUtils.setField(option, "id", 100L);
+        when(postRepository.incrementViewCount(POST_ID)).thenReturn(1);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(votePost));
+        when(voteOptionRepository.findByPostIdOrderByDisplayOrderAsc(POST_ID)).thenReturn(List.of(option));
+
+        PostDetailResponse detail = postService.getDetail(POST_ID, null);
+
+        assertThat(detail.postType()).isEqualTo(PostType.VOTE);
+        assertThat(detail.voteEndAt()).isEqualTo(votePost.getVoteEndAt());
+        assertThat(detail.voteClosed()).isFalse();
+        assertThat(detail.voteOptions()).hasSize(1);
+        assertThat(detail.voteOptions().get(0).voteOptionId()).isEqualTo(100L);
+        assertThat(detail.voteOptions().get(0).label()).isEqualTo("A");
+        assertThat(detail.voteOptions().get(0).imageUrl()).isEqualTo(IMAGE_URL);
     }
 
     @Test

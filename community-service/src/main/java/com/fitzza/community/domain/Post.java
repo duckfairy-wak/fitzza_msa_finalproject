@@ -11,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.time.Duration;
 import java.time.Instant;
 import org.hibernate.annotations.ColumnDefault;
 
@@ -21,6 +22,7 @@ public class Post {
     public static final int TITLE_MAX_LENGTH = 100;
     public static final int CONTENT_MAX_LENGTH = 5000;
     public static final int IMAGE_URL_MAX_LENGTH = 500;
+    public static final Duration VOTE_DURATION = Duration.ofHours(6);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,6 +51,15 @@ public class Post {
 
     @Column(name = "view_count", nullable = false)
     private long viewCount;
+
+    // 투표글에만 값이 있다. 일반 글은 NULL이다.
+    @Column(name = "vote_end_at")
+    private Instant voteEndAt;
+
+    // 기본값은 이미 행이 있는 테이블에 이 컬럼을 추가할 때 필요하다.
+    @ColumnDefault("false")
+    @Column(name = "vote_closed", nullable = false)
+    private boolean voteClosed;
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
@@ -81,6 +92,14 @@ public class Post {
     public static Post createNormal(
             Long userId, String title, String content, PostCategory category, String imageUrl) {
         return new Post(userId, title, content, category, imageUrl);
+    }
+
+    // 마감 시각은 서버가 정한다. 클라이언트가 보낸 값은 받지 않는다.
+    public static Post createVote(Long userId, String title, String content, PostCategory category, Instant now) {
+        Post post = new Post(userId, title, content, category, null);
+        post.postType = PostType.VOTE;
+        post.voteEndAt = now.plus(VOTE_DURATION);
+        return post;
     }
 
     @PrePersist
@@ -123,6 +142,23 @@ public class Post {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    public boolean isVote() {
+        return postType == PostType.VOTE;
+    }
+
+    // 작성자가 일찍 끝냈거나 마감 시각이 지났으면 더 투표할 수 없다.
+    public boolean isVoteClosedAt(Instant now) {
+        return voteClosed || (voteEndAt != null && !now.isBefore(voteEndAt));
+    }
+
+    public void closeVote() {
+        this.voteClosed = true;
+    }
+
+    public Instant getVoteEndAt() {
+        return voteEndAt;
     }
 
     public Long getId() {
