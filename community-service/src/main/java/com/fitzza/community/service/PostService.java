@@ -13,6 +13,7 @@ import com.fitzza.community.dto.PostDetailResponse;
 import com.fitzza.community.dto.PostPageResponse;
 import com.fitzza.community.dto.PostSummaryResponse;
 import com.fitzza.community.dto.PostUpdateRequest;
+import com.fitzza.community.dto.VoteOptionResponse;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
 import com.fitzza.community.repository.CommentRepository;
@@ -20,6 +21,8 @@ import com.fitzza.community.repository.IdCount;
 import com.fitzza.community.repository.PostLikeRepository;
 import com.fitzza.community.repository.PostRepository;
 import com.fitzza.community.repository.PostSpecifications;
+import com.fitzza.community.repository.VoteOptionRepository;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Page;
@@ -40,16 +43,19 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final CommentRepository commentRepository;
+    private final VoteOptionRepository voteOptionRepository;
     private final UserDirectory userDirectory;
 
     public PostService(
             PostRepository postRepository,
             PostLikeRepository postLikeRepository,
             CommentRepository commentRepository,
+            VoteOptionRepository voteOptionRepository,
             UserDirectory userDirectory) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
+        this.voteOptionRepository = voteOptionRepository;
         this.userDirectory = userDirectory;
     }
 
@@ -92,6 +98,11 @@ public class PostService {
         Post post = findVisiblePost(postId);
         boolean liked = viewerId != null && postLikeRepository.existsById(new PostLikeId(postId, viewerId));
         String nickname = userDirectory.findNicknames(List.of(post.getUserId())).get(post.getUserId());
+        List<VoteOptionResponse> voteOptions = post.isVote()
+                ? voteOptionRepository.findByPostIdOrderByDisplayOrderAsc(postId).stream()
+                        .map(VoteOptionResponse::from)
+                        .toList()
+                : List.of();
         return new PostDetailResponse(
                 post.getId(),
                 post.getTitle(),
@@ -105,7 +116,10 @@ public class PostService {
                 commentRepository.countByPostIdAndDeletedFalse(postId),
                 post.getViewCount(),
                 post.getCreatedAt(),
-                post.getUpdatedAt());
+                post.getUpdatedAt(),
+                post.getVoteEndAt(),
+                post.isVote() && post.isVoteClosedAt(Instant.now()),
+                voteOptions);
     }
 
     @Transactional
