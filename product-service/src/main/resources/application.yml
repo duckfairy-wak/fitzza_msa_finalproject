@@ -9,7 +9,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitzza}
     username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD:1234}
+    password: ${POSTGRES_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update

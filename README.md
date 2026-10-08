@@ -66,6 +66,8 @@ curl http://localhost:8080/api/v1/recommendations/status
 
 Java 21이 필요합니다. 별도 Gradle 설치 없이 Wrapper를 사용합니다.
 
+product-service를 직접 실행할 때는 DB 비밀번호에 맞는 `POSTGRES_PASSWORD` 환경 변수를 설정해야 합니다. 애플리케이션에는 기본 비밀번호가 없으며, `.env` 파일은 직접 실행 시 자동으로 로드되지 않습니다.
+
 ```bash
 ./gradlew test
 ```
