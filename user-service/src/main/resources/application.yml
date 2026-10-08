@@ -3,7 +3,12 @@ spring:
     name: user-service
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  data:
+    redis:
+      repositories:
+        enabled: false
 
 jwt:
   secret: ${JWT_SECRET}
   expiration-seconds: ${JWT_EXPIRATION_SECONDS:604800}
+  refresh-expiration-seconds: ${JWT_REFRESH_EXPIRATION_SECONDS:2592000}

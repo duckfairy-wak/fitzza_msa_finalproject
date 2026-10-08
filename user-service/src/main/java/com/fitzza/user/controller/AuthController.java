@@ -2,6 +2,8 @@ package com.fitzza.user.controller;
 
 import com.fitzza.user.dto.LoginRequest;
 import com.fitzza.user.dto.LoginResponse;
+import com.fitzza.user.dto.RefreshTokenRequest;
+import com.fitzza.user.dto.TokenResponse;
 import com.fitzza.user.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,5 +30,16 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/reissue")
+    public TokenResponse reissue(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.reissue(request);
+    }
+
+    // Access Token이 이미 만료된 사용자도 로그아웃할 수 있도록 Refresh Token만 받는다.
+    @PostMapping("/logout")
+    public void logout(@Valid @RequestBody RefreshTokenRequest request) {
+        authService.logout(request);
     }
 }
