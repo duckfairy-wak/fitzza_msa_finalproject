@@ -101,6 +101,25 @@ class UserAuthenticationGatewayTest {
     }
 
     @Test
+    void answersBrowserPreflightFromAnAllowedOriginWithoutAToken() {
+        client().options().uri("/api/v1/users/me")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "GET")
+                .header("Access-Control-Request-Headers", "authorization")
+                .exchange().expectStatus().isOk()
+                .expectHeader().valueEquals("Access-Control-Allow-Origin", "http://localhost:3000");
+    }
+
+    @Test
+    void addsTheCorsHeaderToResponsesForAnAllowedOriginAndRejectsOtherOrigins() {
+        client().post().uri("/api/v1/auth/login").header("Origin", "http://localhost:5173")
+                .exchange().expectStatus().isOk()
+                .expectHeader().valueEquals("Access-Control-Allow-Origin", "http://localhost:5173");
+        client().post().uri("/api/v1/auth/login").header("Origin", "http://not-allowed.example")
+                .exchange().expectStatus().isForbidden();
+    }
+
+    @Test
     void doesNotExposeInternalUserEndpoints() {
         client().get().uri("/internal/users/42/body").exchange().expectStatus().isNotFound();
         assertThat(routes.getRoutes().collectList().block()).isNotEmpty();
