@@ -1,5 +1,6 @@
 package com.fitzza.community.client;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +28,15 @@ public class UserServiceClient implements UserDirectory {
 
     public UserServiceClient(
             @LoadBalanced RestClient.Builder restClientBuilder,
-            @Value("${fitzza.user-service.base-url:http://user-service}") String baseUrl,
+            @Value("${fitzza.user-service.base-url:https://user-service}") String baseUrl,
             @Value("${internal.call-token}") String internalCallToken) {
         if (internalCallToken == null || internalCallToken.isBlank()) {
             throw new IllegalArgumentException("INTERNAL_CALL_TOKEN must be set and non-blank");
+        }
+        URI serviceUri = URI.create(baseUrl);
+        if (!"https".equalsIgnoreCase(serviceUri.getScheme()) || serviceUri.getHost() == null
+                || serviceUri.getUserInfo() != null || serviceUri.getFragment() != null) {
+            throw new IllegalArgumentException("fitzza.user-service.base-url must be an HTTPS URL without credentials or fragment");
         }
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)

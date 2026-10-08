@@ -22,7 +22,7 @@ Fitzza 패션 커머스의 최소 실행형 MSA 골격입니다. 각 서비스�
 
 ```bash
 cp .env.example .env
-# .env의 JWT_SECRET과 INTERNAL_CALL_TOKEN에 서로 다른 32바이트 이상의 무작위 비밀값을 입력한 뒤 실행합니다.
+# .env의 JWT_SECRET과 INTERNAL_CALL_TOKEN 및 아래 TLS 파일 경로를 설정한 뒤 실행합니다.
 docker compose up --build -d
 ```
 
@@ -30,7 +30,26 @@ Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
 `JWT_SECRET`은 user-service가 Access Token을 서명하고 gateway-service가 검증하는 데 함께 쓰는 32바이트 이상 문자열입니다. 로컬과 배포 환경 모두 `.env` 또는 환경 변수로 직접 설정해야 합니다. 값이 없거나 비어 있으면 Docker Compose가 시작되지 않습니다. `.env.example`에는 비밀값을 제공하지 않습니다.
 
-`INTERNAL_CALL_TOKEN`은 신뢰하는 서비스가 `/internal/users` 및 `/internal/users/{userId}/body` 호출 시 `X-Internal-Token` 헤더로 보내는 별도의 비밀값입니다. user-service와 호출이 필요한 서비스에만 같은 값을 주입합니다. 지금은 작성자 닉네임을 조회하는 community-service가 호출합니다. 값이 없거나 비어 있으면 시작되지 않으며, 헤더가 없거나 일치하지 않으면 HTTP 401을 반환합니다. user-service의 8081 포트는 호스트에 공개하지 않습니다. 내부 호출은 Compose 네트워크의 `http://user-service:8081`을 사용하고 공개 API는 Gateway를 사용합니다.
+`INTERNAL_CALL_TOKEN`은 신뢰하는 서비스가 `/internal/users` 및 `/internal/users/{userId}/body` 호출 시 `X-Internal-Token` 헤더로 보내는 별도의 비밀값입니다. user-service와 호출이 필요한 서비스에만 같은 값을 주입합니다. 지금은 작성자 닉네임을 조회하는 community-service가 호출합니다. 값이 없거나 비어 있으면 시작되지 않으며, 헤더가 없거나 일치하지 않으면 HTTP 401을 반환합니다. user-service의 8081 포트는 호스트에 공개하지 않습니다. 내부 호출은 Compose 네트워크의 `https://user-service:8081`을 사용하고 공개 API는 Gateway를 사용합니다.
+
+### User Service TLS
+
+로컬과 배포 환경 모두 user-service는 HTTPS로 실행하며 Eureka에는 인증서의 DNS 이름과 보안 포트만 등록합니다. community-service의 `fitzza.user-service.base-url` 기본값은 `https://user-service`이며 HTTP URL을 설정하면 시작에 실패합니다. 로드 밸런싱 후에도 HTTP 연결을 거부하고 리디렉션을 따르지 않습니다. 인증서 체인과 호스트 이름은 JVM 기본 검증을 사용합니다. HTTP 허용 또는 인증서 검증 생략 옵션은 제공하지 않습니다.
+
+Compose 실행 전에 다음 파일을 저장소 밖에 준비하고 `.env`에 절대 경로를 지정합니다. 파일은 컨테이너의 `fitzza` 사용자가 읽을 수 있어야 합니다.
+
+- `USER_SERVICE_TLS_CERTIFICATE_FILE`: `DNS:user-service` SAN을 포함하는 PEM 서버 인증서 및 중간 인증서 체인.
+- `USER_SERVICE_TLS_PRIVATE_KEY_FILE`: 해당 인증서의 PEM 개인 키.
+- `USER_SERVICE_TLS_TRUSTSTORE_FILE`: 발급 CA 인증서를 담은 JKS truststore. 개인 키는 포함하지 않습니다. community-service와 Gateway에 읽기 전용으로 마운트됩니다.
+
+개발 환경에서는 로컬 CA로 인증서를 발급하고 아래와 같이 공개 CA 인증서를 truststore에 넣을 수 있습니다. `keytool`이 요청하는 저장소 암호는 직접 정합니다. 런타임은 공개 인증서 항목만 읽으므로 암호를 주입하지 않습니다. 운영 환경에서는 배포용 CA 인증서와 키를 사용합니다.
+
+```bash
+keytool -importcert -alias user-service-ca -file /absolute/path/ca.crt \
+  -keystore /absolute/path/user-service-truststore.jks -storetype JKS
+```
+
+Compose 외부 배포에서는 `USER_SERVICE_TLS_CERTIFICATE`, `USER_SERVICE_TLS_PRIVATE_KEY`에 Spring 리소스 경로(`file:/...`)를 지정하고 `USER_SERVICE_HOSTNAME`을 인증서 SAN과 일치시킵니다. community-service와 Gateway JVM에는 `-Djavax.net.ssl.trustStore=/path/to/truststore.jks -Djavax.net.ssl.trustStoreType=JKS`를 지정합니다. user-service의 TLS 또는 Eureka 보안 포트를 끄면 닉네임 요청은 실패하며 HTTP로 전환되지 않습니다.
 
 토큰 유효기간은 `JWT_EXPIRATION_SECONDS`(Access Token, 기본 7일)와 `JWT_REFRESH_EXPIRATION_SECONDS`(Refresh Token, 기본 30일)로 바꿀 수 있습니다. Refresh Token은 Redis에 저장합니다.
 

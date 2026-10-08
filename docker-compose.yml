@@ -114,6 +114,15 @@ services:
     environment:
       <<: *java-environment
       INTERNAL_CALL_TOKEN: ${INTERNAL_CALL_TOKEN:?INTERNAL_CALL_TOKEN must be set}
+      SERVER_SSL_ENABLED: "true"
+      USER_SERVICE_TLS_CERTIFICATE: file:/run/tls/user-service.crt
+      USER_SERVICE_TLS_PRIVATE_KEY: file:/run/tls/user-service.key
+      USER_SERVICE_HOSTNAME: user-service
+      EUREKA_INSTANCE_NONSECUREPORTENABLED: "false"
+      EUREKA_INSTANCE_SECUREPORTENABLED: "true"
+    volumes:
+      - ${USER_SERVICE_TLS_CERTIFICATE_FILE:?USER_SERVICE_TLS_CERTIFICATE_FILE must be set}:/run/tls/user-service.crt:ro
+      - ${USER_SERVICE_TLS_PRIVATE_KEY_FILE:?USER_SERVICE_TLS_PRIVATE_KEY_FILE must be set}:/run/tls/user-service.key:ro
     depends_on: *domain-dependencies
 
   product-service:
@@ -133,6 +142,10 @@ services:
     environment:
       <<: *java-environment
       INTERNAL_CALL_TOKEN: ${INTERNAL_CALL_TOKEN:?INTERNAL_CALL_TOKEN must be set}
+      FITZZA_USER_SERVICE_BASE_URL: https://user-service
+      JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/run/tls/user-service-truststore.jks -Djavax.net.ssl.trustStoreType=JKS
+    volumes:
+      - ${USER_SERVICE_TLS_TRUSTSTORE_FILE:?USER_SERVICE_TLS_TRUSTSTORE_FILE must be set}:/run/tls/user-service-truststore.jks:ro
     depends_on: *domain-dependencies
     ports: ["8084:8084"]
 
@@ -194,6 +207,9 @@ services:
       <<: *java-environment
       VIRTUAL_TRYON_URL: http://virtual-tryon-service:8000
       RECOMMENDATION_URL: http://recommendation-service:8000
+      JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/run/tls/user-service-truststore.jks -Djavax.net.ssl.trustStoreType=JKS
+    volumes:
+      - ${USER_SERVICE_TLS_TRUSTSTORE_FILE:?USER_SERVICE_TLS_TRUSTSTORE_FILE must be set}:/run/tls/user-service-truststore.jks:ro
     depends_on:
       config-service: { condition: service_healthy }
       discovery-service: { condition: service_healthy }

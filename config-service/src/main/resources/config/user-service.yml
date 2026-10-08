@@ -1,5 +1,19 @@
 server:
   port: 8081
+  ssl:
+    enabled: true
+    certificate: ${USER_SERVICE_TLS_CERTIFICATE}
+    certificate-private-key: ${USER_SERVICE_TLS_PRIVATE_KEY}
+eureka:
+  instance:
+    prefer-ip-address: false
+    hostname: ${USER_SERVICE_HOSTNAME:user-service}
+    non-secure-port-enabled: false
+    secure-port-enabled: true
+    secure-port: ${server.port}
+    home-page-url: https://${eureka.instance.hostname}:${server.port}/
+    status-page-url: https://${eureka.instance.hostname}:${server.port}/actuator/info
+    health-check-url: https://${eureka.instance.hostname}:${server.port}/actuator/health
 spring:
   datasource:
     hikari:

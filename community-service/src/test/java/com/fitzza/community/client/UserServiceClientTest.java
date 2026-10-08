@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -21,7 +23,7 @@ import org.springframework.web.client.RestClient;
 
 class UserServiceClientTest {
 
-    private static final String NICKNAME_API = "http://user-service/internal/users";
+    private static final String NICKNAME_API = "https://user-service/internal/users";
     private static final String INTERNAL_TOKEN = "test-internal-token";
 
     private MockRestServiceServer server;
@@ -31,7 +33,7 @@ class UserServiceClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new UserServiceClient(builder, "http://user-service", INTERNAL_TOKEN);
+        client = new UserServiceClient(builder, "https://user-service", INTERNAL_TOKEN);
     }
 
     @Test
@@ -67,9 +69,17 @@ class UserServiceClientTest {
         server.verify();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"http://user-service", "http://user-service:8081", "//user-service", "user-service",
+            "https:///internal/users", "https://token@user-service", "https://user-service#fragment"})
+    void refusesToStartWithAnUnsafeServiceUrl(String baseUrl) {
+        assertThatThrownBy(() -> new UserServiceClient(RestClient.builder(), baseUrl, INTERNAL_TOKEN))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void refusesToStartWithoutAnInternalToken() {
-        assertThatThrownBy(() -> new UserServiceClient(RestClient.builder(), "http://user-service", " "))
+        assertThatThrownBy(() -> new UserServiceClient(RestClient.builder(), "https://user-service", " "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
