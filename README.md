@@ -32,7 +32,7 @@ Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
 `INTERNAL_CALL_TOKEN`은 신뢰하는 서비스가 `/internal/users` 및 `/internal/users/{userId}/body` 호출 시 `X-Internal-Token` 헤더로 보내는 별도의 비밀값입니다. user-service와 호출이 필요한 서비스에만 같은 값을 주입합니다. 값이 없거나 비어 있으면 시작되지 않으며, 헤더가 없거나 일치하지 않으면 HTTP 401을 반환합니다. user-service의 8081 포트는 호스트에 공개하지 않습니다. 내부 호출은 Compose 네트워크의 `http://user-service:8081`을 사용하고 공개 API는 Gateway를 사용합니다.
 
-토큰 유효기간은 `JWT_EXPIRATION_SECONDS`(Access Token, 기본 15분)와 `JWT_REFRESH_EXPIRATION_SECONDS`(Refresh Token, 기본 30일)로 바꿀 수 있습니다. Refresh Token은 Redis에 저장합니다.
+토큰 유효기간은 `JWT_EXPIRATION_SECONDS`(Access Token, 1~900초, 기본 15분)와 `JWT_REFRESH_EXPIRATION_SECONDS`(Refresh Token, 기본 30일)로 바꿀 수 있습니다. Refresh Token은 Redis에 저장합니다.
 
 Gateway는 모든 전달 요청에서 클라이언트의 `X-User-Id`를 제거하고, 보호된 사용자 API에서는 서명·만료 시각·사용자 ID(subject)를 검증한 JWT의 ID로 설정합니다.
 
