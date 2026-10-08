@@ -5,9 +5,19 @@
 .DS_Store
 Thumbs.db
 
+# IDE 자동 생성 파일 (VS Code Java / Eclipse)
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+.apt_generated_tests/
+
 # Java / Gradle
 **/target/
 **/build/
+**/bin/
+**/out/
 .gradle/
 .gradle-cache/
 *.class
@@ -29,3 +39,6 @@ hs_err_pid*
 
 # Runtime data
 .data/
+
+# Musinsa Crawled Dataset
+**/product-service/src/main/resources/final_products/
