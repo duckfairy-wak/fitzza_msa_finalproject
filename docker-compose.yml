@@ -132,7 +132,9 @@ services:
 
   community-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: community-service } }
-    environment: *java-environment
+    environment:
+      <<: *java-environment
+      INTERNAL_CALL_TOKEN: ${INTERNAL_CALL_TOKEN:?INTERNAL_CALL_TOKEN must be set}
     depends_on: *domain-dependencies
     ports: ["8084:8084"]
 
