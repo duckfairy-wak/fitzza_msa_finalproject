@@ -15,6 +15,7 @@ x-java-environment: &java-environment
   AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
   AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-2}
   AWS_ENDPOINT_URL: http://localstack:4566
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
 
 x-domain-dependencies: &domain-dependencies
   config-service:
