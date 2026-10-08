@@ -137,6 +137,30 @@ class AuthControllerTest {
                                 {"refreshToken": "refresh"}
                                 """))
                 .andExpect(status().isOk());
-        verify(authService).logout(new RefreshTokenRequest("refresh"));
+        verify(authService).logout(new RefreshTokenRequest("refresh"), null);
+    }
+
+    @Test
+    void logoutPassesTheAccessTokenFromTheAuthorizationHeader() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Bearer access-token ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken": "refresh"}
+                                """))
+                .andExpect(status().isOk());
+        verify(authService).logout(new RefreshTokenRequest("refresh"), "access-token");
+    }
+
+    @Test
+    void logoutIgnoresAnAuthorizationHeaderThatIsNotABearerToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/logout")
+                        .header("Authorization", "Basic dXNlcjpwYXNz")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken": "refresh"}
+                                """))
+                .andExpect(status().isOk());
+        verify(authService).logout(new RefreshTokenRequest("refresh"), null);
     }
 }

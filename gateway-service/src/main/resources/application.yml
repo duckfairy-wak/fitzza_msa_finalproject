@@ -5,6 +5,10 @@ spring:
     name: gateway-service
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  data:
+    redis:
+      repositories:
+        enabled: false
   cloud:
     gateway:
       routes:
