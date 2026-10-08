@@ -1,5 +1,67 @@
+server:
+  port: ${SERVER_PORT:8082}
+
 spring:
   application:
     name: product-service
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitzza}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:1234}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  cloud:
+    aws:
+      region:
+        static: ${AWS_DEFAULT_REGION:ap-northeast-2}
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 3000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+fitzza:
+  seed:
+    musinsa:
+      # 시작 시 무신사 크롤링 JSON을 DB에 저장한다. 이미 저장된 상품은 건너뛴다.
+      enabled: ${MUSINSA_SEED_ENABLED:true}
+      location: ${MUSINSA_SEED_LOCATION:classpath*:final_products/**/*.json}
+  migration:
+    category-code:
+      # 한글 카테고리 이름이 남은 상품이 있으면 기동 시 코드로 바꾼다. 남은 상품이 없으면 아무것도 하지 않는다.
+      enabled: ${CATEGORY_CODE_MIGRATION_ENABLED:true}
+  clients:
+    recommendation:
+      url: ${RECOMMENDATION_URL:http://localhost:8092}
