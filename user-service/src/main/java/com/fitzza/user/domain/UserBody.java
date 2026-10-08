@@ -43,24 +43,41 @@ public class UserBody {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * JPA가 저장된 신체 프로필을 복원할 때 사용하는 생성자이다.
+     */
     protected UserBody() {
     }
 
+    /**
+     * 기존 사용자 ID에 연결된 미입력 신체 프로필을 초기화한다.
+     */
     private UserBody(Long userId) {
         this.userId = userId;
     }
 
-    // 온보딩을 건너뛴 사용자도 프로필 조회·수정이 같은 행을 대상으로 하도록 가입 시 빈 행을 만든다.
+    /**
+     * 온보딩을 건너뛴 사용자도 같은 프로필 행을 조회·수정하도록 가입 시 빈 프로필을 만든다.
+     *
+     * @param userId 프로필을 소유할 저장된 사용자 ID
+     * @return 신체 정보가 아직 입력되지 않은 프로필
+     */
     public static UserBody emptyFor(Long userId) {
         return new UserBody(userId);
     }
 
+    /**
+     * 프로필의 최초 저장 또는 갱신 직전에 수정 시각을 기록한다.
+     */
     @PrePersist
     @PreUpdate
     void markUpdated() {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * 프로필의 기본 키이자 소유자인 사용자 ID를 반환한다.
+     */
     public Long getUserId() {
         return userId;
     }

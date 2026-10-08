@@ -17,6 +17,13 @@ public class JwtTokenProvider {
     private final SecretKey signingKey;
     private final long expirationSeconds;
 
+    /**
+     * UTF-8 비밀키와 만료 설정을 검증하고 토큰 서명에 사용할 키를 준비한다.
+     *
+     * @param secret UTF-8로 인코딩했을 때 32바이트 이상인 비밀값
+     * @param expirationSeconds 양수인 토큰 유효 기간(초)
+     * @throws IllegalArgumentException 비밀값이 너무 짧거나 유효 기간이 양수가 아닌 경우
+     */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-seconds}") long expirationSeconds) {
@@ -31,7 +38,12 @@ public class JwtTokenProvider {
         this.expirationSeconds = expirationSeconds;
     }
 
-    // 게이트웨이가 같은 키와 HS256으로 검증하고 subject를 X-User-Id 헤더로 넘긴다.
+    /**
+     * 사용자 ID를 subject로 설정하고 발급·만료 시각을 포함한 HS256 토큰을 생성한다.
+     *
+     * @param userId 인증된 사용자의 ID
+     * @return 설정된 키로 서명한 액세스 토큰
+     */
     public String createAccessToken(Long userId) {
         Instant issuedAt = Instant.now();
         return Jwts.builder()

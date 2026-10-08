@@ -51,9 +51,15 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * JPA가 저장된 사용자 정보를 복원할 때 사용하는 생성자이다.
+     */
     protected User() {
     }
 
+    /**
+     * 정규화된 이메일과 인코딩된 비밀번호로 활성 사용자를 초기화한다.
+     */
     private User(String email, String encodedPassword, String nickname) {
         this.email = email;
         this.password = encodedPassword;
@@ -61,15 +67,31 @@ public class User {
         this.status = UserStatus.ACTIVE;
     }
 
+    /**
+     * 이메일을 정규화하고 아직 저장되지 않은 활성 사용자를 만든다.
+     *
+     * @param email 정규화할 이메일
+     * @param encodedPassword 호출자가 미리 인코딩한 비밀번호
+     * @param nickname 검증된 닉네임
+     * @return 저장 전 사용자 엔티티
+     */
     public static User create(String email, String encodedPassword, String nickname) {
         return new User(normalizeEmail(email), encodedPassword, nickname);
     }
 
-    // 같은 주소가 대소문자·공백 차이로 중복 가입되지 않도록 저장과 조회에 같은 규칙을 쓴다.
+    /**
+     * 저장과 조회에 같은 규칙을 적용하도록 이메일의 양끝 공백을 제거하고 소문자로 변환한다.
+     *
+     * @param email null이 아닌 이메일
+     * @return 로케일에 영향을 받지 않는 정규화된 이메일
+     */
     public static String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * 최초 저장 직전에 생성 시각과 수정 시각을 같은 값으로 설정한다.
+     */
     @PrePersist
     void markCreated() {
         Instant now = Instant.now();
@@ -77,27 +99,45 @@ public class User {
         this.updatedAt = now;
     }
 
+    /**
+     * JPA 갱신 직전에 수정 시각을 기록한다.
+     */
     @PreUpdate
     void markUpdated() {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * 로그인을 허용하는 ACTIVE 상태인지 반환한다.
+     */
     public boolean isActive() {
         return status == UserStatus.ACTIVE;
     }
 
+    /**
+     * 데이터베이스가 부여한 사용자 ID를 반환하며 저장 전에는 null일 수 있다.
+     */
     public Long getId() {
         return id;
     }
 
+    /**
+     * 저장 및 중복 조회에 사용하는 정규화된 이메일을 반환한다.
+     */
     public String getEmail() {
         return email;
     }
 
+    /**
+     * 비밀번호 대조에 사용할 인코딩된 값을 반환한다.
+     */
     public String getPassword() {
         return password;
     }
 
+    /**
+     * 사용자 응답에 표시할 닉네임을 반환한다.
+     */
     public String getNickname() {
         return nickname;
     }

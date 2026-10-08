@@ -15,10 +15,16 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /**
+     * 로그인 요청을 처리할 인증 서비스를 주입한다.
+     */
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
+    /**
+     * 검증된 로그인 요청으로 인증하고 액세스 토큰과 사용자 정보를 반환한다.
+     */
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);

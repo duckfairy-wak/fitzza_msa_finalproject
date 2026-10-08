@@ -12,15 +12,24 @@ public enum ErrorCode {
     private final HttpStatus status;
     private final String message;
 
+    /**
+     * API 오류에 사용할 HTTP 상태와 기본 응답 메시지를 연결한다.
+     */
     ErrorCode(HttpStatus status, String message) {
         this.status = status;
         this.message = message;
     }
 
+    /**
+     * 이 오류를 클라이언트에 전달할 HTTP 상태를 반환한다.
+     */
     public HttpStatus getStatus() {
         return status;
     }
 
+    /**
+     * 오류 응답과 예외에서 공통으로 사용할 기본 메시지를 반환한다.
+     */
     public String getMessage() {
         return message;
     }

@@ -25,6 +25,9 @@ class AuthControllerTest {
     private final AuthService authService = mock(AuthService.class);
     private MockMvc mockMvc;
 
+    /**
+     * 실제 예외 처리기를 연결한 독립 MockMvc로 HTTP 응답 계약을 검증할 준비를 한다.
+     */
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(new AuthController(authService))
@@ -32,6 +35,9 @@ class AuthControllerTest {
                 .build();
     }
 
+    /**
+     * 인증 결과가 HTTP 200과 토큰·사용자 정보 JSON으로 전달되는지 검증한다.
+     */
     @Test
     void loginReturnsAccessTokenAndUserInfo() throws Exception {
         when(authService.login(any(LoginRequest.class))).thenReturn(new LoginResponse("token", 7L, "fitzza"));
@@ -47,6 +53,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.nickname").value("fitzza"));
     }
 
+    /**
+     * 잘못된 인증 정보가 HTTP 401과 공통 오류 코드로 노출되는지 검증한다.
+     */
     @Test
     void loginReturnsUnauthorizedForInvalidCredentials() throws Exception {
         when(authService.login(any(LoginRequest.class)))
@@ -61,6 +70,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 
+    /**
+     * 빈 비밀번호를 HTTP 계층에서 차단해 인증 서비스가 호출되지 않는지 검증한다.
+     */
     @Test
     void loginRejectsBlankPasswordBeforeCallingService() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
