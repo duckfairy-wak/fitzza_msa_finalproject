@@ -52,7 +52,7 @@ public class AuthController {
 
     // 게이트웨이가 블랙리스트를 조회할 때와 같은 문자열이 되도록 접두어만 떼고 앞뒤 공백을 지운다.
     private static String bearerTokenOf(String authorization) {
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+        if (authorization == null || !authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
             return null;
         }
         return authorization.substring(BEARER_PREFIX.length()).trim();

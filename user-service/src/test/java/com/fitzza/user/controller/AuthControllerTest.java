@@ -16,10 +16,17 @@ import com.fitzza.user.dto.TokenResponse;
 import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.GlobalExceptionHandler;
 import com.fitzza.user.exception.UserApiException;
+import com.fitzza.user.repository.UserRepository;
+import com.fitzza.user.security.AccessTokenBlacklist;
+import com.fitzza.user.security.JwtTokenProvider;
+import com.fitzza.user.security.RefreshTokenStore;
 import com.fitzza.user.service.AuthService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -140,16 +147,25 @@ class AuthControllerTest {
         verify(authService).logout(new RefreshTokenRequest("refresh"), null);
     }
 
-    @Test
-    void logoutPassesTheAccessTokenFromTheAuthorizationHeader() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"Bearer", "bearer", "BEARER", "bEaReR"})
+    void logoutBlacklistsTheSameAccessTokenRegardlessOfSchemeCase(String scheme) throws Exception {
+        AccessTokenBlacklist accessTokenBlacklist = mock(AccessTokenBlacklist.class);
+        RefreshTokenStore refreshTokenStore = mock(RefreshTokenStore.class);
+        AuthService realAuthService = new AuthService(
+                mock(UserRepository.class), mock(PasswordEncoder.class), mock(JwtTokenProvider.class),
+                refreshTokenStore, accessTokenBlacklist);
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthController(realAuthService)).build();
+
         mockMvc.perform(post("/api/v1/auth/logout")
-                        .header("Authorization", "Bearer access-token ")
+                        .header("Authorization", scheme + " aCcEsS-ToKeN ")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"refreshToken": "refresh"}
                                 """))
                 .andExpect(status().isOk());
-        verify(authService).logout(new RefreshTokenRequest("refresh"), "access-token");
+        verify(refreshTokenStore).revoke("refresh");
+        verify(accessTokenBlacklist).revoke("aCcEsS-ToKeN");
     }
 
     @Test
