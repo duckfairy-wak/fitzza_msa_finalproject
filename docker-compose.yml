@@ -196,6 +196,7 @@ services:
       <<: *java-environment
       VIRTUAL_TRYON_URL: http://virtual-tryon-service:8000
       RECOMMENDATION_URL: http://recommendation-service:8000
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       config-service: { condition: service_healthy }
       discovery-service: { condition: service_healthy }
