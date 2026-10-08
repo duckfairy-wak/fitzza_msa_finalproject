@@ -1,6 +1,7 @@
 package com.fitzza.community.client;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +21,8 @@ public class UserServiceClient implements UserDirectory {
     private static final Logger log = LoggerFactory.getLogger(UserServiceClient.class);
     // user-service의 /internal API는 이 헤더의 값이 INTERNAL_CALL_TOKEN과 같아야 응답한다.
     static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
+    // user-service는 한 번에 100명까지만 조회해 주고 넘으면 요청 전체를 거부한다.
+    static final int LOOKUP_BATCH_SIZE = 100;
     private static final ParameterizedTypeReference<List<UserNickname>> NICKNAME_LIST =
             new ParameterizedTypeReference<>() {};
 
@@ -42,29 +45,36 @@ public class UserServiceClient implements UserDirectory {
     @Override
     public Map<Long, String> findNicknames(Collection<Long> userIds) {
         List<Long> distinctIds = userIds.stream().filter(Objects::nonNull).distinct().toList();
-        if (distinctIds.isEmpty()) {
-            return Map.of();
-        }
-        String joinedIds = distinctIds.stream().map(String::valueOf).collect(Collectors.joining(","));
-        try {
-            List<UserNickname> found = restClient
-                    .get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/internal/users")
-                            .queryParam("userIds", joinedIds)
-                            .build())
-                    .retrieve()
-                    .body(NICKNAME_LIST);
-            if (found == null) {
-                return Map.of();
+        Map<Long, String> nicknames = new HashMap<>();
+        for (int start = 0; start < distinctIds.size(); start += LOOKUP_BATCH_SIZE) {
+            int end = Math.min(start + LOOKUP_BATCH_SIZE, distinctIds.size());
+            try {
+                nicknames.putAll(fetchNicknames(distinctIds.subList(start, end)));
+            } catch (RestClientException exception) {
+                // 회원 서비스가 죽었을 때 묶음마다 타임아웃을 기다리지 않도록 남은 묶음은 건너뛴다.
+                log.warn("회원 서비스 닉네임 조회 실패, 받은 닉네임만으로 응답합니다: {}", exception.getMessage());
+                break;
             }
-            return found.stream()
-                    .filter(user -> user.userId() != null && user.nickname() != null)
-                    .collect(Collectors.toMap(UserNickname::userId, UserNickname::nickname, (first, second) -> first));
-        } catch (RestClientException exception) {
-            log.warn("회원 서비스 닉네임 조회 실패, 닉네임 없이 응답합니다: {}", exception.getMessage());
+        }
+        return nicknames;
+    }
+
+    private Map<Long, String> fetchNicknames(List<Long> userIds) {
+        String joinedIds = userIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        List<UserNickname> found = restClient
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/internal/users")
+                        .queryParam("userIds", joinedIds)
+                        .build())
+                .retrieve()
+                .body(NICKNAME_LIST);
+        if (found == null) {
             return Map.of();
         }
+        return found.stream()
+                .filter(user -> user.userId() != null && user.nickname() != null)
+                .collect(Collectors.toMap(UserNickname::userId, UserNickname::nickname, (first, second) -> first));
     }
 
     public record UserNickname(Long userId, String nickname) {

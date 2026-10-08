@@ -10,7 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "posts")
@@ -50,6 +52,13 @@ public class Post {
 
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    // 수정과 삭제가 겹치면 늦게 끝난 요청이 앞선 변경을 덮어쓰지 않고 실패한다.
+    // 기본값은 이미 행이 있는 테이블에 이 컬럼을 추가할 때 필요하다.
+    @Version
+    @ColumnDefault("0")
+    @Column(name = "version", nullable = false)
+    private long version;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

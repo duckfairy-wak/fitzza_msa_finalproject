@@ -12,11 +12,13 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.RequestMatcher;
 import org.springframework.web.client.RestClient;
 
 class UserServiceClientTest {
@@ -60,6 +62,39 @@ class UserServiceClientTest {
     }
 
     @Test
+    void splitsLookupsSoEachRequestStaysWithinTheUserServiceLimit() {
+        server.expect(requestTo(startsWith(NICKNAME_API)))
+                .andExpect(userIdCount(UserServiceClient.LOOKUP_BATCH_SIZE))
+                .andRespond(withSuccess("[{\"userId\":1,\"nickname\":\"first\"}]", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(startsWith(NICKNAME_API)))
+                .andExpect(userIdCount(UserServiceClient.LOOKUP_BATCH_SIZE))
+                .andRespond(withSuccess("[{\"userId\":101,\"nickname\":\"second\"}]", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(startsWith(NICKNAME_API)))
+                .andExpect(userIdCount(50))
+                .andRespond(withSuccess("[{\"userId\":201,\"nickname\":\"third\"}]", MediaType.APPLICATION_JSON));
+
+        Map<Long, String> nicknames =
+                client.findNicknames(LongStream.rangeClosed(1, 250).boxed().toList());
+
+        assertThat(nicknames)
+                .containsOnly(Map.entry(1L, "first"), Map.entry(101L, "second"), Map.entry(201L, "third"));
+        server.verify();
+    }
+
+    @Test
+    void keepsNicknamesAlreadyFetchedAndStopsAskingWhenALaterLookupFails() {
+        server.expect(requestTo(startsWith(NICKNAME_API)))
+                .andRespond(withSuccess("[{\"userId\":1,\"nickname\":\"first\"}]", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(startsWith(NICKNAME_API))).andRespond(withServerError());
+
+        Map<Long, String> nicknames =
+                client.findNicknames(LongStream.rangeClosed(1, 250).boxed().toList());
+
+        assertThat(nicknames).containsOnly(Map.entry(1L, "first"));
+        server.verify();
+    }
+
+    @Test
     void doesNotCallUserServiceWhenThereIsNobodyToLookUp() {
         Map<Long, String> nicknames = client.findNicknames(List.of());
 
@@ -71,5 +106,12 @@ class UserServiceClientTest {
     void refusesToStartWithoutAnInternalToken() {
         assertThatThrownBy(() -> new UserServiceClient(RestClient.builder(), "http://user-service", " "))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static RequestMatcher userIdCount(int expected) {
+        return request -> {
+            String userIds = request.getURI().getQuery().substring("userIds=".length());
+            assertThat(userIds.split(",")).hasSize(expected);
+        };
     }
 }
