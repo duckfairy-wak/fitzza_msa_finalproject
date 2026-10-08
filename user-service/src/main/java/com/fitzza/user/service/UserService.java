@@ -8,6 +8,7 @@ import com.fitzza.user.exception.UserApiException;
 import com.fitzza.user.repository.UserBodyRepository;
 import com.fitzza.user.repository.UserRepository;
 import java.util.regex.Pattern;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -71,7 +72,14 @@ public class UserService {
         try {
             return userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException exception) {
-            throw new UserApiException(ErrorCode.DUPLICATE_ACCOUNT);
+            for (Throwable cause = exception.getCause(); cause != null; cause = cause.getCause()) {
+                if (cause instanceof ConstraintViolationException violation
+                        && (User.EMAIL_UNIQUE_CONSTRAINT.equals(violation.getConstraintName())
+                        || User.NICKNAME_UNIQUE_CONSTRAINT.equals(violation.getConstraintName()))) {
+                    throw new UserApiException(ErrorCode.DUPLICATE_ACCOUNT);
+                }
+            }
+            throw exception;
         }
     }
 

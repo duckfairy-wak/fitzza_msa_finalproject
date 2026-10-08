@@ -22,12 +22,13 @@ Fitzza 패션 커머스의 최소 실행형 MSA 골격입니다. 각 서비스�
 
 ```bash
 cp .env.example .env
+# .env의 JWT_SECRET에 32바이트 이상의 무작위 비밀값을 입력한 뒤 실행합니다.
 docker compose up --build -d
 ```
 
 Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
-`JWT_SECRET`은 user-service가 Access Token 서명에 쓰는 32바이트 이상 문자열입니다. 로컬은 `.env.example`의 값으로 동작하며, 배포 환경에서는 반드시 다른 값으로 교체합니다.
+`JWT_SECRET`은 user-service가 Access Token 서명에 쓰는 32바이트 이상 문자열입니다. 로컬과 배포 환경 모두 `.env` 또는 환경 변수로 직접 설정해야 합니다. 값이 없거나 비어 있으면 Docker Compose가 시작되지 않습니다. `.env.example`에는 비밀값을 제공하지 않습니다.
 
 ```powershell
 .\scripts\health-check.ps1
@@ -44,6 +45,10 @@ curl http://localhost:8080/api/v1/users/status
 curl http://localhost:8080/api/v1/products/status
 curl http://localhost:8080/api/v1/recommendations/status
 ```
+
+## 기존 사용자 DB 업그레이드
+
+기존 DB를 재사용하면 `user_service.users`의 email과 nickname 유니크 제약 이름을 각각 `uk_users_email`, `uk_users_nickname`으로 변경한 뒤 시작합니다. 이전 자동 생성 이름의 제약이 남으면 동시 가입 시 중복 계정 오류로 분류되지 않을 수 있습니다. 신규 DB에는 JPA가 명시한 이름으로 제약을 생성합니다.
 
 ## 로컬 빌드
 

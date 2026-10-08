@@ -14,9 +14,14 @@ import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.UserApiException;
 import com.fitzza.user.repository.UserBodyRepository;
 import com.fitzza.user.repository.UserRepository;
+import java.sql.SQLException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -90,16 +95,47 @@ class UserServiceTest {
         verify(userRepository, never()).saveAndFlush(any(User.class));
     }
 
-    @Test
-    void signUpReportsConflictWhenUniqueConstraintFailsOnConcurrentRequest() {
+    @ParameterizedTest
+    @ValueSource(strings = {"uk_users_email", "uk_users_nickname"})
+    void signUpReportsConflictWhenUniqueConstraintFailsOnConcurrentRequest(String constraintName) {
         when(passwordEncoder.encode("password1")).thenReturn("ENCODED");
         when(userRepository.saveAndFlush(any(User.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+                .thenThrow(new DataIntegrityViolationException("duplicate key",
+                        new RuntimeException(new ConstraintViolationException(
+                                "duplicate key", new SQLException("duplicate key", "23505"), constraintName))));
 
         assertThatThrownBy(() -> userService.signUp(REQUEST))
                 .isInstanceOf(UserApiException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.DUPLICATE_ACCOUNT);
+        verify(userBodyRepository, never()).save(any(UserBody.class));
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"users_pkey", "fk_users_account", "users_status_check", "uk_users_email_other"})
+    void signUpRethrowsUnrelatedOrUnknownConstraintViolations(String constraintName) {
+        DataIntegrityViolationException exception = new DataIntegrityViolationException("integrity violation",
+                new ConstraintViolationException("integrity violation", new SQLException(), constraintName));
+        assertSignUpRethrows(exception);
+    }
+
+    @Test
+    void signUpRethrowsIntegrityViolationWithoutCause() {
+        assertSignUpRethrows(new DataIntegrityViolationException("duplicate key"));
+    }
+
+    @Test
+    void signUpRethrowsOtherIntegrityCausesEvenWhenMessageMentionsAccountConstraint() {
+        assertSignUpRethrows(new DataIntegrityViolationException("integrity violation",
+                new SQLException("uk_users_email", "23502")));
+    }
+
+    private void assertSignUpRethrows(DataIntegrityViolationException exception) {
+        when(passwordEncoder.encode("password1")).thenReturn("ENCODED");
+        when(userRepository.saveAndFlush(any(User.class))).thenThrow(exception);
+
+        assertThatThrownBy(() -> userService.signUp(REQUEST)).isSameAs(exception);
         verify(userBodyRepository, never()).save(any(UserBody.class));
     }
 
