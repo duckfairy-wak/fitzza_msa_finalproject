@@ -23,12 +23,6 @@ spring:
     aws:
       region:
         static: ${AWS_DEFAULT_REGION:ap-northeast-2}
-    openfeign:
-      client:
-        config:
-          default:
-            connect-timeout: 2000
-            read-timeout: 3000
 
 eureka:
   client:
@@ -62,6 +56,3 @@ fitzza:
     category-code:
       # 한글 카테고리 이름이 남은 상품이 있으면 기동 시 코드로 바꾼다. 남은 상품이 없으면 아무것도 하지 않는다.
       enabled: ${CATEGORY_CODE_MIGRATION_ENABLED:true}
-  clients:
-    recommendation:
-      url: ${RECOMMENDATION_URL:http://localhost:8092}
