@@ -1,6 +1,7 @@
 package com.fitzza.user.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.jsonwebtoken.Claims;
@@ -10,11 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import javax.crypto.SecretKey;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class JwtTokenProviderTest {
 
     private static final String SECRET = "test-only-jwt-secret-with-32-bytes-or-more";
-    private static final long EXPIRATION_SECONDS = 3600;
+    private static final long EXPIRATION_SECONDS = 900;
 
     /**
      * 서명 검증을 통과한 토큰의 subject와 만료 시각이 발급 설정과 일치하는지 검증한다.
@@ -32,6 +35,13 @@ class JwtTokenProviderTest {
                 .isBetween(before.plusSeconds(EXPIRATION_SECONDS - 2), before.plusSeconds(EXPIRATION_SECONDS + 2));
     }
 
+    @ParameterizedTest
+    @ValueSource(longs = {1, 900})
+    void acceptsExpirationAtAllowedBoundaries(long expirationSeconds) {
+        assertThatCode(() -> new JwtTokenProvider(SECRET, expirationSeconds))
+                .doesNotThrowAnyException();
+    }
+
     /**
      * 최소 길이를 충족하지 못한 비밀값으로 발급기를 만들 수 없는지 검증한다.
      */
@@ -42,11 +52,12 @@ class JwtTokenProviderTest {
     }
 
     /**
-     * 0초 유효 기간을 생성 단계에서 거부하는지 검증한다.
+     * 허용 범위를 벗어난 유효 기간을 생성 단계에서 거부하는지 검증한다.
      */
-    @Test
-    void rejectsNonPositiveExpiration() {
-        assertThatThrownBy(() -> new JwtTokenProvider(SECRET, 0))
+    @ParameterizedTest
+    @ValueSource(longs = {Long.MIN_VALUE, -1, 0, 901, 3600, Long.MAX_VALUE})
+    void rejectsExpirationOutsideAllowedRange(long expirationSeconds) {
+        assertThatThrownBy(() -> new JwtTokenProvider(SECRET, expirationSeconds))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
