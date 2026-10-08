@@ -33,6 +33,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -236,6 +237,17 @@ class PostControllerTest {
     void deleteReturnsNoContent() throws Exception {
         mockMvc.perform(delete(POSTS + "/3").header(USER_ID_HEADER, "7")).andExpect(status().isNoContent());
         verify(postService).delete(7L, 3L);
+    }
+
+    @Test
+    void deleteThatLosesToAConcurrentChangeIsAConflict() throws Exception {
+        doThrow(new OptimisticLockingFailureException("stale post"))
+                .when(postService)
+                .delete(7L, 3L);
+
+        mockMvc.perform(delete(POSTS + "/3").header(USER_ID_HEADER, "7"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONCURRENT_UPDATE"));
     }
 
     @Test
