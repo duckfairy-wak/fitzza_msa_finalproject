@@ -5,9 +5,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -17,8 +19,13 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(UserApiException.class)
     public ResponseEntity<ErrorResponse> handleUserApiException(UserApiException exception) {
-        ErrorCode errorCode = exception.getErrorCode();
-        return toResponse(errorCode, errorCode.getMessage());
+        return toResponse(exception.getErrorCode(), exception.getMessage());
+    }
+
+    // 게이트웨이를 거치지 않았거나 토큰 없이 들어온 요청에는 사용자 헤더가 없다.
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingUserHeader() {
+        return toResponse(ErrorCode.UNAUTHENTICATED, ErrorCode.UNAUTHENTICATED.getMessage());
     }
 
     /**
@@ -34,9 +41,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 필수 쿼리 매개변수 누락이나 읽을 수 없는 본문을 INVALID_INPUT 응답으로 변환한다.
+     * 필수 쿼리 매개변수 누락, 읽을 수 없는 본문, 형식이 맞지 않는 경로·쿼리 값을 INVALID_INPUT 응답으로 변환한다.
      */
-    @ExceptionHandler({MissingServletRequestParameterException.class, HttpMessageNotReadableException.class})
+    @ExceptionHandler({
+        MissingServletRequestParameterException.class,
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class
+    })
     public ResponseEntity<ErrorResponse> handleMalformedRequest() {
         return toResponse(ErrorCode.INVALID_INPUT, ErrorCode.INVALID_INPUT.getMessage());
     }

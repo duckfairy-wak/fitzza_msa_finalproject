@@ -8,7 +8,11 @@ public class UserApiException extends RuntimeException {
      * 응답 변환에 필요한 오류 코드를 보관하고 기본 메시지로 예외를 생성한다.
      */
     public UserApiException(ErrorCode errorCode) {
-        super(errorCode.getMessage());
+        this(errorCode, errorCode.getMessage());
+    }
+
+    public UserApiException(ErrorCode errorCode, String message) {
+        super(message);
         this.errorCode = errorCode;
     }
 
