@@ -142,12 +142,6 @@ services:
     depends_on: *domain-dependencies
     expose: ["8084"]
 
-  review-service:
-    build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: review-service } }
-    environment: *java-environment
-    depends_on: *domain-dependencies
-    expose: ["8085"]
-
   notification-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: notification-service } }
     environment:

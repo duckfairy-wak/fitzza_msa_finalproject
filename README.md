@@ -11,7 +11,7 @@ Fitzza 패션 커머스의 최소 실행형 MSA 골격입니다. 각 서비스�
 | Platform | Config Server | 8888 |
 | Platform | Eureka Discovery | 8761 |
 | Edge | API Gateway | 8080 |
-| Commerce | User / Product / Order / Community / Review | 8081-8085 |
+| Commerce | User / Product / Order / Community | 8081-8084 |
 | Messaging | Notification | 8086 |
 | AI | Virtual Try-On / Recommendation (FastAPI) | 8091-8092 |
 | Infra | PostgreSQL / Redis / LocalStack(S3, SQS) | 5432 / 6379 / 4566 |
@@ -40,7 +40,7 @@ Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
 알림 API(`GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/{notificationId}/read`)는 로그인한 사용자의 알림만 다룹니다. 알림은 다른 서비스가 `POST /internal/notifications/events`로 보낸 이벤트로 만들어지며, 같은 `eventId`로 다시 보내도 한 번만 저장됩니다. 다른 사람이 내 게시글에 댓글이나 답글을 달면 community-service가 댓글 저장이 확정된 뒤 별도 스레드에서 알림을 보냅니다. 알림 서비스가 꺼져 있으면 경고 로그만 남기고 댓글 작성은 그대로 성공합니다.
 
-order-service(8083), community-service(8084), review-service(8085)도 호스트에 공개하지 않습니다. 이 서비스들은 `X-User-Id` 헤더를 로그인 사용자로 믿기 때문에, 포트가 열려 있으면 Gateway를 거치지 않고 헤더만 넣어 다른 사용자의 장바구니를 바꾸거나 글을 쓰거나 지울 수 있습니다. 장바구니는 `http://localhost:8080/api/carts`, 커뮤니티는 `http://localhost:8080/api/community/...`처럼 Gateway로 호출합니다.
+order-service(8083), community-service(8084)도 호스트에 공개하지 않습니다. 이 서비스들은 `X-User-Id` 헤더를 로그인 사용자로 믿기 때문에, 포트가 열려 있으면 Gateway를 거치지 않고 헤더만 넣어 다른 사용자의 장바구니를 바꾸거나 글을 쓰거나 지울 수 있습니다. 장바구니는 `http://localhost:8080/api/carts`, 커뮤니티는 `http://localhost:8080/api/community/...`처럼 Gateway로 호출합니다.
 
 notification-service의 8086 포트는 호스트에 공개하지 않습니다. 내부 호출은 Compose 네트워크의 `http://notification-service:8086`을 사용하고, 공개 알림 API는 `http://localhost:8080/api/notifications`로 Gateway를 통해 호출합니다. `X-User-Id`는 Gateway에서 검증한 사용자 ID만 신뢰합니다.
 
@@ -96,7 +96,6 @@ user-service/            사용자 도메인
 product-service/         상품 도메인
 order-service/           주문 도메인
 community-service/       커뮤니티 도메인
-review-service/          리뷰 도메인
 notification-service/    알림 도메인
 virtual-tryon-service/   FastAPI 가상 피팅 작업 API
 recommendation-service/  FastAPI 추천 API

@@ -52,9 +52,6 @@ spring:
         - id: community-service
           uri: lb://community-service
           predicates: [Path=/api/community/**]
-        - id: review-service
-          uri: lb://review-service
-          predicates: [Path=/api/reviews/**]
         - id: notification-service
           uri: lb://notification-service
           predicates: [Path=/api/notifications/**]
