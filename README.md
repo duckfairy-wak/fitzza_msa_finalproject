@@ -86,6 +86,59 @@ product-service를 직접 실행할 때는 DB 비밀번호에 맞는 `POSTGRES_P
 
 FastAPI 서비스는 각 디렉터리의 `requirements.txt`로 별도 설치할 수 있습니다.
 
+## 크롤링 색상 후보 → Fashion-CLIP 입력 검증
+
+`scripts/fashion_clip_dataset_adapter.py`는 크롤러의 `color_products/candidates` JSON을 별도 디렉터리에 변환합니다. 추천 파이프라인 저장소는 수정하지 않습니다. Python 표준 라이브러리만 사용하며 입력·출력 경로는 명령행에서 지정합니다.
+
+```powershell
+python scripts/fashion_clip_dataset_adapter.py --source "C:\inspire\final-project\fashion-crawler-starter\data\color_products\candidates" --output ".data\fashion-clip-adapted"
+python -m pytest tests/test_fashion_clip_dataset_adapter.py
+```
+
+출력 폴더는 입력과 겹치지 않는 **빈 폴더**여야 합니다. `report.json`에서 `ready_for_indexing`, 제외 사유, 원본 무신사 ID와 색상별 숫자 ID의 대응을 확인합니다. 적재용 JSON은 `data/<카테고리>/*.json`에 생성됩니다. 검증된 색상별 썸네일(`thumbnail_status=verified`, 유효한 `thumbnail_url`)과 색상·사이즈에 정확히 매칭된 양수 실측(`measurement_status=label_match`, 단위 cm)이 있는 상품만 내보냅니다. 미확인 사이즈 옵션은 내보내지 않습니다. 숫자 ID는 색상 후보 UUID에서 결정적으로 생성되며 원본 무신사 ID와 다릅니다.
+
+기존 `color_products/candidates` 폴더의 색상 후보는 썸네일이 모두 미검증이므로 이 어댑터의 변환 결과가 0건인 것이 정상입니다. 이때 **추천 파이프라인의 `index_to_qdrant.py`를 실행하지 마세요.** 해당 스크립트는 입력 검증보다 먼저 기존 Qdrant 컬렉션을 삭제·재생성합니다. 이 어댑터는 이미지 URL이 실제로 열리는지 확인하지 않으며, 기존 인덱서가 색상 필드를 빈 배열로 저장하므로 색상 하드 필터링도 활성화하지 못합니다. 아래의 실제 이미지 검증 결과는 별도의 데이터셋이며, 인덱서가 신규 필드를 읽도록 변경되어야 합니다.
+
+### 상품 단위 색상 × 실측 사이즈 초안
+
+원본 500개 ZIP을 유지하면서 모든 상품에 `variants`와 실측 참조 관계를 추가한 **검토용** JSON을 만들 수 있습니다. 재고·판매 가능 여부는 사용하지 않습니다. 색상이 옵션에서 발견되면 `structured_option`, 상품명에서만 발견되면 `title_keyword_review`, 찾지 못하면 `unresolved`로 표시합니다. 색상별 이미지는 검증되지 않았으므로 빈 배열을 유지하고 상품 대표 이미지 URL은 원본 그대로 둡니다. 이 결과는 현재 Fashion-CLIP 인덱서 형식과 다르며 곧바로 적재해서는 안 됩니다.
+
+```powershell
+python scripts/build_color_size_dataset.py --source-zip "C:\inspire\final-project\fashion-crawler-starter\data\final_products.zip" --output ".data\color-size-projection-500"
+python -m pytest tests/test_build_color_size_dataset.py
+```
+
+출력에는 `data/<카테고리>/*.json` 500개, `report.json`, 공유용 `color_size_dataset.zip`이 포함됩니다. 출력 디렉터리는 새 빈 디렉터리여야 합니다. `report.json`의 색상 출처별 건수와 `unlinked_count`를 확인해 상품명 기반 후보를 검토한 뒤 데이터 계약을 확정해야 합니다.
+
+### 500개 상품의 색상별 썸네일 실제 검증
+
+`scripts/audit_color_thumbnail_links.py`는 원본 ZIP의 상품 500개를 대상으로 공개 상품 페이지를 조회합니다. 사이트의 `OtherColorGoods.OTHER_COLOR`에서 별도 상품 ID·색상명·사진 URL을, `Options.basic.optionValues`에서 동일 상품 ID의 색상 옵션 사진을 읽습니다. 사이트가 제공하지 않은 상품 ID나 색상명은 만들지 않습니다. 이미지 URL에는 GET 요청을 보내 파일 시그니처를 확인합니다.
+
+```powershell
+python scripts/audit_color_thumbnail_links.py --source-zip "C:\inspire\final-project\fashion-crawler-starter\data\final_products.zip" --output ".data\color-thumbnail-live-500"
+python -m pytest tests/test_audit_color_thumbnail_links.py
+```
+
+`report.json`에 원본 500개 중 자기 상품 ID에 검증된 색상·사진 연결이 있는 개수, 별도 상품 ID 발견 개수, 이미지 검증 결과가 나옵니다. `verified_color_product_images.json`에는 근거 페이지 ID가 함께 기록됩니다. `enriched_data/`와 `color_image_dataset.zip`에는 원본 500개 JSON에 `color_image_mappings`, `related_color_products`, `image_mapping_audit`를 추가한 결과가 있습니다. 추가로 발견한 별도 상품 ID의 상세 정보나 실측은 수집하지 않았습니다. 색상 옵션 전체의 사진이 존재한다는 뜻으로 해석해서는 안 됩니다. 조회 오류와 접속 제한은 `report.json`에서 확인하고, 재실행하면 성공한 페이지 결과를 재사용합니다.
+
+### 색상 사진 근거가 있는 상품만 선별
+
+`scripts/collect_color_qualified_pilot.py`는 위 실제 수집 근거를 이용해 상품을 우선순위대로 선별합니다. 결과는 카테고리별 20개씩 최대 100개입니다. 요청 수량을 충족하지 못하면 부족한 채로 보고하며 검증되지 않은 상품으로 채우지 않습니다.
+
+1. 색상 옵션과 별도 색상 상품이 없는 단품: 이름에 색상이 하나 있고 대표 이미지가 열리는 상품.
+2. 페이지 안 색상 드롭다운: 모든 색상 옵션에 서로 다른 상품 사진 URL이 있고 파일 응답이 확인된 상품.
+3. 다른 상품 URL로 연결된 색상: 무신사의 `OTHER_COLOR` 연결에서 본 상품 색상 사진과 동일 브랜드의 별도 상품 ID·사진이 확인된 상품.
+4. 이름의 색상: 위 조건에 못 미치지만 이름의 색상 하나와 대표 사진이 확인된 상품. 연결할 수 없는 다른 색상 옵션은 출력하지 않습니다.
+
+모든 우선순위에서 남성·공용 대상, 카테고리, 양수 실측값을 확인합니다. `product_id`는 무신사의 실제 상품 ID를 유지합니다. 같은 상품 안의 색상 옵션들은 같은 상품 ID를 쓰며, 별도 상품 ID는 `related_color_products`에 넣습니다. 이름 기반 색상은 이미지 내용 자체를 자동 분류한 결과가 아니므로 `evidence`에 출처를 표시합니다.
+
+```powershell
+python -m scripts.collect_color_qualified_pilot --source-zip "C:\inspire\final-project\fashion-crawler-starter\data\final_products.zip" --evidence-dir ".data\color-thumbnail-live-500" --output ".data\color-qualified-pilot-100" --per-category 20
+python -m pytest tests/test_audit_color_thumbnail_links.py tests/test_collect_color_qualified_pilot.py
+```
+
+결과: `data/<카테고리>/*.json` 100개, `report.json`, `color_qualified_pilot.zip`. JSON의 기존 필드는 유지하고 `color_image_mappings`, `related_color_products`, `color_collection`만 추가합니다. 추천 파이프라인의 기존 인덱서가 이 필드를 자동으로 읽지는 않으므로 인덱서 담당자에게 이 데이터 계약을 전달해야 합니다.
+
 ## 디렉터리
 
 ```text
