@@ -139,6 +139,22 @@ python -m pytest tests/test_audit_color_thumbnail_links.py tests/test_collect_co
 
 결과: `data/<카테고리>/*.json` 100개, `report.json`, `color_qualified_pilot.zip`. JSON의 기존 필드는 유지하고 `color_image_mappings`, `related_color_products`, `color_collection`만 추가합니다. 추천 파이프라인의 기존 인덱서가 이 필드를 자동으로 읽지는 않으므로 인덱서 담당자에게 이 데이터 계약을 전달해야 합니다.
 
+### 색상 사진 검증 데이터셋 500개 확장
+
+`scripts/expand_color_qualified_dataset.py`는 기존 검증 상품을 카테고리별 100개까지 사용하고, 부족한 카테고리는 무신사의 `OTHER_COLOR`에 연결된 실제 상품 ID를 추가 조회합니다. 추가 상품도 남성·공용 여부, 카테고리, actual-size API의 양수 실측값, 색상명과 상품 사진 URL, 이미지 파일 응답을 모두 확인합니다. 성공한 상세·실측·이미지 확인 결과는 작업 디렉터리에 저장되어 재실행할 때 재사용됩니다.
+
+```powershell
+C:\inspire\final-project\fashion-crawler-starter\.venv\Scripts\python.exe -m scripts.expand_color_qualified_dataset `
+  --source-zip "C:\inspire\final-project\fashion-crawler-starter\data\final_products.zip" `
+  --evidence-dir ".data\color-thumbnail-live-500" `
+  --crawler-root "C:\inspire\final-project\fashion-crawler-starter" `
+  --work-dir ".data\color-qualified-expansion-work" `
+  --output ".data\color-qualified-dataset-500" `
+  --per-category 100
+```
+
+결과: `data/<카테고리>/*.json` 500개, `report.json`, `image_checks.json`, `color_qualified_dataset_500.zip`. 목표를 채우지 못하면 `report.json`의 `complete`가 `false`가 되며 검증되지 않은 상품으로 수량을 보충하지 않습니다.
+
 ## 디렉터리
 
 ```text
