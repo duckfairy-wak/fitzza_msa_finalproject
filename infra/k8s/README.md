@@ -23,6 +23,8 @@ Before deployment, replace the following placeholders through an environment-spe
 
 The production overlay contains image mappings for all 11 application services. CodeBuild's `post_build` step fills `CHANGE_ME_ECR_REGISTRY`, `CHANGE_ME_ECR_REPOSITORY_PREFIX`, and `CHANGE_ME_COMMIT_TAG` from `image-definitions.json`, using the same ECR paths and 12-character Git commit tag as the image build. CodeBuild requires a resolved Git commit SHA; there is no `local` tag fallback.
 
+CodeBuild checks each service's ECR tag and reuses existing images when rebuilding the same commit. Only missing tags are built and pushed; lookup errors stop the build. The CodeBuild role needs `ecr:DescribeImages` permission for these repositories.
+
 Deploy the production overlay from that build's artifact, which includes the populated mappings. When preparing an overlay manually, replace these three image placeholders with the registry (for example, `123456789012.dkr.ecr.ap-northeast-2.amazonaws.com`), repository prefix (default `fitzza`), and commit tag of the images actually pushed to ECR before rendering or applying it.
 
 ## Local validation

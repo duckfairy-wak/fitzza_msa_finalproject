@@ -27,12 +27,26 @@ phases:
       - |
         set -eu
         for service in config-service discovery-service gateway-service user-service product-service order-service community-service review-service notification-service; do
+          if lookup_result="$(aws ecr describe-images --region "${AWS_DEFAULT_REGION}" --repository-name "${ECR_REPOSITORY_PREFIX}/${service}" --image-ids "imageTag=${IMAGE_TAG}" 2>&1)"; then
+            echo "Reusing existing image for ${service}:${IMAGE_TAG}"
+            continue
+          elif [[ "${lookup_result}" != *"(ImageNotFoundException)"* ]]; then
+            printf '%s\n' "${lookup_result}" >&2
+            exit 1
+          fi
           image="${ECR_REGISTRY}/${ECR_REPOSITORY_PREFIX}/${service}:${IMAGE_TAG}"
           docker buildx build --platform linux/arm64 --build-arg "MODULE=${service}" --file Dockerfile.java --tag "${image}" --push .
         done
       - |
         set -eu
         for service in recommendation-service virtual-tryon-service; do
+          if lookup_result="$(aws ecr describe-images --region "${AWS_DEFAULT_REGION}" --repository-name "${ECR_REPOSITORY_PREFIX}/${service}" --image-ids "imageTag=${IMAGE_TAG}" 2>&1)"; then
+            echo "Reusing existing image for ${service}:${IMAGE_TAG}"
+            continue
+          elif [[ "${lookup_result}" != *"(ImageNotFoundException)"* ]]; then
+            printf '%s\n' "${lookup_result}" >&2
+            exit 1
+          fi
           image="${ECR_REGISTRY}/${ECR_REPOSITORY_PREFIX}/${service}:${IMAGE_TAG}"
           docker buildx build --platform linux/arm64 --build-arg "SERVICE_DIR=${service}" --file Dockerfile.python --tag "${image}" --push .
         done
