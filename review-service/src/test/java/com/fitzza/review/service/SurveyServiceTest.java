@@ -69,11 +69,11 @@ class SurveyServiceTest {
     @Test
     void createPassesOnTheOrderCheckFailure() {
         when(orderItemVerifier.requireReviewable(USER_ID, ORDER_ITEM_ID))
-                .thenThrow(new ReviewApiException(ErrorCode.ORDER_NOT_COMPLETED));
+                .thenThrow(new ReviewApiException(ErrorCode.ORDER_CANCELED));
 
         assertThatThrownBy(() -> surveyService.create(USER_ID, new SurveyCreateRequest(ORDER_ITEM_ID, SizeFeedback.BIG)))
                 .isInstanceOfSatisfying(ReviewApiException.class,
-                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ORDER_NOT_COMPLETED));
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.ORDER_CANCELED));
         verify(sizeSurveyRepository, never()).saveAndFlush(any());
     }
 

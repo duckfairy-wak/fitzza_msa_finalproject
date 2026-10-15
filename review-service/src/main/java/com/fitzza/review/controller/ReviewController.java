@@ -86,7 +86,7 @@ public class ReviewController {
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
         @ApiResponse(
                 responseCode = "409",
-                description = "DUPLICATE_REVIEW: 이미 작성 / ORDER_NOT_COMPLETED: 배송 완료 전",
+                description = "DUPLICATE_REVIEW: 이미 작성 / ORDER_CANCELED: 취소된 주문",
                 content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
         @ApiResponse(
                 responseCode = "503",

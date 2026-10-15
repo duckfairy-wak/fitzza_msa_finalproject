@@ -10,7 +10,7 @@ public enum ErrorCode {
     NOT_AUTHOR(HttpStatus.FORBIDDEN, "작성자만 할 수 있습니다."),
     ORDER_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "주문 항목을 찾을 수 없습니다."),
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."),
-    ORDER_NOT_COMPLETED(HttpStatus.CONFLICT, "배송이 완료된 주문만 리뷰·설문할 수 있습니다."),
+    ORDER_CANCELED(HttpStatus.CONFLICT, "취소된 주문은 리뷰·설문할 수 없습니다."),
     DUPLICATE_REVIEW(HttpStatus.CONFLICT, "이미 리뷰를 작성한 주문 상품입니다."),
     DUPLICATE_SURVEY(HttpStatus.CONFLICT, "이미 설문을 작성한 주문 상품입니다."),
     CONCURRENT_UPDATE(HttpStatus.CONFLICT, "다른 요청과 겹쳐 처리하지 못했습니다. 새로고침 후 다시 시도해주세요."),
