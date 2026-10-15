@@ -140,7 +140,7 @@ Resources:
         must:
           - application nodes and data stores must not be placed here
     Properties:
-      AvailabilityZone: !Select [2, !GetAZs '']
+      AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PublicSubnetCCidr
       MapPublicIpOnLaunch: true
       VpcId: !Ref Vpc
@@ -176,7 +176,7 @@ Resources:
         must:
           - no automatic public IPv4 assignment
     Properties:
-      AvailabilityZone: !Select [2, !GetAZs '']
+      AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PrivateSubnetCCidr
       MapPublicIpOnLaunch: false
       VpcId: !Ref Vpc
