@@ -30,11 +30,18 @@ def validate_jev_data(source_root: Path) -> dict[str, int]:
         if not isinstance(product, dict):
             raise ContractError(f"{path}: product JSON root must be an object")
 
-        dataset = product.get("dataset")
-        if dataset is not None and not isinstance(dataset, dict):
-            raise ContractError(f"{path}: dataset must be an object")
+        name = product.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ContractError(f"{path}: name must be a non-empty string")
 
-        mappings = product.get("color_image_mappings") or []
+        dataset = product.get("dataset")
+        if not isinstance(dataset, dict):
+            raise ContractError(f"{path}: dataset must be an object")
+        logical_category = dataset.get("logical_category")
+        if not isinstance(logical_category, str) or not logical_category.strip():
+            raise ContractError(f"{path}: dataset.logical_category must be a non-empty string")
+
+        mappings = product.get("color_image_mappings", [])
         if not isinstance(mappings, list):
             raise ContractError(f"{path}: color_image_mappings must be an array")
         if mappings:
