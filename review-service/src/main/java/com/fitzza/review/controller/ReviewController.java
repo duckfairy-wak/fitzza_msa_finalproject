@@ -64,7 +64,7 @@ public class ReviewController {
 
     @Operation(
             summary = "리뷰 작성",
-            description = "내가 산, 배송이 끝난 주문 상품에만 쓸 수 있다. 주문 상품 하나에 리뷰 하나. 별점은 1~5 정수.",
+            description = "내가 주문한(취소하지 않은) 주문 상품에만 쓸 수 있다. 주문 상품 하나에 리뷰 하나. 별점은 1~5 정수.",
             security = @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH))
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "작성 성공"),

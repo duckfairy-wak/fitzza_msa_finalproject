@@ -41,7 +41,7 @@ public class SurveyController {
 
     @Operation(
             summary = "사이즈 설문 작성",
-            description = "내가 산, 배송이 끝난 주문 상품에만 쓸 수 있다. 주문 상품 하나에 한 번만 쓰고 수정할 수 없다.")
+            description = "내가 주문한(취소하지 않은) 주문 상품에만 쓸 수 있다. 주문 상품 하나에 한 번만 쓰고 수정할 수 없다.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "작성 성공"),
         @ApiResponse(
