@@ -1,4 +1,7 @@
-from scripts.collect_color_qualified_pilot import classify
+import json
+import zipfile
+
+from scripts.collect_color_qualified_pilot import classify, load_products
 
 
 THUMBNAIL = "https://image.msscdn.net/images/goods_img/123/123_500.jpg"
@@ -70,3 +73,19 @@ def test_missing_size_or_image_is_rejected():
     assert classify(item, source(), {}) is None
     item["size"]["measurements"] = []
     assert classify(item, source(), checks(THUMBNAIL)) is None
+
+
+def test_known_color_image_mismatch_is_rejected():
+    item = product()
+    item["product_id"] = 4620503
+    assert classify(item, source(), checks(THUMBNAIL)) is None
+
+
+def test_load_products_ignores_dataset_metadata(tmp_path):
+    archive_path = tmp_path / "dataset.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("report.json", json.dumps({"total": 1}))
+        archive.writestr("image_checks.json", json.dumps({THUMBNAIL: {"reachable_image": True}}))
+        archive.writestr("data/hat/123.json", json.dumps(product()))
+
+    assert load_products(archive_path) == [product()]

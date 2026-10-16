@@ -1,4 +1,11 @@
-from scripts.expand_color_qualified_dataset import complete_metadata, related_candidates
+import json
+
+from scripts.expand_color_qualified_dataset import (
+    complete_metadata,
+    load_sources,
+    merge_image_checks,
+    related_candidates,
+)
 
 
 def test_complete_metadata_matches_dataset_shape():
@@ -28,3 +35,32 @@ def test_related_candidates_exclude_existing_products_and_rank_reviews():
         {"curationType": "OTHER_COLOR", "curationGoodsList": items}
     ]}}}
     assert related_candidates(products, sources)["모자"] == [3, 2]
+
+
+def test_transient_image_error_does_not_replace_successful_check():
+    checks = {"image": {"status": 200, "reachable_image": True}}
+
+    merge_image_checks(checks, {"image": {"reachable_image": False, "error": "DNS failure"}})
+
+    assert checks["image"] == {"status": 200, "reachable_image": True}
+
+
+def test_http_image_failure_replaces_successful_check():
+    checks = {"image": {"status": 200, "reachable_image": True}}
+
+    merge_image_checks(checks, {"image": {"status": 404, "reachable_image": False}})
+
+    assert checks["image"] == {"status": 404, "reachable_image": False}
+
+
+def test_load_sources_falls_back_to_expansion_work_cache(tmp_path):
+    evidence_dir = tmp_path / "evidence"
+    work_dir = tmp_path / "work"
+    source_path = work_dir / "sources" / "123.json"
+    source_path.parent.mkdir(parents=True)
+    source_path.write_text(json.dumps({"option_data": {"basic": []}}), encoding="utf-8")
+
+    sources = load_sources([{"product_id": 123}], evidence_dir, work_dir)
+
+    assert sources[123]["option_image_links"] == []
+    assert sources[123]["color_image_links"] == []

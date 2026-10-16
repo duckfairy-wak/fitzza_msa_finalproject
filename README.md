@@ -141,7 +141,7 @@ python -m pytest tests/test_audit_color_thumbnail_links.py tests/test_collect_co
 
 ### 색상 사진 검증 데이터셋 500개 확장
 
-`scripts/expand_color_qualified_dataset.py`는 기존 검증 상품을 카테고리별 100개까지 사용하고, 부족한 카테고리는 무신사의 `OTHER_COLOR`에 연결된 실제 상품 ID를 추가 조회합니다. 추가 상품도 남성·공용 여부, 카테고리, actual-size API의 양수 실측값, 색상명과 상품 사진 URL, 이미지 파일 응답을 모두 확인합니다. 성공한 상세·실측·이미지 확인 결과는 작업 디렉터리에 저장되어 재실행할 때 재사용됩니다.
+`scripts/expand_color_qualified_dataset.py`는 기존 검증 상품을 카테고리별 100개까지 사용하고, 부족한 카테고리는 무신사의 `OTHER_COLOR`에 연결된 실제 상품 ID를 추가 조회합니다. 추가 상품도 남성·공용 여부, 카테고리, actual-size API의 양수 실측값, 색상명과 상품 사진 URL, 이미지 파일 응답을 모두 확인합니다. 성공한 상세·실측·이미지 확인 결과는 작업 디렉터리에 저장되어 재실행할 때 재사용됩니다. 색상명의 예약·일반 발송 문구는 제거하고 같은 색상으로 합치며, 확인된 색상·이미지 불일치 상품은 제외 목록과 결과 보고서에 기록합니다.
 
 ```powershell
 C:\inspire\final-project\fashion-crawler-starter\.venv\Scripts\python.exe -m scripts.expand_color_qualified_dataset `
@@ -150,10 +150,11 @@ C:\inspire\final-project\fashion-crawler-starter\.venv\Scripts\python.exe -m scr
   --crawler-root "C:\inspire\final-project\fashion-crawler-starter" `
   --work-dir ".data\color-qualified-expansion-work" `
   --output ".data\color-qualified-dataset-500" `
-  --per-category 100
+  --per-category 100 `
+  --recheck-current-images
 ```
 
-결과: `data/<카테고리>/*.json` 500개, `report.json`, `image_checks.json`, `color_qualified_dataset_500.zip`. 목표를 채우지 못하면 `report.json`의 `complete`가 `false`가 되며 검증되지 않은 상품으로 수량을 보충하지 않습니다.
+`--recheck-current-images`는 기존 결과가 사용하는 이미지 URL을 다시 GET 검증할 때만 지정합니다. DNS 실패 같은 일시적 연결 오류는 이전의 정상 판정을 덮어쓰지 않고, 실제 HTTP 응답이 확인된 실패만 반영합니다. 결과는 `data/<카테고리>/*.json` 500개, `report.json`, `image_checks.json`, `color_qualified_dataset_500.zip`입니다. 목표를 채우지 못하면 `report.json`의 `complete`가 `false`가 되며 검증되지 않은 상품으로 수량을 보충하지 않습니다.
 
 ## 디렉터리
 

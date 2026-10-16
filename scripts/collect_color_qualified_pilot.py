@@ -11,12 +11,19 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.audit_color_thumbnail_links import RateLimit, check_image, full_image_url, OPTION_SIZE_SUFFIX
+from scripts.audit_color_thumbnail_links import (
+    OPTION_SIZE_SUFFIX,
+    RateLimit,
+    check_image,
+    full_image_url,
+    normalize_color_option_label,
+)
 
 
 CATEGORIES = ("상의", "하의", "신발", "아우터", "모자")
 COLOR_GROUP_TERMS = ("컬러", "색상", "color", "colour")
 SIZE_GROUP_TERMS = ("사이즈", "size")
+EXCLUDED_PRODUCTS = {4620503: "verified_color_image_mismatch"}
 COLOR_ALIASES = {
     "BLACK": "black", "블랙": "black", "검정": "black",
     "WHITE": "white", "화이트": "white", "흰색": "white",
@@ -73,9 +80,13 @@ def declared_option_colors(source: dict) -> set[str]:
             label = str(value.get("name") or "").strip()
             split = OPTION_SIZE_SUFFIX.fullmatch(label)
             if split and (is_color or is_size):
-                labels.add(split.group(1).strip())
+                color = normalize_color_option_label(split.group(1))
+                if color:
+                    labels.add(color)
             elif is_color and not is_size and label:
-                labels.add(label)
+                color = normalize_color_option_label(label)
+                if color:
+                    labels.add(color)
     return labels
 
 
@@ -136,6 +147,8 @@ def own_other_color(product: dict, source: dict, checks: dict) -> list[dict]:
 
 
 def classify(product: dict, source: dict, checks: dict) -> dict | None:
+    if product.get("product_id") in EXCLUDED_PRODUCTS:
+        return None
     if source.get("status") != "ok" or not measured(product):
         return None
     if (product.get("gender") or {}).get("normalized") not in {"MALE", "UNISEX"}:
@@ -178,7 +191,14 @@ def classify(product: dict, source: dict, checks: dict) -> dict | None:
 
 def load_products(path: Path) -> list[dict]:
     with zipfile.ZipFile(path) as archive:
-        return [json.loads(archive.read(name)) for name in sorted(archive.namelist()) if name.endswith(".json")]
+        products = []
+        for name in sorted(archive.namelist()):
+            if not name.endswith(".json"):
+                continue
+            document = json.loads(archive.read(name))
+            if isinstance(document, dict) and "product_id" in document:
+                products.append(document)
+        return products
 
 
 def prepare_checks(products: list[dict], sources: dict[int, dict], evidence_dir: Path, output: Path) -> dict:

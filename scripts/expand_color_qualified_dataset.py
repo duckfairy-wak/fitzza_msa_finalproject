@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
 import sys
 import time
@@ -12,8 +13,8 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from scripts.audit_color_thumbnail_links import HEADERS, RateLimit, check_image, extract_evidence
-from scripts.collect_color_qualified_pilot import CATEGORIES, classify, load_products
+from scripts.audit_color_thumbnail_links import HEADERS, RateLimit, check_image, extract_evidence, extract_option_links
+from scripts.collect_color_qualified_pilot import CATEGORIES, EXCLUDED_PRODUCTS, classify, load_products
 
 
 CATEGORY_NAMES = {"상의": "상의", "바지": "하의", "하의": "하의", "신발": "신발", "아우터": "아우터", "모자": "모자"}
@@ -48,21 +49,47 @@ def complete_metadata(product: dict) -> dict:
     return product
 
 
-def load_sources(products: list[dict], evidence_dir: Path) -> dict[int, dict]:
+def load_sources(products: list[dict], evidence_dir: Path, work_dir: Path | None = None) -> dict[int, dict]:
     sources = {}
     for product in products:
-        path = evidence_dir / "sources" / f"{product['product_id']}.json"
-        if path.exists():
-            sources[product["product_id"]] = json.loads(path.read_text(encoding="utf-8"))
+        candidates = [evidence_dir / "sources" / f"{product['product_id']}.json"]
+        if work_dir is not None:
+            candidates.append(work_dir / "sources" / f"{product['product_id']}.json")
+        path = next((candidate for candidate in candidates if candidate.exists()), None)
+        if path is None:
+            continue
+        source = json.loads(path.read_text(encoding="utf-8"))
+        source = refresh_source_options(source, product["product_id"])
+        path.write_text(json.dumps(source, ensure_ascii=False, indent=2), encoding="utf-8")
+        sources[product["product_id"]] = source
     return sources
+
+
+def refresh_source_options(source: dict, product_id: int) -> dict:
+    images, links = extract_option_links(source.get("option_data") or {}, product_id)
+    source["option_image_links"] = images
+    source["color_image_links"] = [
+        row for row in source.get("color_image_links", []) if row.get("scope") != "source_option"
+    ] + links
+    return source
 
 
 def load_checks(evidence_dir: Path, work_dir: Path) -> dict:
     checks = json.loads((evidence_dir / "image_checks.json").read_text(encoding="utf-8"))
     path = work_dir / "image_checks.json"
     if path.exists():
-        checks.update(json.loads(path.read_text(encoding="utf-8")))
+        merge_image_checks(checks, json.loads(path.read_text(encoding="utf-8")))
     return checks
+
+
+def authoritative_image_check(check: dict) -> bool:
+    return check.get("reachable_image") is True or isinstance(check.get("status"), int)
+
+
+def merge_image_checks(checks: dict, updates: dict) -> None:
+    for url, result in updates.items():
+        if authoritative_image_check(result) or url not in checks:
+            checks[url] = result
 
 
 def related_candidates(products: list[dict], sources: dict[int, dict]) -> dict[str, list[int]]:
@@ -111,8 +138,10 @@ def crawl_candidate(product_id: int, crawler_root: Path, work_dir: Path, page_li
     source_path = work_dir / "sources" / f"{product_id}.json"
     if product_path.exists() and source_path.exists():
         product = complete_metadata(json.loads(product_path.read_text(encoding="utf-8")))
+        source = refresh_source_options(json.loads(source_path.read_text(encoding="utf-8")), product_id)
         product_path.write_text(json.dumps(product, ensure_ascii=False, indent=2), encoding="utf-8")
-        return product, json.loads(source_path.read_text(encoding="utf-8"))
+        source_path.write_text(json.dumps(source, ensure_ascii=False, indent=2), encoding="utf-8")
+        return product, source
 
     if str(crawler_root) not in sys.path:
         sys.path.insert(0, str(crawler_root))
@@ -163,11 +192,28 @@ def ensure_checks(source: dict, checks: dict, limiter: RateLimit, work_dir: Path
         urls.add(gallery[0])
     changed = False
     for url in sorted(urls):
-        if url not in checks:
+        if url not in checks or not authoritative_image_check(checks[url]):
             checks[url] = check_image(url, limiter)
             changed = True
     if changed:
         (work_dir / "image_checks.json").write_text(json.dumps(checks, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def recheck_current_images(output: Path, checks: dict, work_dir: Path) -> None:
+    urls = set()
+    for path in (output / "data").rglob("*.json") if (output / "data").exists() else []:
+        product = json.loads(path.read_text(encoding="utf-8"))
+        urls.update(row["image_url"] for row in product.get("color_image_mappings") or [])
+        urls.update(row["image_url"] for row in product.get("related_color_products") or [])
+    limiter = RateLimit(0.25)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(check_image, url, limiter): url for url in sorted(urls)}
+        for index, future in enumerate(concurrent.futures.as_completed(futures), 1):
+            url = futures[future]
+            merge_image_checks(checks, {url: future.result()})
+            if index % 100 == 0:
+                print("rechecked_images", index, "/", len(urls), flush=True)
+    (work_dir / "image_checks.json").write_text(json.dumps(checks, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def enriched(product: dict, decision: dict) -> dict:
@@ -180,6 +226,9 @@ def enriched(product: dict, decision: dict) -> dict:
 def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], checks: dict,
                  attempted: Counter, per_category: int) -> dict:
     output.mkdir(parents=True, exist_ok=True)
+    if (output / "data").exists():
+        for path in (output / "data").rglob("*.json"):
+            path.unlink()
     used_urls = set()
     priority_counts = Counter()
     for category, rows in selected.items():
@@ -194,6 +243,7 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
               "selected_by_category": {category: len(selected[category]) for category in CATEGORIES},
               "selected_by_priority": dict(sorted(priority_counts.items())),
               "additional_candidates_attempted": dict(attempted),
+              "excluded_products": {str(key): value for key, value in EXCLUDED_PRODUCTS.items()},
               "complete": all(len(selected[category]) == per_category for category in CATEGORIES)}
     (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "image_checks.json").write_text(
@@ -209,8 +259,10 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
 def run(args: argparse.Namespace) -> dict:
     args.work_dir.mkdir(parents=True, exist_ok=True)
     products = load_products(args.source_zip)
-    sources = load_sources(products, args.evidence_dir)
+    sources = load_sources(products, args.evidence_dir, args.work_dir)
     checks = load_checks(args.evidence_dir, args.work_dir)
+    if args.recheck_current_images:
+        recheck_current_images(args.output, checks, args.work_dir)
     selected = defaultdict(list)
     selected_ids = set()
     for product in products:
@@ -257,4 +309,5 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--per-category", type=int, default=100)
     parser.add_argument("--page-interval", type=float, default=2.2)
+    parser.add_argument("--recheck-current-images", action="store_true")
     print(json.dumps(run(parser.parse_args()), ensure_ascii=False), flush=True)

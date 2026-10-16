@@ -20,6 +20,11 @@ from pathlib import Path
 NEXT_DATA = re.compile(r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
 HEADERS = {"User-Agent": "Mozilla/5.0", "Accept": "text/html,application/json,*/*"}
 OPTION_SIZE_SUFFIX = re.compile(r"^(.+?)[\s/_-]+((?:[2-5]?X{0,3}[SML]|FREE|ONE\s*SIZE|OS|\d{2,3}(?:\.5)?))$", re.I)
+DELIVERY_ANNOTATION = re.compile(
+    r"\s*[\(\[\{][^()\[\]{}]*(?:예약|일반)\s*(?:발송|배송)[^()\[\]{}]*[\)\]\}]\s*"
+    r"|\s*(?:\d{1,2}\s*[/.-]\s*\d{1,2}\s*)?(?:예약|일반)\s*(?:발송|배송)\s*",
+    re.I,
+)
 
 
 class RateLimit:
@@ -55,8 +60,14 @@ def full_image_url(value):
     return value
 
 
+def normalize_color_option_label(value: object) -> str:
+    label = re.sub(r"\s+", " ", str(value or "")).strip()
+    label = DELIVERY_ANNOTATION.sub(" ", label)
+    return re.sub(r"\s+", " ", label).strip(" -_/|,()[]{}")
+
+
 def extract_option_links(options: dict, product_id: int) -> tuple[list[dict], list[dict]]:
-    images, color_links = [], []
+    images, selected_colors = [], {}
     for group in options.get("basic", []):
         group_name = str(group.get("name") or "")
         is_color_group = any(word in group_name.lower() for word in ("컬러", "색상", "color", "colour"))
@@ -71,6 +82,7 @@ def extract_option_links(options: dict, product_id: int) -> tuple[list[dict], li
             size = None
             if split and (is_color_group or is_size_group):
                 color, size = split.groups()
+            color = normalize_color_option_label(color) if color else None
             record = {
                 "source_product_id": product_id, "image_product_id": product_id,
                 "option_group": group_name, "option_label": label,
@@ -79,8 +91,11 @@ def extract_option_links(options: dict, product_id: int) -> tuple[list[dict], li
             }
             images.append(record)
             if color:
-                color_links.append(record)
-    return images, color_links
+                rank = (2 if "예약" in label else 1 if "일반" in label else 0, label)
+                previous = selected_colors.get(color)
+                if previous is None or rank < previous[0]:
+                    selected_colors[color] = (rank, record)
+    return images, [value[1] for value in selected_colors.values()]
 
 
 def extract_evidence(html: str, expected_id: int) -> dict:
@@ -108,12 +123,15 @@ def extract_evidence(html: str, expected_id: int) -> dict:
             continue
         for item in tab.get("curationGoodsList", []):
             url = full_image_url(item.get("imageUrl"))
-            if not url or not item.get("goodsNo") or not item.get("displayColorText"):
+            raw_color = item.get("displayColorText")
+            color = normalize_color_option_label(raw_color)
+            if not url or not item.get("goodsNo") or not color:
                 continue
             mappings.append({
                 "source_product_id": expected_id,
                 "image_product_id": item["goodsNo"],
-                "color_raw": item["displayColorText"],
+                "color_raw": color,
+                "color_source_raw": raw_color,
                 "product_name": item.get("goodsName"),
                 "image_url": url,
                 "evidence": "OtherColorGoods.OTHER_COLOR",
@@ -193,6 +211,9 @@ def check_image(url: str, limiter: RateLimit) -> dict:
             header = response.read(64)
             signature = header.startswith((b"\xff\xd8\xff", b"\x89PNG", b"GIF8")) or (header[:4] == b"RIFF" and header[8:12] == b"WEBP") or b"ftypavif" in header[:32]
             return {"method": "GET", "status": response.status, "content_type": mime, "image_signature": bool(signature), "reachable_image": bool(response.status == 200 and signature)}
+    except urllib.error.HTTPError as exc:
+        return {"method": "GET", "status": exc.code, "reachable_image": False,
+                "error": str(exc)[:200]}
     except Exception as exc:
         return {"reachable_image": False, "error": str(exc)[:200]}
 

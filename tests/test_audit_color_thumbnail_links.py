@@ -2,7 +2,13 @@ import json
 
 import pytest
 
-from scripts.audit_color_thumbnail_links import RateLimit, check_image, extract_evidence, full_image_url
+from scripts.audit_color_thumbnail_links import (
+    RateLimit,
+    check_image,
+    extract_evidence,
+    full_image_url,
+    normalize_color_option_label,
+)
 
 
 def page(tabs, options=None, returned_id=123):
@@ -77,3 +83,15 @@ def test_image_signature_accepts_image_when_cdn_sends_plain_text_mime(monkeypatc
     assert result["image_signature"] is True
     assert result["reachable_image"] is True
     assert result["content_type"] == "text/plain"
+
+
+def test_delivery_annotations_merge_into_one_color_and_prefer_normal_shipping():
+    assert normalize_color_option_label("BLACK(10/6 예약발송)") == "BLACK"
+    assert normalize_color_option_label("BLACK 일반 발송") == "BLACK"
+    result = extract_evidence(page([], {"basic": [{"name": "색상", "optionValues": [
+        {"name": "BLACK(10/6 예약발송)", "imageUrl": "/images/goods/option-value/123/reserved.jpg"},
+        {"name": "BLACK(일반 발송)", "imageUrl": "/images/goods/option-value/123/normal.jpg"},
+    ]}]}), 123)
+    assert len(result["color_image_links"]) == 1
+    assert result["color_image_links"][0]["color_raw"] == "BLACK"
+    assert result["color_image_links"][0]["option_label"] == "BLACK(일반 발송)"
