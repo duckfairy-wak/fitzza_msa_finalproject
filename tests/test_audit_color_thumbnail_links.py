@@ -93,7 +93,7 @@ def test_extensionless_thumbnail_uses_browser_renderable_original_url():
 
     assert full_image_url(thumbnail) == (
         "https://image.msscdn.net/images/goods/option-value/2837412/"
-        "20251230104447_option_69532e8f74da01.40124921."
+        "20251230104447_option_69532e8f74da01.40124921%2E"
     )
 
 

@@ -57,8 +57,12 @@ def full_image_url(value):
         return None
     if "/color_image/" in parts.path:
         return None
-    if parts.hostname == "image.msscdn.net" and parts.path.startswith("/thumbnails/images/") and parts.path.endswith("."):
-        parts = parts._replace(path=parts.path.removeprefix("/thumbnails"))
+    path = parts.path
+    if parts.hostname == "image.msscdn.net" and path.startswith("/thumbnails/images/") and path.endswith("."):
+        path = path.removeprefix("/thumbnails")
+    if parts.hostname == "image.msscdn.net" and path.endswith("."):
+        path = path[:-1] + "%2E"
+    parts = parts._replace(path=path)
     return parts.geturl()
 
 

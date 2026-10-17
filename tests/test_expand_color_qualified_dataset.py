@@ -6,6 +6,7 @@ from scripts.expand_color_qualified_dataset import (
     load_sources,
     merge_image_checks,
     normalize_embedded_image_urls,
+    product_option_image_urls,
     related_candidates,
 )
 
@@ -80,7 +81,7 @@ def test_embedded_option_image_url_is_normalized():
 
     assert result["options"][0]["values"][0]["image_url"] == (
         "https://image.msscdn.net/images/goods/option-value/2837412/"
-        "20251230104447_option_69532e8f74da01.40124921."
+        "20251230104447_option_69532e8f74da01.40124921%2E"
     )
 
 
@@ -105,5 +106,19 @@ def test_pipeline_input_uses_normalized_verified_color_mappings():
     assert result["products_with_colors"] == 1
     assert result["colors"][0]["contexts"][0]["image_url"] == (
         "https://image.msscdn.net/images/goods/option-value/2837412/"
-        "20251230104447_option_69532e8f74da01.40124921."
+        "20251230104447_option_69532e8f74da01.40124921%2E"
     )
+
+
+def test_product_option_image_urls_collects_normalized_urls():
+    product = {"options": [{"values": [{
+        "image_url": (
+            "https://image.msscdn.net/images/goods/option-value/2837412/"
+            "20251230104447_option_69532e8f74da01.40124921%2E"
+        )
+    }]}]}
+
+    assert product_option_image_urls(product) == {
+        "https://image.msscdn.net/images/goods/option-value/2837412/"
+        "20251230104447_option_69532e8f74da01.40124921%2E"
+    }

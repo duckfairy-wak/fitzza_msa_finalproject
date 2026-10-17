@@ -217,6 +217,7 @@ def crawl_candidate(product_id: int, crawler_root: Path, work_dir: Path, page_li
 
 def ensure_checks(source: dict, checks: dict, limiter: RateLimit, work_dir: Path) -> None:
     urls = {link["image_url"] for link in source.get("color_image_links", [])}
+    urls.update(link["image_url"] for link in source.get("option_image_links", []))
     gallery = source.get("product_image_urls") or []
     if gallery:
         urls.add(gallery[0])
@@ -227,6 +228,16 @@ def ensure_checks(source: dict, checks: dict, limiter: RateLimit, work_dir: Path
             changed = True
     if changed:
         (work_dir / "image_checks.json").write_text(json.dumps(checks, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def product_option_image_urls(product: dict) -> set[str]:
+    urls = set()
+    for group in product.get("options") or []:
+        for value in group.get("values") or []:
+            image_url = full_image_url(value.get("image_url") or value.get("imageUrl"))
+            if image_url:
+                urls.add(image_url)
+    return urls
 
 
 def recheck_current_images(output: Path, checks: dict, work_dir: Path) -> None:
@@ -308,6 +319,7 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
             priority_counts[decision["priority"]] += 1
             used_urls.update(item["image_url"] for item in decision["mappings"] + decision["related"])
             output_product = enriched(product, decision)
+            used_urls.update(product_option_image_urls(output_product))
             written_products.append(output_product)
             (category_dir / f"{product['product_id']}.json").write_text(
                 json.dumps(output_product, ensure_ascii=False, indent=2), encoding="utf-8")
