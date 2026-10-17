@@ -18,10 +18,10 @@
       "subcategory": "니트/스웨터",
       "fit_type": "레귤러",
       "preference_spec": {
-        "top_length": 72.0,
-        "shoulder": 53.0,
-        "chest": 61.0,
-        "sleeve": 62.0
+        "총장": 72.0,
+        "어깨너비": 53.0,
+        "가슴단면": 61.0,
+        "소매길이": 62.0
       },
       "sample_count": 5
     },
@@ -31,10 +31,10 @@
       "subcategory": "후드 티셔츠",
       "fit_type": "오버 사이즈",
       "preference_spec": {
-        "top_length": 74.0,
-        "shoulder": 55.0,
-        "chest": 63.0,
-        "sleeve": 64.0
+        "총장": 74.0,
+        "어깨너비": 55.0,
+        "가슴단면": 63.0,
+        "소매길이": 64.0
       },
       "sample_count": 3
     },
@@ -44,10 +44,10 @@
       "subcategory": "데님 팬츠",
       "fit_type": "레귤러",
       "preference_spec": {
-        "bottom_length": 102.0,
-        "waist": 41.0,
-        "hip": 52.0,
-        "thigh": 31.0
+        "총장": 102.0,
+        "허리단면": 41.0,
+        "엉덩이단면": 52.0,
+        "허벅지단면": 31.0
       },
       "sample_count": 4
     },
@@ -57,10 +57,10 @@
       "subcategory": "슈트/블레이저 재킷",
       "fit_type": "레귤러",
       "preference_spec": {
-        "top_length": 75.0,
-        "shoulder": 52.0,
-        "chest": 58.0,
-        "sleeve": 63.0
+        "총장": 75.0,
+        "어깨너비": 52.0,
+        "가슴단면": 58.0,
+        "소매길이": 63.0
       },
       "sample_count": 2
     },
@@ -70,10 +70,10 @@
       "subcategory": "슈트 팬츠/슬랙스",
       "fit_type": "레귤러",
       "preference_spec": {
-        "bottom_length": 104.0,
-        "waist": 42.0,
-        "hip": 53.0,
-        "thigh": 32.0
+        "총장": 104.0,
+        "허리단면": 42.0,
+        "엉덩이단면": 53.0,
+        "허벅지단면": 32.0
       },
       "sample_count": 3
     }

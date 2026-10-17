@@ -163,13 +163,13 @@ class SizeCalculator:
                 fields = []
 
                 if category_type in ["top", "outer"]:
-                    fields = ["top_length", "shoulder", "chest", "sleeve", "top_hem", "cuff", "armhole"]
+                    fields = ["총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"]
                 elif category_type == "bottom":
-                    fields = ["bottom_length", "waist", "hip", "thigh", "rise", "bottom_hem"]
+                    fields = ["총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"]
                 elif category_type == "shoes":
-                    fields = ["foot_length", "foot_width", "ankle_height", "heel_height"]
+                    fields = ["발길이", "발볼", "발목높이", "굽높이"]
                 elif category_type == "hat":
-                    fields = ["head_circumference", "brim_length", "depth"]
+                    fields = ["머리둘레", "챙길이", "깊이"]
                 else:
                     continue
 

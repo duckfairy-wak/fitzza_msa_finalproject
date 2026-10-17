@@ -6,4 +6,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
-benchmark_results/
+benchmark_results/
+data/*.db
