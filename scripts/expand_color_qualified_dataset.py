@@ -27,12 +27,26 @@ from scripts.collect_color_qualified_pilot import CATEGORIES, EXCLUDED_PRODUCTS,
 CATEGORY_NAMES = {"상의": "상의", "바지": "하의", "하의": "하의", "신발": "신발", "아우터": "아우터", "모자": "모자"}
 
 
+def normalize_embedded_image_urls(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: (full_image_url(child) or child)
+            if key in {"image_url", "imageUrl"} and isinstance(child, str)
+            else normalize_embedded_image_urls(child)
+            for key, child in value.items()
+        }
+    if isinstance(value, list):
+        return [normalize_embedded_image_urls(child) for child in value]
+    return value
+
+
 def logical_category(product: dict) -> str | None:
     category = product.get("category") or {}
     return CATEGORY_NAMES.get(category.get("categoryDepth1Name") or category.get("categoryDepth1Title"))
 
 
 def complete_metadata(product: dict) -> dict:
+    product = normalize_embedded_image_urls(product)
     category = logical_category(product)
     season = product.setdefault("season", {})
     original = season.get("original") or []
@@ -239,6 +253,45 @@ def enriched(product: dict, decision: dict) -> dict:
                                  "image_verified_by": "GET_response_and_file_signature"}}
 
 
+def build_pipeline_input(products: list[dict]) -> dict:
+    colors = defaultdict(list)
+    products_with_colors = 0
+    for product in products:
+        mappings = product.get("color_image_mappings") or []
+        sibling_colors = list(dict.fromkeys(
+            str(mapping.get("color_raw") or "").strip()
+            for mapping in mappings
+            if str(mapping.get("color_raw") or "").strip()
+        ))
+        if sibling_colors:
+            products_with_colors += 1
+        logical_category = product["dataset"]["logical_category"]
+        category = (product.get("category") or {}).get("categoryDepth1Name") or logical_category
+        for mapping in mappings:
+            color = str(mapping.get("color_raw") or "").strip()
+            image_url = full_image_url(mapping.get("image_url"))
+            if not color or not image_url:
+                continue
+            colors[color].append({
+                "product_id": product["product_id"],
+                "product_name": product.get("name"),
+                "category": category,
+                "sibling_colors": sibling_colors,
+                "image_url": image_url,
+                "source_file": f"{logical_category}/{product['product_id']}.json",
+            })
+    return {
+        "schema_version": "1.0",
+        "source_product_count": len(products),
+        "products_with_colors": products_with_colors,
+        "unique_color_count": len(colors),
+        "colors": [
+            {"color_raw": color, "contexts": colors[color]}
+            for color in sorted(colors)
+        ],
+    }
+
+
 def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], checks: dict,
                  attempted: Counter, per_category: int) -> dict:
     output.mkdir(parents=True, exist_ok=True)
@@ -247,14 +300,17 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
             path.unlink()
     used_urls = set()
     priority_counts = Counter()
+    written_products = []
     for category, rows in selected.items():
         category_dir = output / "data" / category
         category_dir.mkdir(parents=True, exist_ok=True)
         for product, decision in rows:
             priority_counts[decision["priority"]] += 1
             used_urls.update(item["image_url"] for item in decision["mappings"] + decision["related"])
+            output_product = enriched(product, decision)
+            written_products.append(output_product)
             (category_dir / f"{product['product_id']}.json").write_text(
-                json.dumps(enriched(product, decision), ensure_ascii=False, indent=2), encoding="utf-8")
+                json.dumps(output_product, ensure_ascii=False, indent=2), encoding="utf-8")
     report = {"selected_total": sum(map(len, selected.values())),
               "selected_by_category": {category: len(selected[category]) for category in CATEGORIES},
               "selected_by_priority": dict(sorted(priority_counts.items())),
@@ -264,9 +320,12 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
     (output / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "image_checks.json").write_text(
         json.dumps({url: checks[url] for url in sorted(used_urls)}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (output / "pipeline_input.json").write_text(
+        json.dumps(build_pipeline_input(written_products), ensure_ascii=False, indent=2), encoding="utf-8")
     with zipfile.ZipFile(output / "color_qualified_dataset_500.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         archive.write(output / "report.json", "report.json")
         archive.write(output / "image_checks.json", "image_checks.json")
+        archive.write(output / "pipeline_input.json", "pipeline_input.json")
         for path in sorted((output / "data").rglob("*.json")):
             archive.write(path, "data/" + path.relative_to(output / "data").as_posix())
     return report
@@ -274,7 +333,7 @@ def write_output(output: Path, selected: dict[str, list[tuple[dict, dict]]], che
 
 def run(args: argparse.Namespace) -> dict:
     args.work_dir.mkdir(parents=True, exist_ok=True)
-    products = load_products(args.source_zip)
+    products = [complete_metadata(product) for product in load_products(args.source_zip)]
     sources = load_sources(products, args.evidence_dir, args.work_dir)
     checks = load_checks(args.evidence_dir, args.work_dir)
     page_limiter, api_limiter, image_limiter = RateLimit(args.page_interval), RateLimit(0.5), RateLimit(0.4)

@@ -2,8 +2,10 @@ import json
 
 from scripts.expand_color_qualified_dataset import (
     complete_metadata,
+    build_pipeline_input,
     load_sources,
     merge_image_checks,
+    normalize_embedded_image_urls,
     related_candidates,
 )
 
@@ -64,3 +66,44 @@ def test_load_sources_falls_back_to_expansion_work_cache(tmp_path):
 
     assert sources[123]["option_image_links"] == []
     assert sources[123]["color_image_links"] == []
+
+
+def test_embedded_option_image_url_is_normalized():
+    product = {"options": [{"values": [{
+        "image_url": (
+            "https://image.msscdn.net/thumbnails/images/goods/option-value/2837412/"
+            "20251230104447_option_69532e8f74da01.40124921."
+        )
+    }]}]}
+
+    result = normalize_embedded_image_urls(product)
+
+    assert result["options"][0]["values"][0]["image_url"] == (
+        "https://image.msscdn.net/images/goods/option-value/2837412/"
+        "20251230104447_option_69532e8f74da01.40124921."
+    )
+
+
+def test_pipeline_input_uses_normalized_verified_color_mappings():
+    product = {
+        "product_id": 2837412,
+        "name": "셔츠",
+        "category": {"categoryDepth1Name": "상의"},
+        "dataset": {"logical_category": "상의"},
+        "color_image_mappings": [{
+            "color_raw": "BLACK",
+            "image_url": (
+                "https://image.msscdn.net/thumbnails/images/goods/option-value/2837412/"
+                "20251230104447_option_69532e8f74da01.40124921."
+            ),
+        }],
+    }
+
+    result = build_pipeline_input([product])
+
+    assert result["source_product_count"] == 1
+    assert result["products_with_colors"] == 1
+    assert result["colors"][0]["contexts"][0]["image_url"] == (
+        "https://image.msscdn.net/images/goods/option-value/2837412/"
+        "20251230104447_option_69532e8f74da01.40124921."
+    )
