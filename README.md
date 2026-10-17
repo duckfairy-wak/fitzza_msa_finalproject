@@ -154,7 +154,7 @@ C:\inspire\final-project\fashion-crawler-starter\.venv\Scripts\python.exe -m scr
   --recheck-current-images
 ```
 
-`--recheck-current-images`는 기존 결과가 사용하는 이미지 URL을 다시 GET 검증할 때만 지정합니다. DNS 실패 같은 일시적 연결 오류는 이전의 정상 판정을 덮어쓰지 않고, 실제 HTTP 응답이 확인된 실패만 반영합니다. 결과는 `data/<카테고리>/*.json` 500개, `report.json`, `image_checks.json`, `color_qualified_dataset_500.zip`입니다. 목표를 채우지 못하면 `report.json`의 `complete`가 `false`가 되며 검증되지 않은 상품으로 수량을 보충하지 않습니다.
+`--recheck-current-images`는 기존 결과가 사용하는 이미지 URL을 다시 GET 검증할 때만 지정합니다. DNS 실패 같은 일시적 연결 오류는 이전의 정상 판정을 덮어쓰지 않고, 실제 HTTP 응답이 확인된 실패만 반영합니다. 이미지 시그니처와 함께 `Content-Type: image/*`도 확인하여 브라우저에서 직접 표시되지 않는 `text/plain` 응답은 사용하지 않습니다. 확장자가 없는 무신사 썸네일 URL은 동일한 원본 이미지 경로로 정규화합니다. 결과는 `data/<카테고리>/*.json` 500개, `report.json`, `image_checks.json`, `color_qualified_dataset_500.zip`입니다. 목표를 채우지 못하면 `report.json`의 `complete`가 `false`가 되며 검증되지 않은 상품으로 수량을 보충하지 않습니다.
 
 ## 디렉터리
 

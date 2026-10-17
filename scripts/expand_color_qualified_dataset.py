@@ -13,7 +13,14 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from scripts.audit_color_thumbnail_links import HEADERS, RateLimit, check_image, extract_evidence, extract_option_links
+from scripts.audit_color_thumbnail_links import (
+    HEADERS,
+    RateLimit,
+    check_image,
+    extract_evidence,
+    extract_option_links,
+    full_image_url,
+)
 from scripts.collect_color_qualified_pilot import CATEGORIES, EXCLUDED_PRODUCTS, classify, load_products
 
 
@@ -68,9 +75,18 @@ def load_sources(products: list[dict], evidence_dir: Path, work_dir: Path | None
 def refresh_source_options(source: dict, product_id: int) -> dict:
     images, links = extract_option_links(source.get("option_data") or {}, product_id)
     source["option_image_links"] = images
-    source["color_image_links"] = [
-        row for row in source.get("color_image_links", []) if row.get("scope") != "source_option"
-    ] + links
+    retained_links = []
+    for row in source.get("color_image_links", []):
+        if row.get("scope") == "source_option":
+            continue
+        image_url = full_image_url(row.get("image_url"))
+        if image_url:
+            retained_links.append({**row, "image_url": image_url})
+    source["color_image_links"] = retained_links + links
+    source["product_image_urls"] = list(dict.fromkeys(
+        image_url for value in source.get("product_image_urls", [])
+        if (image_url := full_image_url(value))
+    ))
     return source
 
 
@@ -261,8 +277,11 @@ def run(args: argparse.Namespace) -> dict:
     products = load_products(args.source_zip)
     sources = load_sources(products, args.evidence_dir, args.work_dir)
     checks = load_checks(args.evidence_dir, args.work_dir)
+    page_limiter, api_limiter, image_limiter = RateLimit(args.page_interval), RateLimit(0.5), RateLimit(0.4)
     if args.recheck_current_images:
         recheck_current_images(args.output, checks, args.work_dir)
+    for source in sources.values():
+        ensure_checks(source, checks, image_limiter, args.work_dir)
     selected = defaultdict(list)
     selected_ids = set()
     for product in products:
@@ -276,7 +295,6 @@ def run(args: argparse.Namespace) -> dict:
 
     candidates = related_candidates(products, sources)
     attempted = Counter()
-    page_limiter, api_limiter, image_limiter = RateLimit(args.page_interval), RateLimit(0.5), RateLimit(0.4)
     for category in CATEGORIES:
         if len(selected[category]) >= args.per_category:
             continue

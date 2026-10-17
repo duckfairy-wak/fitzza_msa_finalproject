@@ -64,7 +64,7 @@ def test_combined_color_size_option_preserves_color_and_real_product_id():
     assert link["image_product_id"] == 123
 
 
-def test_image_signature_accepts_image_when_cdn_sends_plain_text_mime(monkeypatch):
+def test_image_signature_rejects_plain_text_mime(monkeypatch):
     class Response:
         status = 200
         headers = {"Content-Type": "text/plain"}
@@ -81,8 +81,20 @@ def test_image_signature_accepts_image_when_cdn_sends_plain_text_mime(monkeypatc
     monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: Response())
     result = check_image("https://image.msscdn.net/example", RateLimit(0))
     assert result["image_signature"] is True
-    assert result["reachable_image"] is True
+    assert result["reachable_image"] is False
     assert result["content_type"] == "text/plain"
+
+
+def test_extensionless_thumbnail_uses_browser_renderable_original_url():
+    thumbnail = (
+        "https://image.msscdn.net/thumbnails/images/goods/option-value/2837412/"
+        "20251230104447_option_69532e8f74da01.40124921."
+    )
+
+    assert full_image_url(thumbnail) == (
+        "https://image.msscdn.net/images/goods/option-value/2837412/"
+        "20251230104447_option_69532e8f74da01.40124921."
+    )
 
 
 def test_delivery_annotations_merge_into_one_color_and_prefer_normal_shipping():

@@ -57,7 +57,9 @@ def full_image_url(value):
         return None
     if "/color_image/" in parts.path:
         return None
-    return value
+    if parts.hostname == "image.msscdn.net" and parts.path.startswith("/thumbnails/images/") and parts.path.endswith("."):
+        parts = parts._replace(path=parts.path.removeprefix("/thumbnails"))
+    return parts.geturl()
 
 
 def normalize_color_option_label(value: object) -> str:
@@ -210,7 +212,9 @@ def check_image(url: str, limiter: RateLimit) -> dict:
             mime = response.headers.get("Content-Type", "").split(";")[0]
             header = response.read(64)
             signature = header.startswith((b"\xff\xd8\xff", b"\x89PNG", b"GIF8")) or (header[:4] == b"RIFF" and header[8:12] == b"WEBP") or b"ftypavif" in header[:32]
-            return {"method": "GET", "status": response.status, "content_type": mime, "image_signature": bool(signature), "reachable_image": bool(response.status == 200 and signature)}
+            return {"method": "GET", "status": response.status, "content_type": mime,
+                    "image_signature": bool(signature),
+                    "reachable_image": bool(response.status == 200 and mime.startswith("image/") and signature)}
     except urllib.error.HTTPError as exc:
         return {"method": "GET", "status": exc.code, "reachable_image": False,
                 "error": str(exc)[:200]}
