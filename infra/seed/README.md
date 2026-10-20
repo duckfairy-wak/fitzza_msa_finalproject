@@ -24,6 +24,7 @@ docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < inf
 `product_service_seed.sql`은 `product_id`=무신사 번호, `option_id`=DB IDENTITY(`source_option_id`에 무신사 옵션 번호) 기준이다. Java musinsa JSON 시드와 별개 픽스처.
 
 주문 시드의 `option_id`는 `source_option_id=21092422`로 조회한다. 무신사 옵션 번호를 `option_id`에 직접 넣지 않는다.
+주문 시드 재실행 시 `order_id`·`order_item_id`는 보존한다(리뷰·설문 참조 유지).
 
 재실행 시 이미지·실측·wishlist·worldcup은 `product_id=4695999` 범위로 갱신하고,
 기존 `source_option_id`의 `option_id`는 보존한다(장바구니·주문에 묶인 옵션 ID 유지).
