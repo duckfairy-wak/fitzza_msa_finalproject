@@ -9,6 +9,7 @@ from typing import Any, Optional
 from app.api.vton import _run_background_vton
 from app.clients.sqs_client import SqsClient, SqsClientError
 from app.core.config import Settings, get_settings
+from app.core.tracing import setup_tracing
 
 logger = logging.getLogger("vton_worker")
 logging.basicConfig(
@@ -153,6 +154,8 @@ class VtonWorker:
 
 
 def main() -> None:
+    # 워커는 SQS 메시지로 작업을 받아 HTTP 요청이 없으므로 httpx 호출만 추적한다(API 요청과는 별개 trace).
+    setup_tracing("vton-worker")
     worker = VtonWorker()
 
     def _sig_handler(signum: int, _frame: Any) -> None:

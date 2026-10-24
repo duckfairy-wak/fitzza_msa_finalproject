@@ -17,6 +17,7 @@ from app.api.recommendations import (
     internal_router,
     public_router,
 )
+from app.core.tracing import setup_tracing
 from app.schemas.common import HealthResponse
 
 
@@ -49,6 +50,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.ready = True
+setup_tracing("recommendation-service", app)
 
 
 def _mount_router_routes(

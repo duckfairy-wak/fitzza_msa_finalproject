@@ -19,6 +19,7 @@ from PIL import Image
 from fastapi.routing import APIRoute
 
 from app.api.vton import router as vton_router
+from app.core.tracing import setup_tracing
 from app.services.vton_generator import (
     DEFAULT_MODEL,
     SUPPORTED_CATEGORIES,
@@ -64,6 +65,7 @@ app = FastAPI(
 )
 app.state.ready = True
 _mount_router_routes(app, vton_router)
+setup_tracing("vton-service", app)
 
 
 
