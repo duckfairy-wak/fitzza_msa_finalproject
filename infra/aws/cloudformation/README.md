@@ -18,6 +18,7 @@ This directory provisions the first deployable AWS baseline for the approved Fit
 - EKS managed add-ons for VPC CNI, CoreDNS, kube-proxy, Pod Identity, and EBS CSI
 - An EKS Pod Identity role for AWS Load Balancer Controller v3.6.0
 - A private, encrypted, versioned S3 bucket for crawler and AI pipeline data
+- A CloudFront OAC distribution that can read only `public/product-images/*` from that private bucket
 - Immutable ECR repositories for the 11 services, Crawler, and FashionCLIP
 
 The single NAT Gateway is a temporary cost decision for this project. It is a single-AZ outbound dependency and must be reconsidered before production use.
@@ -205,6 +206,51 @@ Do not rerun an old source revision whose deployspec predates the namespace-only
 - The EKS control plane and NAT Gateway charge continuously while the stack exists.
 - The S3 Gateway Endpoint avoids NAT processing charges for S3 traffic.
 - Delete the stack after the project, then manually review retained S3 data.
+- Mirrored product images add S3 storage and request charges plus CloudFront request and data-transfer
+  charges. `PriceClass_100` limits edge locations, while content-addressed object keys and immutable
+  caching reduce repeat origin reads. Review the current S3 and CloudFront pricing before deployment.
+
+## Product image audit and migration
+
+The product API currently returns externally hosted image URLs. Some source-CDN objects return `404`
+when the browser sends the `https://app.fitzza.site/` referrer even though a direct request succeeds.
+Run the migration in three reviewed phases. The commands below write reports locally; only the mirror
+command with its explicit flag writes to S3, and no command connects to PostgreSQL.
+
+1. Audit all representative, detail, option, size-guide, and color-mapping image references:
+
+   ```powershell
+   python scripts/migrate_product_images.py audit `
+     --output artifacts/product-image-audit.json
+   ```
+
+2. Deploy the reviewed foundation change. Record the `DataBucketName` and `ProductImageBaseUrl`
+   outputs. Keep Block Public Access enabled; CloudFront OAC is allowed to read only the image prefix.
+
+3. Mirror verified image bytes. The script checks the AWS account, validates image media type and
+   signature, uses content-addressed immutable keys, refuses conflicting objects, and reads metadata
+   back after upload:
+
+   ```powershell
+   python scripts/migrate_product_images.py mirror `
+     --manifest artifacts/product-image-audit.json `
+     --output artifacts/product-image-mapping.json `
+     --sql-output artifacts/product-image-migration.sql `
+     --account-id <AWS_ACCOUNT_ID> `
+     --bucket <DataBucketName> `
+     --public-base-url <ProductImageBaseUrl> `
+     --apply-s3-writes
+   ```
+
+The generated SQL starts a transaction but ends with `ROLLBACK`. Execute it against a maintenance or
+staging copy first, inspect affected row counts and sample CloudFront URLs, and replace the final line
+with `COMMIT` only for the reviewed production run. Each update includes the product/option/sequence
+identity and the expected old URL, so a concurrently changed row is not overwritten.
+
+Keep frontend `referrerPolicy="no-referrer"` and an image fallback until the migration is complete.
+Before production operation, enable encrypted CloudTrail S3 data events for the image prefix, review
+CloudFront standard metrics and alarms, and choose an access-logging destination with its own retention
+and encryption policy. These observability features can add request, ingestion, and storage charges.
 - ECR repositories use `EmptyOnDelete` so stack deletion can remove build images.
 - The data bucket is retained on stack deletion to prevent accidental data loss.
 

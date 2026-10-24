@@ -12,7 +12,7 @@ REQUIRED_KEYS = (
     "POSTGRES_USER", "POSTGRES_PASSWORD", "REDIS_PASSWORD", "JWT_SECRET",
     "COMMUNITY_SERVICE_TOKEN", "ORDER_SERVICE_TOKEN", "RECOMMENDATION_SERVICE_TOKEN",
     "VTON_SERVICE_TOKEN", "PRODUCT_SERVICE_TOKEN", "REVIEW_SERVICE_TOKEN",
-    "RECOMMENDATION_REDIS_URL", "VTON_REDIS_URL",
+    "RECOMMENDATION_REDIS_URL", "VTON_REDIS_URL", "OPENAI_API_KEY",
 )
 
 
@@ -61,7 +61,7 @@ def main() -> int:
                    "metadata": {"name": "fitzza-app-secrets", "namespace": "fitzza"},
                    "stringData": values}, sys.stdout)
     else:
-        print("Application Secret validation passed (12 keys; values withheld).")
+        print("Application Secret validation passed (13 keys; values withheld).")
     return 0
 
 

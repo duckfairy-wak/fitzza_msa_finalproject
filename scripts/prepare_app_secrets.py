@@ -15,7 +15,7 @@ except ModuleNotFoundError:
     from validate_app_secrets import validate
 
 
-def prepare(username: str, password: str) -> dict[str, str]:
+def prepare(username: str, password: str, openai_api_key: str) -> dict[str, str]:
     if not username or not username.strip():
         raise ValueError("A database username is required")
     # PostgreSQL RDS master passwords: 8–128 printable ASCII characters,
@@ -24,7 +24,10 @@ def prepare(username: str, password: str) -> dict[str, str]:
         ord(char) < 33 or ord(char) > 126 or char in '/"@' for char in password
     ):
         raise ValueError("Invalid RDS PostgreSQL password")
+    if not openai_api_key or not openai_api_key.strip():
+        raise ValueError("An OpenAI API key is required")
     values = {"POSTGRES_USER": username, "POSTGRES_PASSWORD": password,
+              "OPENAI_API_KEY": openai_api_key,
               "REDIS_PASSWORD": secrets.token_urlsafe(32), "JWT_SECRET": secrets.token_urlsafe(48)}
     for service in ("COMMUNITY", "ORDER", "RECOMMENDATION", "VTON", "PRODUCT", "REVIEW"):
         values[f"{service}_SERVICE_TOKEN"] = secrets.token_urlsafe(32)
@@ -48,7 +51,8 @@ def main() -> int:
         confirmation = getpass.getpass("Confirm RDS password: ")
         if password != confirmation:
             raise ValueError("Password confirmation mismatch")
-        values = prepare(args.username, password)
+        openai_api_key = getpass.getpass("OpenAI API key: ")
+        values = prepare(args.username, password, openai_api_key)
     except (ValueError, EOFError, KeyboardInterrupt):
         print("Credential preparation failed; no values emitted.", file=sys.stderr)
         return 1

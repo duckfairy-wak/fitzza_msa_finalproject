@@ -2,7 +2,7 @@ spring:
   application:
     name: review-service
   config:
-    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
   # 별점은 정수(#65). 4.5 같은 소수를 4로 바꿔 받지 않고 400으로 거절한다.
   jackson:
     deserialization:

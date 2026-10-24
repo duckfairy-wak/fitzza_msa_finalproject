@@ -39,7 +39,7 @@ FITZZA-221의 [payer 관리자용 예산 설정 요청안·수동 점검표](../
    [AWS 전환 동작](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html).
 3. 자격 증명은 승인된 SSM SecureString에 보관한다. 비밀값을 CLI 인자,
    터미널 출력, Git, Jira, 로그, 빌드 아티팩트에 기록하지 않는다.
-   애플리케이션 키 계약은 `infra/k8s/base/secret.example.yaml`의 12개 키다.
+   애플리케이션 키 계약은 `infra/k8s/base/secret.example.yaml`의 13개 키다.
    하나의 JSON 파라미터 `/fitzza/prod/app-secrets`를 사용할 경우 4 KiB 이하인지 검증한다.
    `python scripts/prepare_app_secrets.py`로 터미널에서 DB 암호를 숨김 입력하고
    키 계약을 검사할 수 있다. 기본 모드는 값 출력·파일 저장·AWS 호출이 없다.
@@ -67,6 +67,17 @@ FITZZA-221의 [payer 관리자용 예산 설정 요청안·수동 점검표](../
    stdout에 Secret을 출력하거나 파일로 저장하지 않는다.
    Redis URL의 비밀번호는 URL 인코딩하고 내부 주소 `redis:6379`를 사용한다.
    recommendation DB는 `/1`, VTON DB는 `/0`이다.
+   Secret 적용 직후 `vton-service`와 `vton-worker`를 모두 재시작하고 롤아웃을
+   기다린다. `envFrom`으로 주입된 값은 기존 Pod 환경에 자동 반영되지 않는다.
+
+   ```bash
+   kubectl --context VERIFIED_FITZZA_CONTEXT -n fitzza rollout restart \
+     deployment/vton-service deployment/vton-worker
+   kubectl --context VERIFIED_FITZZA_CONTEXT -n fitzza rollout status \
+     deployment/vton-service --timeout=300s
+   kubectl --context VERIFIED_FITZZA_CONTEXT -n fitzza rollout status \
+     deployment/vton-worker --timeout=300s
+   ```
 6. DB 인증, Redis 인증, 앱 연결 및 재기동을 확인한다. 회전은 이제 운영자가
    담당하므로 SSM·DB·Kubernetes 값을 함께 갱신하는 절차를 기록한다.
    전환 실패 시 SSM의 이전 값만 복원해 끝내지 말고 실제 DB 비밀번호와

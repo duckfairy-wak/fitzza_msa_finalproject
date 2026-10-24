@@ -19,6 +19,11 @@ class FittingItemInput(BaseModel):
 
 
 class FittingCreateRequest(BaseModel):
+    requestId: int | None = Field(
+        default=None,
+        description="추천 요청 ID (추천 대화 연동용)",
+        json_schema_extra={"example": 6},
+    )
     photoId: int | None = Field(
         default=None,
         description="사용자 전신 사진 ID (현재 미구현 시 기본 아바타로 피팅 진행)",
@@ -117,6 +122,11 @@ class FittingDetailResponse(BaseModel):
         description="피팅 요청 사용자 ID",
         json_schema_extra={"example": 7},
     )
+    requestId: int | None = Field(
+        default=None,
+        description="가상 피팅을 요청했던 추천 대화의 requestId",
+        json_schema_extra={"example": 6},
+    )
     userImageUrl: str | None = Field(
         default=None,
         description="사용자 원본 얼굴/전신 사진 URL (요청 시 업로드한 경우)",
@@ -157,6 +167,11 @@ class FittingSummaryResponse(BaseModel):
     userId: int = Field(
         description="피팅 요청 사용자 ID",
         json_schema_extra={"example": 7},
+    )
+    requestId: int | None = Field(
+        default=None,
+        description="가상 피팅을 요청했던 추천 대화의 requestId",
+        json_schema_extra={"example": 6},
     )
     status: Literal["PENDING", "COMPLETED", "FAILED"] = Field(
         description="피팅 진행 상태",

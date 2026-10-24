@@ -372,6 +372,47 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
+  ProductImageOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Description: !Sub '${ProjectName}-${Environment} private product image origin'
+        Name: !Sub '${ProjectName}-${Environment}-product-images'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  ProductImageDistribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: serve mirrored product images without exposing the pipeline bucket
+        must:
+          - allow only the public/product-images prefix through OAC
+          - redirect viewers to HTTPS
+          - keep immutable image objects cached
+    Properties:
+      DistributionConfig:
+        Comment: !Sub '${ProjectName}-${Environment} mirrored product images'
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          TargetOriginId: ProductImageS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - DomainName: !GetAtt DataBucket.RegionalDomainName
+            Id: ProductImageS3Origin
+            OriginAccessControlId: !Ref ProductImageOriginAccessControl
+            OriginPath: /public/product-images
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        PriceClass: PriceClass_100
+
   DataBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Metadata:
@@ -394,6 +435,17 @@ Resources:
             Condition:
               Bool:
                 aws:SecureTransport: 'false'
+          - Sid: AllowProductImageCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${DataBucket.Arn}/public/product-images/*'
+            Condition:
+              StringEquals:
+                AWS:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${ProductImageDistribution}'
 
   S3GatewayEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -1341,6 +1393,12 @@ Outputs:
   DataBucketName:
     Description: Private pipeline data bucket name
     Value: !Ref DataBucket
+  ProductImageDistributionId:
+    Description: CloudFront distribution ID for mirrored product images
+    Value: !Ref ProductImageDistribution
+  ProductImageBaseUrl:
+    Description: Public base URL for objects below public/product-images
+    Value: !Sub 'https://${ProductImageDistribution.DomainName}'
   EcrRepositoryPrefixUri:
     Description: Registry URI prefix used by buildspec.yml
     Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepositoryPrefix}'

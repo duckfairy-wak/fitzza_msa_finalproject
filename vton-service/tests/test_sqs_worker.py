@@ -193,7 +193,7 @@ def test_vton_worker_process_message_success(mock_boto_sqs, sqs_settings):
         },
     }
 
-    with patch("app.worker._run_background_vton") as mock_run_vton:
+    with patch("app.worker._run_background_vton", return_value=True) as mock_run_vton:
         success = worker.process_message(msg)
         assert success is True
         mock_run_vton.assert_called_once_with(
@@ -230,9 +230,6 @@ def test_vton_worker_process_message_failure_sends_to_dlq(mock_boto_sqs, sqs_set
         success = worker.process_message(msg)
         assert success is False
 
-        # Message should NOT be deleted from main queue (so it can be retried or moved)
-        mock_boto_sqs.delete_message.assert_not_called()
-
         # Should be sent to DLQ
         mock_boto_sqs.send_message.assert_called_once()
         dlq_call = mock_boto_sqs.send_message.call_args.kwargs
@@ -240,6 +237,48 @@ def test_vton_worker_process_message_failure_sends_to_dlq(mock_boto_sqs, sqs_set
         sent_body = json.loads(dlq_call["MessageBody"])
         assert sent_body["fitting_id"] == 99
         assert "OpenAI API Down" in sent_body["_dlq_error"]
+        mock_boto_sqs.delete_message.assert_called_once_with(
+            QueueUrl=sqs_settings.aws_sqs_queue_url,
+            ReceiptHandle="handle-err",
+        )
+
+
+def test_vton_worker_treats_reported_pipeline_failure_as_failure(mock_boto_sqs, sqs_settings):
+    sqs_client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
+    worker = VtonWorker(settings=sqs_settings, sqs_client=sqs_client)
+    msg = {
+        "receipt_handle": "handle-failed",
+        "body": {"fitting_id": 100, "user_id": 7, "product_ids": [201]},
+    }
+
+    with patch("app.worker._run_background_vton", return_value=False):
+        success = worker.process_message(msg)
+
+    assert success is False
+    mock_boto_sqs.send_message.assert_called_once()
+    mock_boto_sqs.delete_message.assert_called_once_with(
+        QueueUrl=sqs_settings.aws_sqs_queue_url,
+        ReceiptHandle="handle-failed",
+    )
+
+
+def test_vton_worker_keeps_source_message_when_dlq_send_fails(mock_boto_sqs, sqs_settings):
+    mock_boto_sqs.send_message.side_effect = ClientError(
+        {"Error": {"Code": "ServiceUnavailable", "Message": "DLQ unavailable"}},
+        "SendMessage",
+    )
+    sqs_client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
+    worker = VtonWorker(settings=sqs_settings, sqs_client=sqs_client)
+    msg = {
+        "receipt_handle": "handle-retry",
+        "body": {"fitting_id": 101, "user_id": 7, "product_ids": [201]},
+    }
+
+    with patch("app.worker._run_background_vton", return_value=False):
+        success = worker.process_message(msg)
+
+    assert success is False
+    mock_boto_sqs.delete_message.assert_not_called()
 
 
 def test_vton_worker_run_stops_after_max_iterations(mock_boto_sqs, sqs_settings):

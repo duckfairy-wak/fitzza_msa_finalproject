@@ -147,7 +147,7 @@ def _run_background_vton(
     request_id_header: str | None = None,
     user_face_bytes: bytes | None = None,
     item_image_urls: dict[int, str] | None = None,
-) -> None:
+) -> bool:
     """백그라운드에서 상품 조회, AI 피팅 합성, 결과 이미지 저장, DB 업데이트 및 FCM 알림을 수행합니다."""
     settings = get_settings()
     repo = get_repo()
@@ -266,6 +266,7 @@ def _run_background_vton(
             request_id_header=request_id_header,
         )
         logger.info("비동기 가상 피팅 성공 완료 (fittingId=%s)", fitting_id)
+        return True
 
     except Exception as exc:
         err_msg = str(exc) or type(exc).__name__
@@ -288,6 +289,7 @@ def _run_background_vton(
             fitting_id=fitting_id,
             request_id_header=request_id_header,
         )
+        return False
 
 
 MAX_PHOTO_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
@@ -322,6 +324,7 @@ def list_user_fittings(
             FittingSummaryResponse(
                 fittingId=item["fittingId"],
                 userId=item["userId"],
+                requestId=item.get("requestId"),
                 status=item["status"],
                 resultImageUrl=item["resultImageUrl"] if item["status"] == "COMPLETED" else None,
                 userImageUrl=user_img_url,
@@ -354,6 +357,12 @@ def list_user_fittings(
                         "type": "object",
                         "required": ["items"],
                         "properties": {
+                            "requestId": {
+                                "type": "integer",
+                                "nullable": True,
+                                "description": "추천 요청 ID (추천 대화 연동용)",
+                                "example": 6,
+                            },
                             "photoId": {
                                 "type": "integer",
                                 "nullable": True,
@@ -394,6 +403,11 @@ def list_user_fittings(
                         "type": "object",
                         "required": ["items"],
                         "properties": {
+                            "requestId": {
+                                "type": "integer",
+                                "description": "추천 요청 ID (추천 대화 연동용)",
+                                "example": 6,
+                            },
                             "items": {
                                 "type": "string",
                                 "description": "피팅할 상품 및 추천 색상별 이미지 목록 JSON 문자열 (예: '[{\"productId\": 101, \"imageUrl\": \"https://...\"}]')",
@@ -426,12 +440,22 @@ async def request_fitting(
     content_type = request.headers.get("content-type", "").lower()
     product_ids: list[int] = []
     photo_id: int | None = None
+    request_id: int | None = None
     user_face_bytes: bytes | None = None
     item_image_urls: dict[int, str] = {}
 
     # 1. 멀티파트 폼 데이터 처리 (userImage 파일 업로드와 productIds/items 동시 수신)
     if "multipart/form-data" in content_type:
         form = await request.form()
+        raw_req_id = form.get("requestId")
+        if raw_req_id is not None and str(raw_req_id).strip():
+            try:
+                request_id = int(str(raw_req_id).strip())
+            except (ValueError, TypeError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="requestId는 유효한 정수여야 합니다.",
+                ) from exc
         raw_items_str = form.get("items")
         raw_values = form.getlist("productIds")
 
@@ -558,6 +582,7 @@ async def request_fitting(
             req = FittingCreateRequest.model_validate(body)
             product_ids = req.productIds or []
             photo_id = req.photoId
+            request_id = req.requestId
             if req.items:
                 for it in req.items:
                     if it.imageUrl and it.imageUrl.strip():
@@ -591,6 +616,7 @@ async def request_fitting(
         user_id=x_user_id,
         photo_id=photo_id,
         product_ids=unique_product_ids,
+        request_id=request_id,
     )
 
     result_image_url = _resolve_result_image_url(fitting_id, request)
@@ -602,6 +628,7 @@ async def request_fitting(
             "fitting_id": fitting_id,
             "user_id": x_user_id,
             "photo_id": photo_id,
+            "request_id": request_id,
             "product_ids": unique_product_ids,
             "result_image_url": result_image_url,
             "request_id_header": x_request_id,
@@ -666,6 +693,7 @@ def get_fitting(
     return FittingDetailResponse(
         fittingId=detail["fittingId"],
         userId=detail["userId"],
+        requestId=detail.get("requestId"),
         userImageUrl=user_img_url,
         status=detail["status"],
         resultImageUrl=detail["resultImageUrl"] if detail["status"] == "COMPLETED" else None,

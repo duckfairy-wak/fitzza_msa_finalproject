@@ -10,7 +10,7 @@ KUBECTL_TIMEOUT_SECONDS = 960
 APPLICATIONS = (
     "user-service", "product-service", "order-service", "community-service",
     "review-service", "notification-service", "recommendation-service",
-    "vton-service", "gateway-service",
+    "vton-service", "vton-worker", "gateway-service",
 )
 
 

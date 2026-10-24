@@ -5,7 +5,7 @@ spring:
   application:
     name: order-service
   config:
-    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitzza}
     username: ${POSTGRES_USER:postgres}
@@ -38,7 +38,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
 

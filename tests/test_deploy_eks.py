@@ -7,6 +7,7 @@ from scripts.deploy_eks import APPLICATIONS, deploy
 
 
 def test_base_rollouts_finish_before_application_apply():
+    assert "vton-worker" in APPLICATIONS
     with patch("scripts.deploy_eks.subprocess.run") as run:
         deploy("rendered.yaml")
     commands = [call.args[0] for call in run.call_args_list]

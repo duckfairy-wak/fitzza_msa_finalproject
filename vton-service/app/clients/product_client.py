@@ -128,7 +128,11 @@ class ProductServiceClient:
 
         if product_info:
             product_name = str(product_info.get("productName") or f"상품 #{product_id}")
-            price = int(product_info.get("price") or 0)
+            # 정상가(normalPrice)를 우선 사용하고, 없을 경우 판매가(price)로 폴백
+            raw_price = product_info.get("normalPrice")
+            if raw_price is None or raw_price == 0:
+                raw_price = product_info.get("price")
+            price = int(raw_price or 0)
             image_url = str(product_info.get("thumbnailUrl") or "")
             cat_l1 = str(product_info.get("categoryL1Name") or "").strip()
             if cat_l1 in SUPPORTED_CATEGORIES:

@@ -14,6 +14,7 @@ import com.fitzza.community.dto.LikeStatusResponse;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
 import com.fitzza.community.notification.CommentCreatedEvent;
+import com.fitzza.community.notification.CommentReplyCreatedEvent;
 import com.fitzza.community.repository.CommentLikeRepository;
 import com.fitzza.community.repository.CommentRepository;
 import com.fitzza.community.repository.IdCount;
@@ -108,15 +109,19 @@ public class CommentService {
     }
 
     // 다른 사람이 단 댓글·답글이면 글 작성자에게 알림을 보낸다. 실제 전송은 커밋 뒤에 한다.
+    // 답글이면 원댓글 작성자에게도 알린다. 본인 댓글에 단 답글이거나, 원댓글 작성자가 글 작성자라 이미 알림을 받는 경우는 빼서 중복을 막는다.
     // 투표글이면 커밋 뒤 별도 스레드에서 이 댓글이 추천하는 선택지를 판정한다(실패해도 작성은 성공).
     @Transactional
     public CommentCreatedResponse create(Long userId, Long postId, CommentCreateRequest request) {
         Post post = postRepository
                 .findByIdAndDeletedAtIsNull(postId)
                 .orElseThrow(() -> new CommunityApiException(ErrorCode.POST_NOT_FOUND));
-        Comment comment = request.parentCommentId() == null
+        Comment parent = request.parentCommentId() == null
+                ? null
+                : findReplyTarget(postId, request.parentCommentId());
+        Comment comment = parent == null
                 ? Comment.create(postId, userId, request.content())
-                : Comment.replyTo(findReplyTarget(postId, request.parentCommentId()), userId, request.content());
+                : Comment.replyTo(parent, userId, request.content());
         Comment saved = commentRepository.save(comment);
         if (post.isVote()) {
             eventPublisher.publishEvent(new CommentSupportRequested(saved.getId()));
@@ -124,6 +129,10 @@ public class CommentService {
         if (!post.isWrittenBy(userId)) {
             eventPublisher.publishEvent(
                     new CommentCreatedEvent(saved.getId(), postId, post.getUserId(), saved.getContent()));
+        }
+        if (parent != null && !parent.isWrittenBy(userId) && !post.isWrittenBy(parent.getUserId())) {
+            eventPublisher.publishEvent(
+                    new CommentReplyCreatedEvent(saved.getId(), postId, parent.getUserId(), saved.getContent()));
         }
         return new CommentCreatedResponse(saved.getId());
     }

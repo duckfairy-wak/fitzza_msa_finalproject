@@ -383,6 +383,9 @@ spec:
                 secretKeyRef: { name: fitzza-app-secrets, key: VTON_REDIS_URL }
             - name: QUEUE_BACKEND
               value: sqs
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef: { name: fitzza-app-secrets, key: OPENAI_API_KEY }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }

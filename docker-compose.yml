@@ -1,21 +1,37 @@
 name: fitzza
 
-x-java-environment: &java-environment
-  CONFIG_SERVER_URL: http://config-service:8888
-  EUREKA_URL: http://discovery-service:8761/eureka/
+x-postgres-environment: &postgres-environment
   POSTGRES_HOST: postgres
   POSTGRES_PORT: 5432
   POSTGRES_DB: ${POSTGRES_DB:-fitzza}
   POSTGRES_USER: ${POSTGRES_USER:-fitzza}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitzza_local}
-  REDIS_HOST: redis
-  REDIS_PORT: 6379
-  REDIS_PASSWORD: ${REDIS_PASSWORD:-fitzza_local}
+
+x-aws-environment: &aws-environment
   AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
   AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
   AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-2}
   AWS_ENDPOINT_URL: http://localstack:4566
+
+x-redis-environment: &redis-environment
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-fitzza_local}
+
+x-jwt-environment: &jwt-environment
   JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+  JWT_ACCESS_EXPIRATION_SECONDS: ${JWT_ACCESS_EXPIRATION_SECONDS:-900}
+  JWT_REFRESH_EXPIRATION_SECONDS: ${JWT_REFRESH_EXPIRATION_SECONDS:-2592000}
+  REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+
+x-service-urls: &service-urls
+  CONFIG_SERVICE_URL: ${CONFIG_SERVICE_URL:-http://config-service:8888}
+  DISCOVERY_SERVICE_URL: ${DISCOVERY_SERVICE_URL:-http://discovery-service:8761/eureka/}
+  USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8081}
+  PRODUCT_SERVICE_URL: ${PRODUCT_SERVICE_URL:-http://product-service:8082}
+  NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:8086}
+  RECOMMENDATION_SERVICE_URL: ${RECOMMENDATION_SERVICE_URL:-http://recommendation-service:8000}
+  VTON_SERVICE_URL: ${VTON_SERVICE_URL:-http://vton-service:8000}
 
 x-domain-dependencies: &domain-dependencies
   config-service:
@@ -35,9 +51,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-fitzza}
-      POSTGRES_USER: ${POSTGRES_USER:-fitzza}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitzza_local}
+      <<: *postgres-environment
     ports:
       - "5432:5432"
     volumes:
@@ -53,7 +67,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-fitzza_local}"]
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-fitzza_local}
+      <<: *redis-environment
     ports:
       - "6379:6379"
     volumes:
@@ -113,12 +127,13 @@ services:
   user-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: user-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *jwt-environment
+        - *postgres-environment
+        - *redis-environment
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
       RECOMMENDATION_SERVICE_TOKEN: ${RECOMMENDATION_SERVICE_TOKEN:-}
-      JWT_EXPIRATION_SECONDS: ${JWT_EXPIRATION_SECONDS:-900}
-      JWT_REFRESH_EXPIRATION_SECONDS: ${JWT_REFRESH_EXPIRATION_SECONDS:-2592000}
-      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
       USER_SERVICE_DB_USER: ${USER_SERVICE_DB_USER:-${POSTGRES_USER:-fitzza}}
       USER_SERVICE_DB_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-${POSTGRES_PASSWORD:-fitzza_local}}
     depends_on: *domain-dependencies
@@ -129,7 +144,11 @@ services:
   product-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: product-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
+        - *redis-environment
+        - *aws-environment
       PRODUCT_SERVICE_DB_USER: ${PRODUCT_SERVICE_DB_USER:-${POSTGRES_USER:-fitzza}}
       PRODUCT_SERVICE_DB_PASSWORD: ${PRODUCT_SERVICE_DB_PASSWORD:-${POSTGRES_PASSWORD:-fitzza_local}}
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
@@ -145,7 +164,9 @@ services:
   order-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: order-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
       ORDER_SERVICE_DB_USER: ${ORDER_SERVICE_DB_USER:-${POSTGRES_USER:-fitzza}}
       ORDER_SERVICE_DB_PASSWORD: ${ORDER_SERVICE_DB_PASSWORD:-${POSTGRES_PASSWORD:-fitzza_local}}
       ORDER_SERVICE_TOKEN: ${ORDER_SERVICE_TOKEN:?ORDER_SERVICE_TOKEN must be set}
@@ -159,10 +180,10 @@ services:
   community-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: community-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
-      RECOMMENDATION_SERVICE_URL: ${RECOMMENDATION_SERVICE_URL:-http://recommendation-service:8000}
-      VTON_SERVICE_URL: ${VTON_SERVICE_URL:-http://vton-service:8000}
       TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
       TYPESAFE_API_URL: ${TYPESAFE_API_URL:-https://api.typesafe.ai}
       JEV_SUPPORT_THRESHOLD: ${JEV_SUPPORT_THRESHOLD:-0.6}
@@ -177,9 +198,10 @@ services:
   review-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: review-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
       REVIEW_SERVICE_TOKEN: ${REVIEW_SERVICE_TOKEN:-}
-      RECOMMENDATION_SERVICE_URL: ${RECOMMENDATION_SERVICE_URL:-http://recommendation-service:8000}
       REVIEW_SERVICE_DB_USER: ${REVIEW_SERVICE_DB_USER:-${POSTGRES_USER:-fitzza}}
       REVIEW_SERVICE_DB_PASSWORD: ${REVIEW_SERVICE_DB_PASSWORD:-${POSTGRES_PASSWORD:-fitzza_local}}
     depends_on: *domain-dependencies
@@ -191,7 +213,9 @@ services:
   notification-service:
     build: { context: ., dockerfile: Dockerfile.java, args: { MODULE: notification-service } }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
       RECOMMENDATION_SERVICE_TOKEN: ${RECOMMENDATION_SERVICE_TOKEN:-}
       VTON_SERVICE_TOKEN: ${VTON_SERVICE_TOKEN:-}
@@ -210,10 +234,12 @@ services:
       dockerfile: Dockerfile.python
       args: { SERVICE_DIR: vton-service }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
+        - *redis-environment
+        - *aws-environment
       POSTGRES_SCHEMA: vton
-      PRODUCT_SERVICE_URL: http://product-service:8082
-      NOTIFICATION_SERVICE_URL: http://notification-service:8086
       VTON_SERVICE_TOKEN: ${VTON_SERVICE_TOKEN:-}
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -239,10 +265,12 @@ services:
       args: { SERVICE_DIR: vton-service }
     command: ["python", "-m", "app.worker"]
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
+        - *redis-environment
+        - *aws-environment
       POSTGRES_SCHEMA: vton
-      PRODUCT_SERVICE_URL: http://product-service:8082
-      NOTIFICATION_SERVICE_URL: http://notification-service:8086
       VTON_SERVICE_TOKEN: ${VTON_SERVICE_TOKEN:-}
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -263,13 +291,13 @@ services:
       dockerfile: Dockerfile.python
       args: { SERVICE_DIR: recommendation-service }
     environment:
-      <<: *java-environment
+      <<:
+        - *service-urls
+        - *postgres-environment
+        - *redis-environment
       REDIS_URL: redis://:${REDIS_PASSWORD:-fitzza_local}@redis:6379/1
       QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      USER_SERVICE_URL: http://user-service:8081
-      PRODUCT_SERVICE_URL: http://product-service:8082
-      NOTIFICATION_SERVICE_URL: http://notification-service:8086
       RECOMMENDATION_SERVICE_TOKEN: ${RECOMMENDATION_SERVICE_TOKEN:-}
       COMMUNITY_SERVICE_TOKEN: ${COMMUNITY_SERVICE_TOKEN:?COMMUNITY_SERVICE_TOKEN must be set}
       PRODUCT_SERVICE_TOKEN: ${PRODUCT_SERVICE_TOKEN:-}
@@ -289,9 +317,10 @@ services:
       dockerfile: Dockerfile.java
       args: { MODULE: gateway-service }
     environment:
-      <<: *java-environment
-      VTON_SERVICE_URL: http://vton-service:8000
-      RECOMMENDATION_URL: http://recommendation-service:8000
+      <<:
+        - *service-urls
+        - *jwt-environment
+        - *redis-environment
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       config-service: { condition: service_healthy }

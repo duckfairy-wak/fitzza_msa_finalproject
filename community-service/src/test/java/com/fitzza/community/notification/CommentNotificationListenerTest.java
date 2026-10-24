@@ -27,6 +27,20 @@ class CommentNotificationListenerTest {
     }
 
     @Test
+    void sendsAReplyNotificationToTheParentCommentAuthorWithItsOwnEventId() {
+        listener.onReplyCreated(new CommentReplyCreatedEvent(101L, 10L, 8L, "저도 그렇게 생각해요"));
+
+        ArgumentCaptor<NotificationEvent> captor = ArgumentCaptor.forClass(NotificationEvent.class);
+        verify(notificationSender).send(captor.capture());
+        NotificationEvent event = captor.getValue();
+        assertThat(event.eventId()).isEqualTo("comment-reply-101");
+        assertThat(event.type()).isEqualTo("COMMENT");
+        assertThat(event.userId()).isEqualTo(8L);
+        assertThat(event.targetId()).isEqualTo("10");
+        assertThat(event.content()).isEqualTo("내 댓글에 답글이 달렸어요: 저도 그렇게 생각해요");
+    }
+
+    @Test
     void longCommentsAreCutToAShortSingleLineExcerpt() {
         String longComment = "가".repeat(30) + "\n\n" + "나".repeat(30);
 

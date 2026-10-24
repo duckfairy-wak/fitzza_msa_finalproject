@@ -24,6 +24,7 @@ import com.fitzza.community.dto.LikeStatusResponse;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
 import com.fitzza.community.notification.CommentCreatedEvent;
+import com.fitzza.community.notification.CommentReplyCreatedEvent;
 import com.fitzza.community.repository.CommentLikeRepository;
 import com.fitzza.community.repository.CommentRepository;
 import com.fitzza.community.repository.IdCount;
@@ -46,6 +47,7 @@ class CommentServiceTest {
     private static final Long VOTE_POST_ID = 12L;
     private static final Long AUTHOR_ID = 7L;
     private static final Long OTHER_ID = 8L;
+    private static final Long THIRD_ID = 9L;
 
     private final CommentRepository commentRepository = mock(CommentRepository.class);
     private final CommentLikeRepository commentLikeRepository = mock(CommentLikeRepository.class);
@@ -162,6 +164,49 @@ class CommentServiceTest {
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().postAuthorId()).isEqualTo(AUTHOR_ID);
         assertThat(captor.getValue().postId()).isEqualTo(POST_ID);
+    }
+
+    @Test
+    void postAuthorReplyingToAnotherUsersCommentNotifiesOnlyTheCommentAuthor() {
+        Comment parent = comment(1L, POST_ID, OTHER_ID, "원 댓글");
+        when(commentRepository.findById(1L)).thenReturn(Optional.of(parent));
+
+        commentService.create(AUTHOR_ID, POST_ID, new CommentCreateRequest("  감사합니다  ", 1L));
+
+        verify(eventPublisher).publishEvent(new CommentReplyCreatedEvent(100L, POST_ID, OTHER_ID, "감사합니다"));
+        verify(eventPublisher, never()).publishEvent(any(CommentCreatedEvent.class));
+    }
+
+    @Test
+    void thirdUserReplyNotifiesBothThePostAuthorAndTheCommentAuthor() {
+        Comment parent = comment(1L, POST_ID, OTHER_ID, "원 댓글");
+        when(commentRepository.findById(1L)).thenReturn(Optional.of(parent));
+
+        commentService.create(THIRD_ID, POST_ID, new CommentCreateRequest("저도요", 1L));
+
+        verify(eventPublisher).publishEvent(new CommentCreatedEvent(100L, POST_ID, AUTHOR_ID, "저도요"));
+        verify(eventPublisher).publishEvent(new CommentReplyCreatedEvent(100L, POST_ID, OTHER_ID, "저도요"));
+    }
+
+    @Test
+    void replyingToOwnCommentDoesNotNotifyTheCommentAuthor() {
+        Comment parent = comment(1L, POST_ID, OTHER_ID, "원 댓글");
+        when(commentRepository.findById(1L)).thenReturn(Optional.of(parent));
+
+        commentService.create(OTHER_ID, POST_ID, new CommentCreateRequest("덧붙임", 1L));
+
+        verify(eventPublisher).publishEvent(new CommentCreatedEvent(100L, POST_ID, AUTHOR_ID, "덧붙임"));
+        verify(eventPublisher, never()).publishEvent(any(CommentReplyCreatedEvent.class));
+    }
+
+    @Test
+    void replyToThePostAuthorsCommentDoesNotSendASecondNotification() {
+        Comment parent = comment(1L, POST_ID, AUTHOR_ID, "원 댓글");
+        when(commentRepository.findById(1L)).thenReturn(Optional.of(parent));
+
+        commentService.create(OTHER_ID, POST_ID, new CommentCreateRequest("답글입니다", 1L));
+
+        verify(eventPublisher, never()).publishEvent(any(CommentReplyCreatedEvent.class));
     }
 
     @Test

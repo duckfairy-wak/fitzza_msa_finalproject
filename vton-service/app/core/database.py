@@ -81,6 +81,7 @@ class VtonRepository:
                                 fitting_id BIGSERIAL PRIMARY KEY,
                                 user_id BIGINT NOT NULL,
                                 photo_id BIGINT,
+                                request_id BIGINT,
                                 status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
                                 result_image_url TEXT,
                                 error_message TEXT,
@@ -115,6 +116,7 @@ class VtonRepository:
                                 END IF;
                             END $$;
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+                            ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS request_id BIGINT;
 
                             CREATE INDEX IF NOT EXISTS idx_fittings_user_created
                                 ON {schema}.fittings (user_id, fitting_id DESC);
@@ -170,6 +172,7 @@ class VtonRepository:
                             fitting_id INTEGER PRIMARY KEY AUTOINCREMENT,
                             user_id INTEGER NOT NULL,
                             photo_id INTEGER,
+                            request_id INTEGER,
                             status TEXT NOT NULL DEFAULT 'PENDING',
                             result_image_url TEXT,
                             error_message TEXT,
@@ -179,11 +182,13 @@ class VtonRepository:
                         );
                         """
                     )
-                    # 기존 SQLite 테이블에 is_deleted 컬럼이 없을 경우 추가
+                    # 기존 SQLite 테이블에 컬럼 누락 시 보완
                     cur.execute("PRAGMA table_info(fittings);")
                     columns = [row[1] for row in cur.fetchall()]
                     if "is_deleted" not in columns:
                         cur.execute("ALTER TABLE fittings ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;")
+                    if "request_id" not in columns:
+                        cur.execute("ALTER TABLE fittings ADD COLUMN request_id INTEGER;")
 
                     cur.execute(
                         """
@@ -262,6 +267,7 @@ class VtonRepository:
         user_id: int,
         photo_id: int | None,
         product_ids: list[int],
+        request_id: int | None = None,
     ) -> int:
         now = self._now_iso()
         if self._use_postgres:
@@ -272,11 +278,11 @@ class VtonRepository:
                         cur.execute(
                             f"""
                             INSERT INTO {schema}.fittings (
-                                user_id, photo_id, status, created_at, updated_at
-                            ) VALUES (%s, %s, 'PENDING', %s, %s)
+                                user_id, photo_id, request_id, status, created_at, updated_at
+                            ) VALUES (%s, %s, %s, 'PENDING', %s, %s)
                             RETURNING fitting_id;
                             """,
-                            (user_id, photo_id, now, now),
+                            (user_id, photo_id, request_id, now, now),
                         )
                         fitting_id = int(cur.fetchone()["fitting_id"])
                         conn.commit()
@@ -289,10 +295,10 @@ class VtonRepository:
                     cur.execute(
                         """
                         INSERT INTO fittings (
-                            user_id, photo_id, status, created_at, updated_at
-                        ) VALUES (?, ?, 'PENDING', ?, ?);
+                            user_id, photo_id, request_id, status, created_at, updated_at
+                        ) VALUES (?, ?, ?, 'PENDING', ?, ?);
                         """,
-                        (user_id, photo_id, now, now),
+                        (user_id, photo_id, request_id, now, now),
                     )
                     fitting_id = int(cur.lastrowid)
                     conn.commit()
@@ -494,7 +500,7 @@ class VtonRepository:
                 with self._get_pg_connection() as conn:
                     with conn.cursor() as cur:
                         query = f"""
-                            SELECT fitting_id, user_id, photo_id, status,
+                            SELECT fitting_id, user_id, photo_id, request_id, status,
                                    result_image_url, error_message, is_deleted, created_at, updated_at
                             FROM {schema}.fittings
                             WHERE fitting_id = %s
@@ -522,7 +528,7 @@ class VtonRepository:
                 try:
                     cur = conn.cursor()
                     query = """
-                        SELECT fitting_id, user_id, photo_id, status,
+                        SELECT fitting_id, user_id, photo_id, request_id, status,
                                result_image_url, error_message, is_deleted, created_at, updated_at
                         FROM fittings
                         WHERE fitting_id = ?
@@ -563,6 +569,7 @@ class VtonRepository:
             "fittingId": int(fitting_row["fitting_id"]),
             "userId": int(fitting_row["user_id"]),
             "photoId": fitting_row["photo_id"],
+            "requestId": int(fitting_row["request_id"]) if fitting_row.get("request_id") is not None else None,
             "status": fitting_row["status"],
             "resultImageUrl": fitting_row["result_image_url"],
             "errorMessage": fitting_row["error_message"],
@@ -708,7 +715,7 @@ class VtonRepository:
                         # 목록 조회
                         cur.execute(
                             f"""
-                            SELECT fitting_id, user_id, photo_id, status,
+                            SELECT fitting_id, user_id, photo_id, request_id, status,
                                    result_image_url, error_message, created_at, updated_at
                             FROM {schema}.fittings
                             WHERE user_id = %s AND is_deleted = FALSE
@@ -750,6 +757,7 @@ class VtonRepository:
                                 "fittingId": fid,
                                 "userId": int(r["user_id"]),
                                 "photoId": r["photo_id"],
+                                "requestId": int(r["request_id"]) if r.get("request_id") is not None else None,
                                 "status": r["status"],
                                 "resultImageUrl": r["result_image_url"],
                                 "productCount": len(prods),
@@ -777,7 +785,7 @@ class VtonRepository:
 
                     cur.execute(
                         """
-                        SELECT fitting_id, user_id, photo_id, status,
+                        SELECT fitting_id, user_id, photo_id, request_id, status,
                                result_image_url, error_message, created_at, updated_at
                         FROM fittings
                         WHERE user_id = ? AND is_deleted = 0
@@ -819,6 +827,7 @@ class VtonRepository:
                             "fittingId": fid,
                             "userId": int(r["user_id"]),
                             "photoId": r["photo_id"],
+                            "requestId": int(r["request_id"]) if r.get("request_id") is not None else None,
                             "status": r["status"],
                             "resultImageUrl": r["result_image_url"],
                             "productCount": len(prods),

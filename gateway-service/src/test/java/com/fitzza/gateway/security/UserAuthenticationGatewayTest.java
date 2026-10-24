@@ -69,7 +69,7 @@ class UserAuthenticationGatewayTest {
             registry.add("spring.cloud.discovery.client.simple.instances." + service + "[0].uri",
                     () -> "http://127.0.0.1:" + DOWNSTREAM.port());
         }
-        registry.add("RECOMMENDATION_URL", () -> "http://127.0.0.1:" + DOWNSTREAM.port());
+        registry.add("RECOMMENDATION_SERVICE_URL", () -> "http://127.0.0.1:" + DOWNSTREAM.port());
     }
 
     @AfterAll

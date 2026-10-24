@@ -10,6 +10,7 @@ public class CommentNotificationListener {
 
     static final String NOTIFICATION_TYPE = "COMMENT";
     static final String MESSAGE_PREFIX = "내 게시글에 새 댓글이 달렸어요: ";
+    static final String REPLY_MESSAGE_PREFIX = "내 댓글에 답글이 달렸어요: ";
     static final int EXCERPT_LENGTH = 40;
 
     private final NotificationSender notificationSender;
@@ -29,6 +30,18 @@ public class CommentNotificationListener {
                 event.postAuthorId(),
                 String.valueOf(event.postId()),
                 MESSAGE_PREFIX + excerpt(event.content())));
+    }
+
+    // 답글 알림은 글 작성자에게 가는 댓글 알림과 같은 답글로 함께 나갈 수 있어, eventId를 따로 둔다.
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onReplyCreated(CommentReplyCreatedEvent event) {
+        notificationSender.send(new NotificationEvent(
+                "comment-reply-" + event.commentId(),
+                NOTIFICATION_TYPE,
+                event.parentAuthorId(),
+                String.valueOf(event.postId()),
+                REPLY_MESSAGE_PREFIX + excerpt(event.content())));
     }
 
     static String excerpt(String content) {

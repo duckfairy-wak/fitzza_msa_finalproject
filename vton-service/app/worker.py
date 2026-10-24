@@ -74,7 +74,9 @@ class VtonWorker:
             }
             if item_image_urls:
                 vton_kwargs["item_image_urls"] = item_image_urls
-            _run_background_vton(**vton_kwargs)
+            completed = _run_background_vton(**vton_kwargs)
+            if not completed:
+                raise RuntimeError("VTON background pipeline reported failure")
 
             # 2. 작업 성공 시 SQS 대기열에서 메시지 삭제
             if receipt_handle:
@@ -93,6 +95,8 @@ class VtonWorker:
             # DLQ 전송 시도
             try:
                 self.sqs_client.send_to_dlq(payload, error_message=str(exc))
+                if receipt_handle:
+                    self.sqs_client.delete_message(receipt_handle)
             except Exception as dlq_exc:
                 logger.warning("DLQ 전송 중 오류 발생: %s", dlq_exc)
             return False

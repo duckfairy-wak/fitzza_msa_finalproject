@@ -33,6 +33,7 @@ def test_valid_secret_matches_documented_keys():
 
 @pytest.mark.parametrize("key,value", [
     ("POSTGRES_PASSWORD", "CHANGE_ME"),
+    ("OPENAI_API_KEY", ""),
     ("JWT_SECRET", "short"),
     ("ORDER_SERVICE_TOKEN", None),
     ("POSTGRES_PASSWORD", "x" * 4096),

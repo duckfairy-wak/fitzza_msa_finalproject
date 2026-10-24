@@ -2,7 +2,7 @@ spring:
   application:
     name: community-service
   config:
-    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
 
 # user·notification·product의 서비스 전용 API를 호출할 때 붙이는 이 서비스의 토큰
 fitzza:

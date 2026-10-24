@@ -4,7 +4,7 @@ spring:
   application:
     name: gateway-service
   config:
-    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
   data:
     redis:
       repositories:
@@ -32,7 +32,7 @@ spring:
           filters:
             - RewritePath=/api/v1/(?<segment>.*), /api/$\{segment}
         - id: recommendation-service
-          uri: ${RECOMMENDATION_URL:http://localhost:8092}
+          uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8092}
           predicates: [Path=/api/v1/recommendations/**]
         - id: user-service
           uri: lb://user-service
@@ -122,7 +122,7 @@ jwt:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+      defaultZone: ${DISCOVERY_SERVICE_URL:http://localhost:8761/eureka/}
 management:
   endpoints:
     web:

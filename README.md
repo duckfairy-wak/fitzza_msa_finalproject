@@ -28,6 +28,12 @@ docker compose up --build -d
 
 Windows PowerShell에서는 `Copy-Item .env.example .env`를 사용합니다.
 
+VTON API와 SQS 워커는 `docker compose up --build -d vton-service vton-worker`로 실행합니다. 두 서비스는 각각 빌드·의존성을 정의하고 서비스 URL·PostgreSQL·Redis·AWS 환경변수 확장 필드를 직접 참조하며, 워커는 `python -m app.worker`로 실행하고 HTTP 포트를 공개하지 않습니다. 기존 `.env`를 사용할 때는 `VTON_QUEUE_BACKEND`를 `sqs`, `VTON_STORAGE_BACKEND`를 `s3`로 설정하고 큐·DLQ 주소를 `.env.example`의 LocalStack 주소에 맞추세요. API와 워커가 서로 다른 컨테이너이므로 이미지는 공통 S3 저장소를 사용해야 합니다. `memory` 큐 모드는 API 내부에서 처리하며 별도 워커에 작업을 전달하지 않습니다.
+
+Config Server 주소 환경변수는 `CONFIG_SERVICE_URL`입니다. Compose와 Kubernetes에서는 `http://config-service:8888`을 주입하며, IDE에서 직접 실행할 때는 기본값 `http://localhost:8888`을 사용합니다. 직접 실행 시 주소를 변경하려면 실행 설정의 환경변수에 지정합니다.
+
+서비스 디스커버리 주소 환경변수는 `DISCOVERY_SERVICE_URL`입니다. Compose와 Kubernetes에서는 `http://discovery-service:8761/eureka/`를 주입하며, IDE에서 직접 실행할 때는 기본값 `http://localhost:8761/eureka/`를 사용합니다. 직접 실행 시 `.env`는 자동으로 로드되지 않으므로 주소 변경이 필요하면 실행 설정의 환경변수에 지정합니다.
+
 `JWT_SECRET`은 user-service가 Access Token을 서명하고 gateway-service가 검증하는 데 함께 쓰는 32바이트 이상 문자열입니다. 로컬과 배포 환경 모두 `.env` 또는 환경 변수로 직접 설정해야 합니다. 값이 없거나 비어 있으면 Docker Compose가 시작되지 않습니다. `.env.example`에는 비밀값을 제공하지 않습니다.
 
 서비스끼리 호출하는 API는 `/api` 없이 시작하며(예: user-service `GET /users`, product-service `GET /products`, `GET /product-options`, order-service `GET /order-items/{orderItemId}`, notification-service `POST /notifications/events`) Gateway 라우트가 없습니다. Gateway에 `/api`로 시작하지 않는 라우트를 추가하지 않습니다. 호출하는 서비스는 자기 토큰을 `X-Service-Token` 헤더로 보내고, 받는 서비스는 API마다 허용한 서비스의 토큰인지 확인합니다. 현재 요청의 `X-User-Id`는 다른 서비스로 그대로 전달합니다. 토큰은 서비스마다 다른 32바이트 이상 값입니다.
@@ -49,7 +55,7 @@ user-service의 8081 포트와 notification-service의 8086 포트는 호스트�
 
 브라우저에서 Gateway를 호출할 FE 주소는 `CORS_ALLOWED_ORIGINS`(쉼표로 구분, 기본 `http://localhost:3000,http://localhost:5173`)로 정합니다. 목록에 없는 주소에서 온 브라우저 요청은 403으로 거부됩니다. 허용한 주소에서는 쿠키를 포함한 요청을 보낼 수 있습니다. Access Token은 `Authorization` 헤더로, Refresh Token은 HttpOnly 쿠키로 전달합니다.
 
-토큰 유효기간은 `JWT_EXPIRATION_SECONDS`(Access Token, 1~900초, 기본 15분)와 `JWT_REFRESH_EXPIRATION_SECONDS`(Refresh Token, 기본 30일)로 바꿀 수 있습니다. Refresh Token은 Redis에 저장합니다.
+토큰 유효기간은 `JWT_ACCESS_EXPIRATION_SECONDS`(Access Token, 1~900초, 기본 15분)와 `JWT_REFRESH_EXPIRATION_SECONDS`(Refresh Token, 기본 30일)로 바꿀 수 있습니다. Refresh Token은 Redis에 저장합니다.
 
 로그아웃(`POST /api/auth/signout`)은 쿠키의 Refresh Token을 Redis에서 지우고 쿠키를 만료시킵니다. `Authorization: Bearer <access-token>` 헤더를 함께 보내면 그 Access Token도 남은 만료 시간 동안 Redis 블랙리스트에 올라가고, Gateway는 블랙리스트에 있는 토큰을 401 `INVALID_TOKEN`으로 거부합니다. Gateway가 Redis를 조회하지 못하면 토큰이 실린 요청은 503 `AUTH_UNAVAILABLE`로 응답합니다.
 

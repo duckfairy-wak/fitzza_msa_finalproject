@@ -4,8 +4,8 @@ metadata:
   name: fitzza-app-config
 data:
   AWS_DEFAULT_REGION: ap-northeast-2
-  CONFIG_SERVER_URL: http://config-service:8888
-  EUREKA_URL: http://discovery-service:8761/eureka/
+  CONFIG_SERVICE_URL: http://config-service:8888
+  DISCOVERY_SERVICE_URL: http://discovery-service:8761/eureka/
   POSTGRES_HOST: CHANGE_ME_RDS_ENDPOINT
   POSTGRES_PORT: "5432"
   POSTGRES_DB: fitzza
@@ -13,7 +13,6 @@ data:
   REDIS_PORT: "6379"
   QDRANT_URL: http://qdrant:6333
   VTON_SERVICE_URL: http://vton-service:8000
-  RECOMMENDATION_URL: http://recommendation-service:8000
   RECOMMENDATION_SERVICE_URL: http://recommendation-service:8000
   USER_SERVICE_URL: http://user-service:8081
   PRODUCT_SERVICE_URL: http://product-service:8082

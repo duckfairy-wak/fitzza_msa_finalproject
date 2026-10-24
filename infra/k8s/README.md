@@ -19,7 +19,12 @@ The foundation S3 Gateway Endpoint separately admits that role only to the VTON 
 bucket. Keep `VTON_STORAGE_BACKEND=local` and `VTON_QUEUE_BACKEND=memory` until the
 association and endpoint access are verified; then switch both values together.
 
-Use `python scripts/validate_app_secrets.py` with JSON on stdin to validate all 12 keys without printing values or contacting AWS. The optional `--emit-manifest` writes sensitive JSON for direct piping to kubectl only. See the [pilot deployment runbook](../aws/cloudformation/PILOT_DEPLOYMENT.md) for the SSM transition, operating restrictions, and validation order.
+Use `python scripts/validate_app_secrets.py` with JSON on stdin to validate all 13 keys without printing values or contacting AWS. The optional `--emit-manifest` writes sensitive JSON for direct piping to kubectl only. See the [pilot deployment runbook](../aws/cloudformation/PILOT_DEPLOYMENT.md) for the SSM transition, operating restrictions, and validation order.
+
+After changing `fitzza-app-secrets`, restart every consuming Pod because environment
+variables sourced with `envFrom` are captured only when a Pod starts. In particular,
+restart and wait for both `vton-service` and `vton-worker`; verify only the presence of
+the `OPENAI_API_KEY` variable and never print its value.
 
 ## Values to replace
 

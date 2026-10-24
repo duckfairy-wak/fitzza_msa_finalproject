@@ -31,6 +31,17 @@ def test_artifact_endpoint_is_opt_in_and_account_scoped():
     assert "s3:::${DeliveryArtifactBucketName}/*" in template
 
 
+def test_product_images_use_private_s3_origin_and_prefix_scoped_cloudfront_access():
+    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    assert "Type: AWS::CloudFront::OriginAccessControl" in template
+    assert "SigningBehavior: always" in template
+    assert "OriginPath: /public/product-images" in template
+    assert "ViewerProtocolPolicy: redirect-to-https" in template
+    assert "Resource: !Sub '${DataBucket.Arn}/public/product-images/*'" in template
+    assert "AWS:SourceAccount: !Ref AWS::AccountId" in template
+    assert "AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${ProductImageDistribution}'" in template
+
+
 def test_vton_runtime_endpoint_access_is_role_and_bucket_scoped():
     template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
     assert "Sid: AllowVtonRuntimeAssets" in template
@@ -56,7 +67,12 @@ def test_delivery_overlay_excludes_operator_owned_resources():
     deployments = [d for d in documents if d["kind"] == "Deployment"]
     assert len(deployments) == 12
     vton_worker = next(d for d in deployments if d["metadata"]["name"] == "vton-worker")
-    assert vton_worker["spec"]["template"]["spec"]["containers"][0]["command"] == ["python", "-m", "app.worker"]
+    worker_container = vton_worker["spec"]["template"]["spec"]["containers"][0]
+    assert worker_container["command"] == ["python", "-m", "app.worker"]
+    openai_env = next(env for env in worker_container["env"] if env["name"] == "OPENAI_API_KEY")
+    assert openai_env["valueFrom"]["secretKeyRef"] == {
+        "name": "fitzza-app-secrets", "key": "OPENAI_API_KEY"
+    }
     assert all(d["spec"]["progressDeadlineSeconds"] == 900 for d in deployments)
     assert all(d["kind"] in {"Deployment", "Service", "ConfigMap", "Ingress"}
                for d in documents)

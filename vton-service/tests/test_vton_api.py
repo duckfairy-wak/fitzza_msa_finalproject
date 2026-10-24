@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -124,7 +125,7 @@ def test_background_vton_success_flow(tmp_path: Path) -> None:
     result_url = f"http://api.fitzza.com/api/vton/{fitting_id}/image"
 
     with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()):
-        _run_background_vton(
+        completed = _run_background_vton(
             fitting_id=fitting_id,
             user_id=7,
             photo_id=None,
@@ -132,6 +133,7 @@ def test_background_vton_success_flow(tmp_path: Path) -> None:
             result_image_url=result_url,
         )
 
+    assert completed is True
     detail = repo.get_fitting_detail(fitting_id)
     assert detail is not None
     assert detail["status"] == "COMPLETED"
@@ -157,7 +159,7 @@ def test_background_vton_failure_flow() -> None:
 
     fitting_id = repo.create_fitting(user_id=7, photo_id=1, product_ids=[101])
 
-    _run_background_vton(
+    completed = _run_background_vton(
         fitting_id=fitting_id,
         user_id=7,
         photo_id=1,
@@ -165,6 +167,7 @@ def test_background_vton_failure_flow() -> None:
         result_image_url="http://dummy/image",
     )
 
+    assert completed is False
     detail = repo.get_fitting_detail(fitting_id)
     assert detail is not None
     assert detail["status"] == "FAILED"
@@ -205,7 +208,7 @@ def test_background_vton_duplicate_category_flow() -> None:
 
     fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101, 102])
 
-    _run_background_vton(
+    completed = _run_background_vton(
         fitting_id=fitting_id,
         user_id=7,
         photo_id=None,
@@ -213,6 +216,7 @@ def test_background_vton_duplicate_category_flow() -> None:
         result_image_url="/api/vton/1/image",
     )
 
+    assert completed is False
     detail = repo.get_fitting_detail(fitting_id)
     assert detail is not None
     assert detail["status"] == "FAILED"
@@ -848,6 +852,122 @@ def test_resolve_product_item_prefers_override_image_url() -> None:
         assert item["imageUrl"] == override_url
         assert item["imageBytes"] == fake_png
         mock_fetch.assert_called_once_with(override_url)
+
+
+def test_resolve_product_item_prefers_normal_price() -> None:
+    client = ProductServiceClient()
+    fake_png = _create_sample_png()
+
+    # normalPrice가 있을 때 우선 반영되는지 검증
+    with patch.object(client, "fetch_product_image_bytes", return_value=fake_png), \
+         patch.object(client, "get_product", return_value={
+             "productName": "와이드 슬랙스",
+             "price": 26100,        # 세일가
+             "normalPrice": 29000,  # 정가 (우선순위)
+             "thumbnailUrl": "https://default-thumbnail.jpg",
+             "categoryL1Name": "하의",
+         }):
+        item = client.resolve_product_item(product_id=202)
+        assert item["productId"] == 202
+        assert item["price"] == 29000  # normalPrice 반영 확인
+        assert item["categoryName"] == "하의"
+
+    # normalPrice가 없거나 0일 때 세일가(price)로 폴백되는지 검증
+    with patch.object(client, "fetch_product_image_bytes", return_value=fake_png), \
+         patch.object(client, "get_product", return_value={
+             "productName": "와이드 슬랙스",
+             "price": 26100,
+             "normalPrice": None,
+             "thumbnailUrl": "https://default-thumbnail.jpg",
+             "categoryL1Name": "하의",
+         }):
+        item = client.resolve_product_item(product_id=202)
+        assert item["price"] == 26100  # price 폴백 확인
+
+
+
+def test_post_vton_with_request_id_json_and_get_detail() -> None:
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    set_dependencies_for_tests(repo=repo)
+
+    with patch("app.api.vton._run_background_vton"):
+        resp = client.post(
+            "/api/vton",
+            json={
+                "items": [{"productId": 101}],
+                "requestId": 6,
+            },
+            headers={"X-User-Id": "7"},
+        )
+        assert resp.status_code == 202
+        fitting_id = resp.json()["fittingId"]
+
+        # 상세 조회 검증
+        detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+        assert detail_resp.status_code == 200
+        detail_data = detail_resp.json()
+        assert detail_data["fittingId"] == fitting_id
+        assert detail_data["requestId"] == 6
+
+        # 목록 조회 검증
+        list_resp = client.get("/api/vton", headers={"X-User-Id": "7"})
+        assert list_resp.status_code == 200
+        list_data = list_resp.json()
+        assert len(list_data["items"]) >= 1
+        assert list_data["items"][0]["requestId"] == 6
+
+
+def test_post_vton_with_request_id_multipart_and_get_detail() -> None:
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    set_dependencies_for_tests(repo=repo)
+
+    fake_png = _create_sample_png()
+    files = {"userImage": ("face.png", fake_png, "image/png")}
+    data = {
+        "items": json.dumps([{"productId": 101}]),
+        "requestId": "15",
+    }
+
+    with patch("app.api.vton._run_background_vton"):
+        resp = client.post(
+            "/api/vton",
+            data=data,
+            files=files,
+            headers={"X-User-Id": "7"},
+        )
+        assert resp.status_code == 202
+        fitting_id = resp.json()["fittingId"]
+
+        detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+        assert detail_resp.status_code == 200
+        detail_data = detail_resp.json()
+        assert detail_data["fittingId"] == fitting_id
+        assert detail_data["requestId"] == 15
+
+
+def test_post_vton_with_invalid_multipart_request_id_returns_400() -> None:
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    set_dependencies_for_tests(repo=repo)
+
+    fake_png = _create_sample_png()
+    files = {"userImage": ("face.png", fake_png, "image/png")}
+    data = {
+        "items": json.dumps([{"productId": 101}]),
+        "requestId": "invalid_number",
+    }
+
+    resp = client.post(
+        "/api/vton",
+        data=data,
+        files=files,
+        headers={"X-User-Id": "7"},
+    )
+    assert resp.status_code == 400
+    assert "requestId" in resp.json()["message"]
+
 
 
 
