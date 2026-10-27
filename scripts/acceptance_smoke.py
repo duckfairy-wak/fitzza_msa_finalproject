@@ -26,7 +26,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 DEFAULT_TIMEOUT_SECONDS = 10
-ALLOWED_ORIGIN = "http://localhost:5173"
+ALLOWED_ORIGIN = os.getenv("SMOKE_ALLOWED_ORIGIN", "https://app.fitzza.site")
 DENIED_ORIGIN = "http://not-allowed.example"
 TOKEN_RE = re.compile(r"(Bearer\s+)([A-Za-z0-9._\-]+)|(\"accessToken\"\s*:\s*\")([^\"]+)")
 

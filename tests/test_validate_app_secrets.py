@@ -9,6 +9,16 @@ import pytest
 from scripts.validate_app_secrets import REQUIRED_KEYS, validate
 
 
+DB_SECRET_KEYS = {
+    "USER_SERVICE_DB_USER", "USER_SERVICE_DB_PASSWORD",
+    "PRODUCT_SERVICE_DB_USER", "PRODUCT_SERVICE_DB_PASSWORD",
+    "ORDER_SERVICE_DB_USER", "ORDER_SERVICE_DB_PASSWORD",
+    "COMMUNITY_SERVICE_DB_USER", "COMMUNITY_SERVICE_DB_PASSWORD",
+    "REVIEW_SERVICE_DB_USER", "REVIEW_SERVICE_DB_PASSWORD",
+    "NOTIFICATION_SERVICE_DB_USER", "NOTIFICATION_SERVICE_DB_PASSWORD",
+}
+
+
 def valid_values():
     values = dict.fromkeys(REQUIRED_KEYS, "test-only-token-" * 3)
     values["POSTGRES_USER"] = "fitzza_admin"
@@ -21,7 +31,7 @@ def valid_values():
 
 def test_valid_secret_matches_documented_keys():
     values = valid_values()
-    example = Path("infra/k8s/base/secret.example.yaml").read_text()
+    example = Path("infra/k8s/base/secret.example.yaml").read_text(encoding="utf-8")
     documented = {
         line.strip().split(":", 1)[0]
         for line in example.split("stringData:\n", 1)[1].splitlines()
@@ -29,6 +39,17 @@ def test_valid_secret_matches_documented_keys():
     }
     assert set(REQUIRED_KEYS) == documented
     assert validate(values) == values
+
+
+def test_database_secret_matches_documented_keys():
+    example = Path("infra/k8s/base/db-secret.example.yaml").read_text(encoding="utf-8")
+    documented = {
+        line.strip().split(":", 1)[0]
+        for line in example.split("stringData:\n", 1)[1].splitlines()
+        if line.startswith("  ") and not line.strip().startswith("#")
+    }
+    assert "name: fitzza-db-secrets" in example
+    assert documented == DB_SECRET_KEYS
 
 
 @pytest.mark.parametrize("key,value", [

@@ -8,9 +8,12 @@ This directory contains the local, credential-free Kubernetes deployment baselin
 - ECR repositories for every application image, with tag immutability enabled
 - An RDS PostgreSQL endpoint reachable from the private subnets
 - The existing operator-managed association for `fitzza-application` and the foundation stack's dedicated EKS Pod Identity association for `fitzza-vton`
-- A Kubernetes Secret named `fitzza-app-secrets`, populated from the approved secret store. The SSM transition is tracked in FITZZA-251; the existing RDS password still uses Secrets Manager until that transition is verified.
+- Kubernetes Secrets populated from the approved secret store:
+  - `fitzza-app-secrets`: 13 application-wide values — PostgreSQL bootstrap credentials, Redis password and URLs, JWT, service tokens, and the OpenAI API key.
+  - `fitzza-db-secrets`: 12 service-specific database credentials (`USER_SERVICE_DB_*`, `PRODUCT_SERVICE_DB_*`, `ORDER_SERVICE_DB_*`, `COMMUNITY_SERVICE_DB_*`, `REVIEW_SERVICE_DB_*`, and `NOTIFICATION_SERVICE_DB_*`).
+  The SSM transition is tracked in FITZZA-251; the existing RDS password still uses Secrets Manager until that transition is verified.
 
-Do not apply `base/secret.example.yaml`. It documents required keys only and is intentionally excluded from Kustomize.
+Do not apply `base/secret.example.yaml` or `base/db-secret.example.yaml`. They document required keys only and are intentionally excluded from Kustomize.
 
 Production VTON uses the foundation-managed `VtonRuntimeRole` Pod Identity role on
 `fitzza/fitzza-vton`. That role is scoped to object read/write/delete on
@@ -19,7 +22,7 @@ The foundation S3 Gateway Endpoint separately admits that role only to the VTON 
 bucket. Keep `VTON_STORAGE_BACKEND=local` and `VTON_QUEUE_BACKEND=memory` until the
 association and endpoint access are verified; then switch both values together.
 
-Use `python scripts/validate_app_secrets.py` with JSON on stdin to validate all 13 keys without printing values or contacting AWS. The optional `--emit-manifest` writes sensitive JSON for direct piping to kubectl only. See the [pilot deployment runbook](../aws/cloudformation/PILOT_DEPLOYMENT.md) for the SSM transition, operating restrictions, and validation order.
+Use `python scripts/validate_app_secrets.py` with JSON on stdin to validate all 13 `fitzza-app-secrets` keys without printing values or contacting AWS. The optional `--emit-manifest` writes sensitive JSON for direct piping to kubectl only. Service DB credentials are a separate `fitzza-db-secrets` contract documented in `base/db-secret.example.yaml`. See the [pilot deployment runbook](../aws/cloudformation/PILOT_DEPLOYMENT.md) for the SSM transition, operating restrictions, and validation order.
 
 After changing `fitzza-app-secrets`, restart every consuming Pod because environment
 variables sourced with `envFrom` are captured only when a Pod starts. In particular,

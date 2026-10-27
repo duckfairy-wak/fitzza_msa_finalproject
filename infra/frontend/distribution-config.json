@@ -1,0 +1,51 @@
+{
+  "CallerReference": "3091dcd5-a929-4b65-9f01-2fb21899b60e",
+  "Aliases": {"Quantity": 1, "Items": ["app.fitzza.site"]},
+  "DefaultRootObject": "index.html",
+  "Origins": {"Quantity": 1, "Items": [{
+    "Id": "fitzza-prod-frontend-414901227428.s3.ap-northeast-2.amazonaws.com-mvivc9keuit",
+    "DomainName": "fitzza-prod-frontend-414901227428.s3.ap-northeast-2.amazonaws.com",
+    "OriginPath": "", "CustomHeaders": {"Quantity": 0},
+    "S3OriginConfig": {"OriginAccessIdentity": "", "OriginReadTimeout": 30},
+    "ConnectionAttempts": 3, "ConnectionTimeout": 10,
+    "OriginShield": {"Enabled": false}, "OriginAccessControlId": "EF45ZR5EQKHAF"
+  }]},
+  "OriginGroups": {"Quantity": 0},
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "fitzza-prod-frontend-414901227428.s3.ap-northeast-2.amazonaws.com-mvivc9keuit",
+    "TrustedSigners": {"Enabled": false, "Quantity": 0},
+    "TrustedKeyGroups": {"Enabled": false, "Quantity": 0},
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {"Quantity": 2, "Items": ["HEAD", "GET"], "CachedMethods": {"Quantity": 2, "Items": ["HEAD", "GET"]}},
+    "SmoothStreaming": false, "Compress": true,
+    "LambdaFunctionAssociations": {"Quantity": 0}, "FunctionAssociations": {"Quantity": 0},
+    "FieldLevelEncryptionId": "", "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+    "GrpcConfig": {"Enabled": false}
+  },
+  "CacheBehaviors": {"Quantity": 1, "Items": [{
+    "PathPattern": "/assets/*",
+    "TargetOriginId": "fitzza-prod-frontend-414901227428.s3.ap-northeast-2.amazonaws.com-mvivc9keuit",
+    "TrustedSigners": {"Enabled": false, "Quantity": 0},
+    "TrustedKeyGroups": {"Enabled": false, "Quantity": 0},
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {"Quantity": 2, "Items": ["HEAD", "GET"], "CachedMethods": {"Quantity": 2, "Items": ["HEAD", "GET"]}},
+    "SmoothStreaming": false, "Compress": true,
+    "LambdaFunctionAssociations": {"Quantity": 0}, "FunctionAssociations": {"Quantity": 0},
+    "FieldLevelEncryptionId": "", "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  }]},
+  "CustomErrorResponses": {"Quantity": 2, "Items": [
+    {"ErrorCode": 403, "ResponsePagePath": "/index.html", "ResponseCode": "200", "ErrorCachingMinTTL": 0},
+    {"ErrorCode": 404, "ResponsePagePath": "/index.html", "ResponseCode": "200", "ErrorCachingMinTTL": 0}
+  ]},
+  "Comment": "FITZZA-220 private S3 frontend",
+  "Logging": {"Enabled": false, "IncludeCookies": false, "Bucket": "", "Prefix": ""},
+  "PriceClass": "PriceClass_All", "Enabled": true,
+  "ViewerCertificate": {
+    "ACMCertificateArn": "arn:aws:acm:us-east-1:414901227428:certificate/edc6796d-0d2b-42e2-8490-a9a05dd6d127",
+    "SSLSupportMethod": "sni-only", "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "Restrictions": {"GeoRestriction": {"RestrictionType": "none", "Quantity": 0}},
+  "WebACLId": "arn:aws:wafv2:us-east-1:414901227428:global/webacl/CreatedByCloudFront-864dc702/cdbaa744-4251-44ef-a7af-33e5704efe65",
+  "HttpVersion": "http2", "IsIPV6Enabled": true,
+  "ContinuousDeploymentPolicyId": "", "Staging": false
+}

@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyInsecureTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::fitzza-prod-frontend-414901227428",
+        "arn:aws:s3:::fitzza-prod-frontend-414901227428/*"
+      ],
+      "Condition": {"Bool": {"aws:SecureTransport": "false"}}
+    },
+    {
+      "Sid": "AllowCloudFrontServicePrincipal",
+      "Effect": "Allow",
+      "Principal": {"Service": "cloudfront.amazonaws.com"},
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::fitzza-prod-frontend-414901227428/*",
+      "Condition": {"ArnLike": {"AWS:SourceArn": "arn:aws:cloudfront::414901227428:distribution/E267AOIW0VV48R"}}
+    }
+  ]
+}
