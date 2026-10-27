@@ -222,6 +222,7 @@ def test_post_recommendations_returns_accepted_and_triggers_fcm_notification() -
         assert detail_res.status_code == 200
         detail = detail_res.json()
         assert detail["requestId"] == request_id
+        assert detail["queryText"] == "성수동 주말 나들이 코디 추천해줘"
         assert detail["status"] == "DONE"
         assert detail["searchType"] == "COMBO"
         assert detail["tpoSummary"] == "성수동 주말 나들이 미니멀"
@@ -256,6 +257,8 @@ def test_single_item_recommendation_saves_items_and_notifies_fcm() -> None:
         )
         assert detail_res.status_code == 200
         detail = detail_res.json()
+        assert detail["requestId"] == request_id
+        assert detail["queryText"] == "검정 가디건 단품 추천해줘"
         assert detail["status"] == "DONE"
         assert detail["searchType"] == "SINGLE"
         assert len(detail["items"]) == 1
@@ -368,11 +371,28 @@ def test_list_recommendations_returns_user_history_newest_first() -> None:
         assert list_res.status_code == 200
         data = list_res.json()
         assert data["page"] == 0
+        assert data["size"] == 10
+        assert data["totalElements"] == 2
         assert data["totalPages"] == 1
+        assert data["hasNext"] is False
         assert [item["queryText"] for item in data["content"]] == [
             "두 번째 질문",
             "첫 번째 질문",
         ]
+
+        # 페이징 size=1 -> hasNext is True 확인
+        paged_res = client.get(
+            "/api/v1/recommendations?page=0&size=1",
+            headers={"X-User-Id": "7"},
+        )
+        assert paged_res.status_code == 200
+        paged_data = paged_res.json()
+        assert paged_data["page"] == 0
+        assert paged_data["size"] == 1
+        assert paged_data["totalElements"] == 2
+        assert paged_data["totalPages"] == 2
+        assert paged_data["hasNext"] is True
+        assert len(paged_data["content"]) == 1
 
 
 def test_internal_combo_lookup_verifies_service_token_and_ownership() -> None:
@@ -644,4 +664,114 @@ def test_map_product_item_includes_sizes() -> None:
     mapped_none = _map_product_item(item_without_sizes)
     assert mapped_none["recommendedSize"] is None
     assert mapped_none["availableSizes"] is None
+
+
+def test_recommendation_detail_with_null_query_text_falls_back_to_empty_string() -> None:
+    from unittest.mock import patch
+
+    with TestClient(app) as client:
+        post_res = client.post(
+            "/api/v1/recommendations",
+            headers={"X-User-Id": "15"},
+            json={"query": "테스트 코디"},
+        )
+        assert post_res.status_code == 202
+        request_id = post_res.json()["requestId"]
+
+        repo = app.state.repository
+        original_get_request = repo.get_request
+
+        def mock_get_request(req_id: int):
+            data = original_get_request(req_id)
+            if data and req_id == request_id:
+                data["queryText"] = None
+            return data
+
+        with patch.object(repo, "get_request", side_effect=mock_get_request):
+            detail_res = client.get(
+                f"/api/v1/recommendations/{request_id}",
+                headers={"X-User-Id": "15"},
+            )
+            assert detail_res.status_code == 200
+            assert detail_res.json()["queryText"] == ""
+
+
+def test_recommendation_request_stores_token_metrics() -> None:
+    repo = RecommendationRepository(db_path=":memory:")
+    req_id = repo.create_request(user_id=1, query_text="가을 미니멀 룩 추천해줘")
+
+    # 1. 단품 완료 시 토큰 저장 확인
+    repo.complete_single_request(
+        request_id=req_id,
+        tpo_summary="가을 미니멀 단품",
+        items=[{"product_id": 101, "product_name": "니트", "price": 45000}],
+        message="가을 니트 추천합니다.",
+        prompt_tokens=450,
+        completion_tokens=220,
+    )
+    data = repo.get_request(req_id)
+    assert data is not None
+    assert data["promptTokens"] == 450
+    assert data["completionTokens"] == 220
+
+    # 2. 코디 완료 시 토큰 저장 확인
+    req_id_combo = repo.create_request(user_id=1, query_text="가을 코디 추천해줘")
+    repo.complete_combo_request(
+        request_id=req_id_combo,
+        user_id=1,
+        tpo_summary="가을 미니멀 코디",
+        combos=[{"items": [{"product_id": 101, "price": 45000}], "totalPrice": 45000}],
+        message="코디 추천입니다.",
+        prompt_tokens=850,
+        completion_tokens=430,
+    )
+    combo_data = repo.get_request(req_id_combo)
+    assert combo_data is not None
+    assert combo_data["promptTokens"] == 850
+    assert combo_data["completionTokens"] == 430
+
+
+def test_process_recommendation_request_zeros_tokens_on_cache_hit() -> None:
+    from unittest.mock import MagicMock
+    from types import SimpleNamespace
+    from app.api.recommendations import process_recommendation_request
+
+    mock_app = SimpleNamespace()
+    mock_app.state = SimpleNamespace()
+    mock_repo = RecommendationRepository(db_path=":memory:")
+    mock_app.state.repository = mock_repo
+    mock_app.state.settings = Settings(db_path=":memory:")
+
+    mock_user_client = MagicMock()
+    mock_user_client.get_user_body.return_value = None
+    mock_app.state.user_client = mock_user_client
+
+    mock_notif_client = MagicMock()
+    mock_app.state.notification_client = mock_notif_client
+
+    # CacheService가 토큰이 포함된 캐시 결과를 반환하도록 설정
+    mock_cache = MagicMock()
+    cached_payload = {
+        "type": "single",
+        "tpo": "출근룩",
+        "comment": "캐시된 결과",
+        "results": [{"product_id": 101, "product_name": "셔츠", "price": 30000}],
+        "prompt_tokens": 1200,
+        "completion_tokens": 600,
+    }
+    mock_cache.get_pipeline_result.return_value = cached_payload
+    mock_app.state.cache_service = mock_cache
+
+    req_id = mock_repo.create_request(user_id=1, query_text="캐시 테스트 질의")
+    process_recommendation_request(
+        app=mock_app,
+        request_id=req_id,
+        user_id=1,
+        query_text="캐시 테스트 질의",
+    )
+
+    saved = mock_repo.get_request(req_id)
+    assert saved is not None
+    assert saved["promptTokens"] == 0
+    assert saved["completionTokens"] == 0
 

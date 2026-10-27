@@ -2,6 +2,17 @@
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "ListFullCollection20261025",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": "pipeline/runs/collection-20261025-01/*"
+        }
+      }
+    },
+    {
       "Sid": "ReadCollectionSeedAndCheckpoints",
       "Effect": "Allow",
       "Action": "s3:GetObject",
@@ -15,6 +26,18 @@
       "Effect": "Allow",
       "Action": "s3:PutObject",
       "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/crawler/*"
+    },
+    {
+      "Sid": "ReadFullCollection20261025",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/*"
+    },
+    {
+      "Sid": "WriteFullCollection20261025",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/*"
     }
   ]
 }

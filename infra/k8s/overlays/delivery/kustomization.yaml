@@ -31,6 +31,15 @@ patches:
       metadata:
         name: fitzza-application
   - target:
+      kind: ServiceAccount
+      name: fitzza-vton
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: fitzza-vton
+  - target:
       kind: PersistentVolumeClaim
       name: redis-data
     patch: |-

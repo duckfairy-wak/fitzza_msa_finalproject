@@ -43,6 +43,16 @@ class VtonUpstreamError(VtonError):
     """OpenAI 이미지 편집 API 호출 실패 시 발생 (HTTP 502)."""
 
 
+from dataclasses import dataclass
+
+
+@dataclass
+class TryonResult:
+    image_bytes: bytes
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
 def parse_categories(categories_input: str | list[str]) -> list[str]:
     """
     의류 카테고리를 검증하고 표준 카테고리 목록으로 파싱합니다.
@@ -227,7 +237,7 @@ def generate_tryon_image(
     timeout_seconds: float | None = None,
     max_retries: int | None = None,
     openai_client: Any = None,
-) -> bytes:
+) -> TryonResult:
     """
     기본 아바타와 의류 이미지들(및 선택적으로 사용자 얼굴 사진)을 OpenAI Image Edit API에 전달하여 가상 피팅 결과 이미지를 생성합니다.
     """
@@ -317,4 +327,18 @@ def generate_tryon_image(
     if not getattr(result, "data", None) or not getattr(result.data[0], "b64_json", None):
         raise VtonUpstreamError("OpenAI 이미지 API에서 생성된 이미지 데이터를 받지 못했습니다.")
 
-    return base64.b64decode(result.data[0].b64_json)
+    p_tokens = 0
+    c_tokens = 0
+    usage = getattr(result, "usage", None)
+    if usage is not None:
+        in_tok = getattr(usage, "input_tokens", None) or getattr(usage, "prompt_tokens", 0) or 0
+        out_tok = getattr(usage, "output_tokens", None) or getattr(usage, "completion_tokens", 0) or 0
+        p_tokens = int(in_tok)
+        c_tokens = int(out_tok)
+
+    image_bytes = base64.b64decode(result.data[0].b64_json)
+    return TryonResult(
+        image_bytes=image_bytes,
+        prompt_tokens=p_tokens,
+        completion_tokens=c_tokens,
+    )

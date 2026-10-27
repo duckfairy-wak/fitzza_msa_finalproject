@@ -128,3 +128,13 @@ management:
     web:
       exposure:
         exclude: "*"
+  tracing:
+    sampling:
+      # 기본 꺼짐(운영 안전). 로컬 Compose는 MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0 으로 켠다.
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:0.0}
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"

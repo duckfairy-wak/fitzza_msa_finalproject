@@ -30,6 +30,12 @@ subprojects {
     }
 
     dependencies {
+        // Config/Discovery는 Eureka·설정 트래픽이 많아 추적 대상에서 제외한다.
+        if (name != 'config-service' && name != 'discovery-service') {
+            // Micrometer Tracing → OTLP(Jaeger). yml 기본 샘플링 0.0, Compose는 1.0으로 켠다.
+            implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+            implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+        }
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 

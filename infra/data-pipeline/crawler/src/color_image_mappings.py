@@ -65,3 +65,65 @@ def extract_color_image_mappings(product_id: int, options: dict) -> list[dict]:
             "source_option_group_id": group["no"], "source_option_value_id": value["no"]})
     # A shared placeholder cannot prove two different colors' image relationships.
     return [item for item in candidates if len(images_to_colors[item["image_url"]]) == 1]
+
+
+def extract_accessory_image_fallback(
+    product_id: int,
+    options: dict,
+    product_images: list[str],
+) -> list[dict]:
+    """Use a product image only when the accessory color relationship is unambiguous."""
+    primary_image = next(
+        (image for value in product_images if (image := product_image_url(value))),
+        None,
+    )
+    if primary_image is None:
+        return []
+
+    color_groups = [
+        group for group in options.get("basic", [])
+        if not group.get("isDeleted")
+        and str(group.get("name") or "").strip().casefold()
+        in {"컬러", "색상", "color", "colour"}
+    ]
+    if len(color_groups) > 1:
+        return []
+    if not color_groups:
+        return [{
+            "product_id": product_id,
+            "color_raw": None,
+            "color_status": "unspecified",
+            "image_url": primary_image,
+            "evidence": "Detail.primaryImage.colorUnspecified",
+        }]
+
+    group = color_groups[0]
+    if type(group.get("no")) is not int:
+        return []
+    linked_values = set()
+    for item in options.get("optionItems", []):
+        if (item.get("goodsNo") != product_id or item.get("activated") is not True
+                or item.get("isDeleted")):
+            continue
+        for value in item.get("optionValues", []):
+            if (value.get("optionNo") == group["no"] and type(value.get("no")) is int
+                    and value["no"] in (item.get("optionValueNos") or [])):
+                linked_values.add(value["no"])
+    values = [
+        value for value in group.get("optionValues", [])
+        if type(value.get("no")) is int and value["no"] in linked_values
+        and value.get("optionNo") == group["no"] and not value.get("isDeleted")
+        and isinstance(value.get("name"), str) and value["name"].strip()
+    ]
+    if len(values) != 1:
+        return []
+    value = values[0]
+    return [{
+        "product_id": product_id,
+        "color_raw": value["name"].strip(),
+        "color_status": "declared_single_option",
+        "image_url": primary_image,
+        "evidence": "Options.basic.singleColor+Detail.primaryImage",
+        "source_option_group_id": group["no"],
+        "source_option_value_id": value["no"],
+    }]

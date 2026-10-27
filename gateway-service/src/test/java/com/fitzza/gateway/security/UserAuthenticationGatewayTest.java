@@ -101,6 +101,22 @@ class UserAuthenticationGatewayTest {
     }
 
     @Test
+    void routesPreferenceOptionsWithoutATokenOrForgedIdentity() {
+        for (String prefix : new String[] {"/api", "/api/v1"}) {
+            for (String option : new String[] {"fits", "styles"}) {
+                client().get().uri(prefix + "/users/preferences/" + option).header("X-User-Id", "999")
+                        .exchange().expectStatus().isOk().expectBody(String.class)
+                        .isEqualTo("/api/users/preferences/" + option + ":anonymous");
+            }
+        }
+        client().post().uri("/api/users/preferences/fits")
+                .exchange().expectStatus().isUnauthorized();
+        client().get().uri("/api/users/preferences/fits")
+                .headers(headers -> headers.setBearerAuth("invalid-token"))
+                .exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
     void authenticatesProfileReadsAndBodyUpdatesThroughActualGatewayRoute() {
         String token = Jwts.builder().subject("42").issuedAt(new Date())
                 .expiration(Date.from(Instant.now().plusSeconds(900)))

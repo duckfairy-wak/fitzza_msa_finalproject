@@ -506,12 +506,91 @@ Resources:
             Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-${Environment}-assets-vton/*'
             Condition:
               StringEquals:
-                aws:PrincipalArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-vton-runtime'
+                aws:PrincipalArn: !GetAtt VtonRuntimeRole.Arn
       RouteTableIds:
         - !Ref PrivateRouteTable
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcEndpointType: Gateway
       VpcId: !Ref Vpc
+
+  VtonJobDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: retain VTON jobs that still fail after bounded source-queue retries for investigation and controlled replay
+        must:
+          - accept redrive only from VtonJobQueue
+          - retain failed jobs for 14 days
+          - keep SSE-SQS enabled within the approved pilot budget
+        mutable: change-with-constraints
+        mutability:
+          QueueName: must-never-change
+    Properties:
+      MessageRetentionPeriod: 1209600
+      QueueName: vton-jobs-dlq
+      RedriveAllowPolicy:
+        redrivePermission: byQueue
+        sourceQueueArns:
+          - !Sub 'arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:vton-jobs'
+      SqsManagedSseEnabled: true
+      Tags:
+        - { Key: Project, Value: !Ref ProjectName }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: !Ref Owner }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  VtonJobQueue:
+    Type: AWS::SQS::Queue
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: buffer VTON generation jobs so API requests and workers scale independently; Standard queue chosen because job ordering is not required
+        must:
+          - visibility timeout stays >= max VTON processing attempt duration
+          - redrive after 3 receives to VtonJobDeadLetterQueue
+          - long poll for 20s to reduce empty receives
+          - keep SSE-SQS enabled within the approved pilot budget
+        mutable: change-with-constraints
+        mutability:
+          QueueName: must-never-change
+    Properties:
+      MessageRetentionPeriod: 345600
+      QueueName: vton-jobs
+      ReceiveMessageWaitTimeSeconds: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt VtonJobDeadLetterQueue.Arn
+        maxReceiveCount: 3
+      SqsManagedSseEnabled: true
+      VisibilityTimeout: 300
+      Tags:
+        - { Key: Project, Value: !Ref ProjectName }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: !Ref Owner }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  VtonQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: reject non-TLS access even when a caller otherwise has queue permissions
+        must:
+          - keep aws:SecureTransport deny on both queues
+    Properties:
+      Queues:
+        - !Ref VtonJobQueue
+        - !Ref VtonJobDeadLetterQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: sqs:*
+            Resource:
+              - !GetAtt VtonJobQueue.Arn
+              - !GetAtt VtonJobDeadLetterQueue.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
 
   AlbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -1041,6 +1120,71 @@ Resources:
       ClusterName: !Ref EksCluster
       ResolveConflicts: OVERWRITE
 
+  VtonRuntimeRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: isolate VTON object-storage and job-queue permissions from the shared application service account
+        must:
+          - trust only EKS Pod Identity
+          - scope S3 access to the VTON asset bucket
+          - scope SQS mutation to VtonJobQueue; DLQ movement remains SQS-managed
+        mutable: change-with-constraints
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-vton-runtime-dedicated'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: pods.eks.amazonaws.com }
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Condition:
+              StringEquals:
+                aws:RequestTag/eks-cluster-name: !Ref EksCluster
+                aws:RequestTag/kubernetes-service-account: fitzza-vton
+                aws:RequestTag/kubernetes-namespace: fitzza
+      Policies:
+        - PolicyName: vton-runtime-storage-and-queue
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: UseVtonAssets
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-${Environment}-assets-vton/*'
+              - Sid: ProduceAndConsumeVtonJobs
+                Effect: Allow
+                Action:
+                  - sqs:ChangeMessageVisibility
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                  - sqs:ReceiveMessage
+                  - sqs:SendMessage
+                Resource: !GetAtt VtonJobQueue.Arn
+      Tags:
+        - { Key: Project, Value: !Ref ProjectName }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: !Ref Owner }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  VtonRuntimePodIdentityAssociation:
+    Type: AWS::EKS::PodIdentityAssociation
+    DependsOn: PodIdentityAgentAddon
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: bind only VTON API and worker pods to the dedicated AWS runtime role
+        must:
+          - namespace stays fitzza
+          - service account stays fitzza-vton and is used only by VTON workloads
+    Properties:
+      ClusterName: !Ref EksCluster
+      Namespace: fitzza
+      RoleArn: !GetAtt VtonRuntimeRole.Arn
+      ServiceAccount: fitzza-vton
+
   EbsCsiRole:
     Type: AWS::IAM::Role
     Metadata:
@@ -1393,6 +1537,15 @@ Outputs:
   DataBucketName:
     Description: Private pipeline data bucket name
     Value: !Ref DataBucket
+  VtonJobQueueUrl:
+    Description: SQS URL used by the VTON API producer and worker consumer
+    Value: !Ref VtonJobQueue
+  VtonJobDeadLetterQueueUrl:
+    Description: SQS URL retaining VTON jobs that exceeded the retry limit
+    Value: !Ref VtonJobDeadLetterQueue
+  VtonRuntimeRoleArn:
+    Description: EKS Pod Identity role for the dedicated fitzza-vton service account
+    Value: !GetAtt VtonRuntimeRole.Arn
   ProductImageDistributionId:
     Description: CloudFront distribution ID for mirrored product images
     Value: !Ref ProductImageDistribution

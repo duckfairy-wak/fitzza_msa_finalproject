@@ -16,11 +16,13 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 /**
  * 상품 관련 엔티티를 상세 응답 DTO로 변환한다.
  *
  * <p>대표 이미지(thumbnailUrl)는 상품 엔티티의 imageUrl, 판매가(price)는 상품 엔티티의 price에서 가져온다.
+ * 이미지 필드는 {@code resolveImageUrl}로 Presigned URL 등으로 바꾼 뒤 넣는다.
  */
 public final class ProductDetailMapper {
 
@@ -34,7 +36,8 @@ public final class ProductDetailMapper {
             List<ProductOptionEntity> options,
             Map<Long, OptionMeasurementEntity> measurementsByOptionId,
             Map<String, String> categoryNamesByCode,
-            Boolean wished) {
+            Boolean wished,
+            UnaryOperator<String> resolveImageUrl) {
         BrandEntity brand = product.getBrand();
         return new ProductDetailResponse(
                 product.getProductId(),
@@ -59,35 +62,47 @@ public final class ProductDetailMapper {
                 product.getMaterial(),
                 product.getFitType(),
                 product.getFeatures(),
-                toColorImageMappings(product.getColorImageMappings()),
+                toColorImageMappings(product.getColorImageMappings(), resolveImageUrl),
                 product.getDescription(),
-                product.getImageUrl(),
-                toImageUrls(product, images),
-                toSizeGuide(sizeGuide, toSizeMeasurements(options, measurementsByOptionId)),
-                options.stream().map(ProductDetailOptionResponse::from).toList(),
+                resolveImageUrl.apply(product.getImageUrl()),
+                toImageUrls(product, images, resolveImageUrl),
+                toSizeGuide(sizeGuide, toSizeMeasurements(options, measurementsByOptionId), resolveImageUrl),
+                options.stream().map(option -> ProductDetailOptionResponse.from(option, resolveImageUrl)).toList(),
                 product.getStatus(),
                 product.getCreatedAt(),
                 product.getUpdatedAt(),
                 wished);
     }
 
-    private static List<ColorImageMappingResponse> toColorImageMappings(List<ColorImageMappingValue> mappings) {
+    private static List<ColorImageMappingResponse> toColorImageMappings(
+            List<ColorImageMappingValue> mappings, UnaryOperator<String> resolveImageUrl) {
         if (mappings == null || mappings.isEmpty()) {
             return List.of();
         }
-        return mappings.stream().map(ColorImageMappingResponse::from).toList();
+        return mappings.stream()
+                .map(mapping -> ColorImageMappingResponse.from(mapping, resolveImageUrl))
+                .toList();
     }
 
     /** 이미지 행이 없는 상품은 대표 이미지만 노출한다. */
-    private static List<String> toImageUrls(ProductEntity product, List<ProductImageEntity> images) {
+    private static List<String> toImageUrls(
+            ProductEntity product, List<ProductImageEntity> images, UnaryOperator<String> resolveImageUrl) {
         if (!images.isEmpty()) {
-            return images.stream().map(ProductImageEntity::getImageUrl).toList();
+            return images.stream()
+                    .map(ProductImageEntity::getImageUrl)
+                    .map(resolveImageUrl)
+                    .toList();
         }
-        return product.getImageUrl() == null ? List.of() : List.of(product.getImageUrl());
+        if (product.getImageUrl() == null) {
+            return List.of();
+        }
+        return List.of(resolveImageUrl.apply(product.getImageUrl()));
     }
 
     private static SizeGuideResponse toSizeGuide(
-            ProductSizeGuideEntity sizeGuide, List<SizeMeasurementResponse> measurements) {
+            ProductSizeGuideEntity sizeGuide,
+            List<SizeMeasurementResponse> measurements,
+            UnaryOperator<String> resolveImageUrl) {
         if (sizeGuide == null) {
             return measurements.isEmpty() ? null : new SizeGuideResponse(null, null, null, null, measurements);
         }
@@ -95,7 +110,7 @@ public final class ProductDetailMapper {
                 sizeGuide.getTypeName(),
                 sizeGuide.getUnit(),
                 sizeGuide.getDescription(),
-                sizeGuide.getGuideImageUrl(),
+                resolveImageUrl.apply(sizeGuide.getGuideImageUrl()),
                 measurements);
     }
 

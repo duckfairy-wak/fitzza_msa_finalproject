@@ -92,8 +92,36 @@ class FashionSearchEngine:
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.model = CLIPModel.from_pretrained(model_name).to(self.device)
-        self.processor = CLIPProcessor.from_pretrained(model_name)
+        # 1. Fashion-CLIP 모델 로드 (로컬 캐시 우선 시도 -> 실패 시 원격 허브 다운로드)
+        try:
+            self.model = CLIPModel.from_pretrained(
+                model_name, local_files_only=True
+            )
+            logger.info("Fashion-CLIP 모델 로컬 캐시에서 로드 완료: %s", model_name)
+        except Exception:
+            logger.info(
+                "Fashion-CLIP 모델 로컬 캐시가 없어 원격 허브에서 다운로드를 진행합니다: %s",
+                model_name,
+            )
+            self.model = CLIPModel.from_pretrained(
+                model_name, local_files_only=False
+            )
+        self.model.to(self.device)
+
+        # 2. Fashion-CLIP 프로세서 로드 (로컬 캐시 우선 시도 -> 실패 시 원격 허브 다운로드)
+        try:
+            self.processor = CLIPProcessor.from_pretrained(
+                model_name, local_files_only=True
+            )
+            logger.info("Fashion-CLIP 프로세서 로컬 캐시에서 로드 완료: %s", model_name)
+        except Exception:
+            logger.info(
+                "Fashion-CLIP 프로세서 로컬 캐시가 없어 원격 허브에서 다운로드를 진행합니다: %s",
+                model_name,
+            )
+            self.processor = CLIPProcessor.from_pretrained(
+                model_name, local_files_only=False
+            )
         self.model.eval()
         self._category_vectors: dict[str, list[float]] = {}
         self._color_vectors: dict[str, list[float]] = {}

@@ -19,6 +19,8 @@ This directory provisions the first deployable AWS baseline for the approved Fit
 - An EKS Pod Identity role for AWS Load Balancer Controller v3.6.0
 - A private, encrypted, versioned S3 bucket for crawler and AI pipeline data
 - A CloudFront OAC distribution that can read only `public/product-images/*` from that private bucket
+- An encrypted VTON SQS job queue with 20-second long polling, a 300-second visibility timeout, three receive attempts, and a 14-day DLQ
+- A dedicated EKS Pod Identity role for `fitzza-vton`, scoped to the VTON asset bucket and source job queue
 - Immutable ECR repositories for the 11 services, Crawler, and FashionCLIP
 
 The single NAT Gateway is a temporary cost decision for this project. It is a single-AZ outbound dependency and must be reconsidered before production use.
@@ -46,6 +48,8 @@ template exceeds 51,200 bytes, use S3 template upload/`--template-url` rather th
 The ALB itself is created from `infra/k8s/base/ingress.yaml` by AWS Load Balancer Controller. Replace `CHANGE_ME_ALB_SECURITY_GROUP_ID` with the stack output `AlbSecurityGroupId`. The controller manages the matching backend rule for pod targets; do not attach the public ALB security group to EKS nodes or data stores.
 
 RDS is deployed in the private subnets with `PubliclyAccessible=false`. Use the stack outputs `RdsEndpointAddress` and `RdsMasterSecretArn` when preparing the production Kubernetes Secret. The current Redis deployment is exposed only as a Kubernetes `ClusterIP`; `ManagedRedisSecurityGroupId` is reserved for a future managed Redis migration.
+
+VTON queue failures use native SQS redrive. The worker deletes a message only after successful processing; failed or malformed messages become visible again after 300 seconds and SQS moves them to `VtonJobDeadLetterQueueUrl` after the third receive. Do not grant the runtime role direct `SendMessage` access to the DLQ or reintroduce first-failure manual DLQ writes, because that bypasses the retry contract. The queues use SSE-SQS rather than a customer-managed KMS key to stay inside the approved pilot budget.
 
 ## Install the AWS Load Balancer Controller
 
@@ -133,13 +137,13 @@ Application updates use `maxSurge=0`, `maxUnavailable=1` because the single work
 
 Follow [the pilot deployment runbook](PILOT_DEPLOYMENT.md) for the Secret budget correction and the 10/20 validation sequence before the 10/21 pilot.
 
-Before enabling CD, an operator must provision the namespace, application Secret, service account, Redis/PVC, Qdrant/PVC, StorageClass and Qdrant NetworkPolicy, then apply `infra/k8s/bootstrap/delivery-rbac.yaml`. These operator-owned resources are excluded from `infra/k8s/overlays/delivery`; in particular CD never reapplies Qdrant's immutable volume claim template.
+Before enabling CD, an operator must provision the namespace, application Secret, the `fitzza-application` and `fitzza-vton` service accounts, Redis/PVC, Qdrant/PVC, StorageClass and Qdrant NetworkPolicy, then apply `infra/k8s/bootstrap/delivery-rbac.yaml`. These operator-owned resources are excluded from `infra/k8s/overlays/delivery`; in particular CD never reapplies Qdrant's immutable volume claim template.
 
 Set foundation parameter `DeliveryArtifactBucketName` to the delivery stack's `ArtifactBucketName` output. The S3 Gateway Endpoint otherwise allows only project data and ECR layers, so the VPC deploy worker cannot download or upload pipeline artifacts. This optional rule permits only that exact bucket for principals in this account; IAM must separately authorize each action.
 
 The deploy access entry maps only to Kubernetes group `fitzza-delivery`, bound to a Role in namespace `fitzza`. It cannot read Secrets, mutate PVCs/StatefulSets, create RBAC or manage cluster resources. The role can modify application workloads, which inherently use the pre-provisioned application credentials; do not attach privileged workload service accounts in this namespace.
 
-Resolve the foundation outputs and the EKS cluster security group, fill `delivery-parameters.example.json` into a local `delivery-parameters.json`, and redeploy with `EnableDeployStage=true`. The template rejects the update if any deploy input is missing. TLS is optional only for initial ALB reachability testing; for a production endpoint pass both `ApiDomain` and `AcmCertificateArn`. The renderer sets `REFRESH_COOKIE_SECURE` to `true` only when both TLS values are supplied and to `false` for HTTP-only reachability tests, because browsers drop Secure cookies over plain HTTP. Deploy preflight checks existing PVCs and Qdrant without reading Secret contents; a missing application Secret fails Pod startup and therefore rollout.
+Resolve the foundation outputs and the EKS cluster security group, fill `delivery-parameters.example.json` into a local `delivery-parameters.json`, and redeploy with `EnableDeployStage=true`. Map `VtonJobQueueUrl` and `VtonJobDeadLetterQueueUrl` from the identically named foundation outputs; the renderer rejects missing, malformed, or identical queue URLs. The template rejects the update if any deploy input is missing. TLS is optional only for initial ALB reachability testing; for a production endpoint pass both `ApiDomain` and `AcmCertificateArn`. The renderer sets `REFRESH_COOKIE_SECURE` to `true` only when both TLS values are supplied and to `false` for HTTP-only reachability tests, because browsers drop Secure cookies over plain HTTP. Deploy preflight checks existing PVCs and Qdrant without reading Secret contents; a missing application Secret fails Pod startup and therefore rollout.
 
 ### Rollback
 
@@ -275,7 +279,7 @@ $operatorCidr = "203.0.113.10/32"
 aws cloudformation deploy `
   --stack-name fitzza-prod-foundation `
   --template-file infra/aws/cloudformation/foundation.yaml `
-  --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND `
+  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND `
   --parameter-overrides `
     ProjectName=fitzza `
     Environment=prod `

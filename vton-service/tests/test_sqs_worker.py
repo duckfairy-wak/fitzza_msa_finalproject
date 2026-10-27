@@ -22,6 +22,7 @@ def mock_boto_sqs():
             {
                 "MessageId": "msg-12345",
                 "ReceiptHandle": "receipt-token-abc",
+                "Attributes": {"ApproximateReceiveCount": "2"},
                 "Body": json.dumps(
                     {
                         "fitting_id": 1,
@@ -48,6 +49,7 @@ def sqs_settings():
         aws_sqs_dlq_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-vton-dlq",
         sqs_visibility_timeout=300,
         sqs_wait_time_seconds=20,
+        sqs_max_receive_count=3,
     )
 
 
@@ -78,6 +80,10 @@ def test_sqs_client_receive_messages_success(mock_boto_sqs, sqs_settings):
     assert msg["receipt_handle"] == "receipt-token-abc"
     assert msg["body"]["fitting_id"] == 1
     assert msg["body"]["user_id"] == 42
+    assert msg["receive_count"] == 2
+    assert mock_boto_sqs.receive_message.call_args.kwargs["AttributeNames"] == [
+        "ApproximateReceiveCount"
+    ]
 
 
 def test_sqs_client_delete_message_success(mock_boto_sqs, sqs_settings):
@@ -101,20 +107,6 @@ def test_sqs_client_change_visibility(mock_boto_sqs, sqs_settings):
         ReceiptHandle="receipt-token-abc",
         VisibilityTimeout=60,
     )
-
-
-def test_sqs_client_send_to_dlq(mock_boto_sqs, sqs_settings):
-    client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
-
-    payload = {"fitting_id": 99}
-    msg_id = client.send_to_dlq(payload, error_message="OpenAI timeout")
-
-    assert msg_id == "msg-12345"
-    call_kwargs = mock_boto_sqs.send_message.call_args.kwargs
-    assert call_kwargs["QueueUrl"] == sqs_settings.aws_sqs_dlq_url
-    sent_body = json.loads(call_kwargs["MessageBody"])
-    assert sent_body["fitting_id"] == 99
-    assert sent_body["_dlq_error"] == "OpenAI timeout"
 
 
 def test_sqs_client_raises_on_boto_error(mock_boto_sqs, sqs_settings):
@@ -204,6 +196,7 @@ def test_vton_worker_process_message_success(mock_boto_sqs, sqs_settings):
             result_image_url="/api/vton/20/image",
             request_id_header="req-trace-worker",
             user_face_bytes=None,
+            finalize_failure=False,
         )
         # Message was deleted after success
         mock_boto_sqs.delete_message.assert_called_once_with(
@@ -212,13 +205,16 @@ def test_vton_worker_process_message_success(mock_boto_sqs, sqs_settings):
         )
 
 
-def test_vton_worker_process_message_failure_sends_to_dlq(mock_boto_sqs, sqs_settings):
+def test_vton_worker_process_message_failure_leaves_message_for_redrive(
+    mock_boto_sqs, sqs_settings
+):
     sqs_client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
     worker = VtonWorker(settings=sqs_settings, sqs_client=sqs_client)
 
     msg = {
         "message_id": "msg-err",
         "receipt_handle": "handle-err",
+        "receive_count": 2,
         "body": {
             "fitting_id": 99,
             "user_id": 7,
@@ -230,17 +226,8 @@ def test_vton_worker_process_message_failure_sends_to_dlq(mock_boto_sqs, sqs_set
         success = worker.process_message(msg)
         assert success is False
 
-        # Should be sent to DLQ
-        mock_boto_sqs.send_message.assert_called_once()
-        dlq_call = mock_boto_sqs.send_message.call_args.kwargs
-        assert dlq_call["QueueUrl"] == sqs_settings.aws_sqs_dlq_url
-        sent_body = json.loads(dlq_call["MessageBody"])
-        assert sent_body["fitting_id"] == 99
-        assert "OpenAI API Down" in sent_body["_dlq_error"]
-        mock_boto_sqs.delete_message.assert_called_once_with(
-            QueueUrl=sqs_settings.aws_sqs_queue_url,
-            ReceiptHandle="handle-err",
-        )
+        mock_boto_sqs.send_message.assert_not_called()
+        mock_boto_sqs.delete_message.assert_not_called()
 
 
 def test_vton_worker_treats_reported_pipeline_failure_as_failure(mock_boto_sqs, sqs_settings):
@@ -255,18 +242,28 @@ def test_vton_worker_treats_reported_pipeline_failure_as_failure(mock_boto_sqs, 
         success = worker.process_message(msg)
 
     assert success is False
-    mock_boto_sqs.send_message.assert_called_once()
-    mock_boto_sqs.delete_message.assert_called_once_with(
-        QueueUrl=sqs_settings.aws_sqs_queue_url,
-        ReceiptHandle="handle-failed",
-    )
+    mock_boto_sqs.send_message.assert_not_called()
+    mock_boto_sqs.delete_message.assert_not_called()
 
 
-def test_vton_worker_keeps_source_message_when_dlq_send_fails(mock_boto_sqs, sqs_settings):
-    mock_boto_sqs.send_message.side_effect = ClientError(
-        {"Error": {"Code": "ServiceUnavailable", "Message": "DLQ unavailable"}},
-        "SendMessage",
-    )
+def test_vton_worker_finalizes_failure_only_on_last_receive(mock_boto_sqs, sqs_settings):
+    sqs_client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
+    worker = VtonWorker(settings=sqs_settings, sqs_client=sqs_client)
+    msg = {
+        "receipt_handle": "handle-final-attempt",
+        "receive_count": 3,
+        "body": {"fitting_id": 102, "user_id": 7, "product_ids": [201]},
+    }
+
+    with patch("app.worker._run_background_vton", return_value=False) as mock_run_vton:
+        success = worker.process_message(msg)
+
+    assert success is False
+    assert mock_run_vton.call_args.kwargs["finalize_failure"] is True
+    mock_boto_sqs.delete_message.assert_not_called()
+
+
+def test_vton_worker_keeps_source_message_until_sqs_redrives(mock_boto_sqs, sqs_settings):
     sqs_client = SqsClient(settings=sqs_settings, sqs_client=mock_boto_sqs)
     worker = VtonWorker(settings=sqs_settings, sqs_client=sqs_client)
     msg = {
@@ -303,8 +300,5 @@ def test_vton_worker_handles_invalid_message_payload(mock_boto_sqs, sqs_settings
     }
     success = worker.process_message(bad_msg)
     assert success is False
-    # Bad messages are deleted to prevent infinite loop poison pill
-    mock_boto_sqs.delete_message.assert_called_once_with(
-        QueueUrl=sqs_settings.aws_sqs_queue_url,
-        ReceiptHandle="handle-bad",
-    )
+    # SQS moves poison messages to the configured DLQ after maxReceiveCount.
+    mock_boto_sqs.delete_message.assert_not_called()

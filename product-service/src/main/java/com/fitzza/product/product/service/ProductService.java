@@ -50,6 +50,7 @@ public class ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductSizeGuideRepository productSizeGuideRepository;
     private final WishlistService wishlistService;
+    private final ProductImageUrlService productImageUrlService;
 
     public ProductListPageResponse findProducts(
             String category, ProductSortType sortType, int page, int size, Long userId) {
@@ -64,7 +65,8 @@ public class ProductService {
                         products.getContent().stream().map(ProductEntity::getProductId).toList());
         Page<ProductListResponse> mapped = products.map(product -> ProductListResponse.from(
                 product,
-                userId == null ? null : wishlistedIds.contains(product.getProductId())));
+                userId == null ? null : wishlistedIds.contains(product.getProductId()),
+                productImageUrlService::resolve));
         return ProductListPageResponse.from(mapped, sortType);
     }
 
@@ -91,7 +93,8 @@ public class ProductService {
                 options,
                 loadMeasurements(options),
                 categoryService.findNamesByCode(categoryCodesOf(product)),
-                userId == null ? null : wishlistService.isWishlisted(userId, productId));
+                userId == null ? null : wishlistService.isWishlisted(userId, productId),
+                productImageUrlService::resolve);
     }
 
     private Set<String> categoryCodesOf(ProductEntity product) {
@@ -106,7 +109,7 @@ public class ProductService {
         return distinctIds.stream()
                 .map(productsById::get)
                 .filter(Objects::nonNull)
-                .map(ProductSummaryResponse::from)
+                .map(product -> ProductSummaryResponse.from(product, productImageUrlService::resolve))
                 .toList();
     }
 
@@ -137,7 +140,7 @@ public class ProductService {
     public List<ProductOptionInternalResponse> findProductOptions(List<Long> optionIds) {
         List<Long> distinctIds = optionIds.stream().distinct().toList();
         return productOptionRepository.findAllWithProductByOptionIdIn(distinctIds).stream()
-                .map(ProductOptionInternalResponse::from)
+                .map(option -> ProductOptionInternalResponse.from(option, productImageUrlService::resolve))
                 .toList();
     }
 

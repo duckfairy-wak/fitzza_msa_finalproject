@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crawler-full-20261025-01
+  namespace: fitzza
+  labels:
+    app.kubernetes.io/name: fitzza-crawler
+    fitzza.io/run-id: collection-20261025-01
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 259200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fitzza-crawler
+        fitzza.io/run-id: collection-20261025-01
+    spec:
+      serviceAccountName: fitzza-crawler
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: crawler
+          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/crawler:full-20261026-13
+          imagePullPolicy: Always
+          command: ["python", "-u", "-m", "src.cloud_full_run"]
+          args:
+            - "--bucket"
+            - "fitzza-prod-foundation-databucket-wwng6wfc0hqy"
+            - "--run-id"
+            - "collection-20261025-01"
+            - "--execute-approved-run"
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+            - name: HOME
+              value: /work
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+              ephemeral-storage: 6Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+              ephemeral-storage: 12Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: tmp
+              mountPath: /tmp
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 12Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

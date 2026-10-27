@@ -6,6 +6,7 @@ import com.fitzza.product.global.exception.ErrorCode;
 import com.fitzza.product.product.entity.ProductEntity;
 import com.fitzza.product.product.entity.ProductStatus;
 import com.fitzza.product.product.repository.ProductRepository;
+import com.fitzza.product.product.service.ProductImageUrlService;
 import com.fitzza.product.wishlist.repository.WishlistRepository;
 import com.fitzza.product.worldcup.dto.WorldcupCreateRequest;
 import com.fitzza.product.worldcup.dto.WorldcupInternalResponse;
@@ -33,6 +34,7 @@ public class WorldcupService {
     private final WorldcupHistoryRepository worldcupHistoryRepository;
     private final ProductRepository productRepository;
     private final WishlistRepository wishlistRepository;
+    private final ProductImageUrlService productImageUrlService;
 
     @Transactional
     public WorldcupResultResponse saveWorldcup(Long userId, WorldcupCreateRequest request) {
@@ -49,19 +51,19 @@ public class WorldcupService {
                 .userId(userId)
                 .winnerProduct(productsById.get(request.winnerProductId()))
                 .build());
-        return WorldcupResultResponse.from(history);
+        return WorldcupResultResponse.from(history, productImageUrlService::resolve);
     }
 
     public WorldcupResultResponse findLatestWorldcup(Long userId) {
         return worldcupHistoryRepository.findFirstByUserIdOrderByCompletedAtDescWorldcupHistoryIdDesc(userId)
-                .map(WorldcupResultResponse::from)
+                .map(history -> WorldcupResultResponse.from(history, productImageUrlService::resolve))
                 .orElseThrow(() -> new BusinessException(ErrorCode.WORLDCUP_NOT_FOUND));
     }
 
     public PageResponse<WorldcupResultResponse> findWorldcupHistories(Long userId, int page, int size) {
         return PageResponse.from(worldcupHistoryRepository
                 .findAllByUserId(userId, PageRequest.of(page, size, HISTORY_SORT))
-                .map(WorldcupResultResponse::from));
+                .map(history -> WorldcupResultResponse.from(history, productImageUrlService::resolve)));
     }
 
     public WorldcupInternalResponse findWorldcup(Long worldcupHistoryId, Long userId) {
@@ -70,7 +72,7 @@ public class WorldcupService {
         if (!history.getUserId().equals(userId)) {
             return WorldcupInternalResponse.notOwned(worldcupHistoryId);
         }
-        return WorldcupInternalResponse.owned(history);
+        return WorldcupInternalResponse.owned(history, productImageUrlService::resolve);
     }
 
     private void validateCandidates(WorldcupCreateRequest request, Set<Long> candidateIds) {

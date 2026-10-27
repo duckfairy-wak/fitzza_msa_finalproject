@@ -4,6 +4,7 @@ No Jev, embeddings or Qdrant operations occur here. A batch is not a finished da
 """
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 import json
 import os
@@ -14,6 +15,9 @@ import sys
 
 import boto3
 from botocore.config import Config
+
+
+CHECKPOINT_RESTORE_WORKERS = 16
 
 
 def safe_checkpoint_path(relative: str) -> Path:
@@ -33,14 +37,36 @@ def restore_checkpoints(s3, bucket, prefix):
     with response["Body"] as body:
         record = json.load(body)
     files = record["files"]
+    entries = []
     for relative, digest in files.items():
         path = safe_checkpoint_path(relative)
         if not re.fullmatch("[a-f0-9]{64}", digest):
             raise ValueError("Invalid checkpoint hash")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        s3.download_file(bucket, f"{prefix}/crawler/objects/{digest}", str(path))
-        if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        entries.append((relative, digest, path))
+
+    def restore_one(entry):
+        relative, digest, path = entry
+        result = s3.get_object(
+            Bucket=bucket,
+            Key=f"{prefix}/crawler/objects/{digest}",
+        )
+        with result["Body"] as body:
+            data = body.read()
+        if hashlib.sha256(data).hexdigest() != digest:
             raise ValueError("Checkpoint hash mismatch")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return relative
+
+    total = len(entries)
+    print(f"checkpoint restore: total={total} workers={CHECKPOINT_RESTORE_WORKERS}",
+          flush=True)
+    with ThreadPoolExecutor(max_workers=CHECKPOINT_RESTORE_WORKERS) as executor:
+        futures = [executor.submit(restore_one, entry) for entry in entries]
+        for completed, future in enumerate(as_completed(futures), 1):
+            future.result()
+            if completed % 500 == 0 or completed == total:
+                print(f"checkpoint restore: {completed}/{total}", flush=True)
     return files, response["ETag"]
 
 

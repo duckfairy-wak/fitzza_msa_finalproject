@@ -8,8 +8,8 @@ spring:
     import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitzza}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD}
+    username: ${ORDER_SERVICE_DB_USER}
+    password: ${ORDER_SERVICE_DB_PASSWORD}
     hikari:
       schema: order_service
   flyway:

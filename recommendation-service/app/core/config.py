@@ -58,11 +58,20 @@ class Settings:
     product_service_url: str = field(
         default_factory=lambda: os.getenv("PRODUCT_SERVICE_URL", "")
     )
+    vton_service_url: str = field(
+        default_factory=lambda: os.getenv("VTON_SERVICE_URL", "http://localhost:8091")
+    )
+    order_service_url: str = field(
+        default_factory=lambda: os.getenv("ORDER_SERVICE_URL", "")
+    )
     notification_service_url: str = field(
         default_factory=lambda: os.getenv("NOTIFICATION_SERVICE_URL", "")
     )
     recommendation_service_token: str = field(
         default_factory=lambda: os.getenv("RECOMMENDATION_SERVICE_TOKEN", "")
+    )
+    vton_service_token: str = field(
+        default_factory=lambda: os.getenv("VTON_SERVICE_TOKEN", "")
     )
     community_service_token: str = field(
         default_factory=lambda: os.getenv("COMMUNITY_SERVICE_TOKEN", "")
@@ -94,13 +103,44 @@ class Settings:
     redis_enabled: bool = field(
         default_factory=lambda: os.getenv("REDIS_ENABLED", "true").strip().lower() in ("true", "1", "yes")
     )
+    enable_dev_mock_history: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_DEV_MOCK_HISTORY", "false").strip().lower() in ("true", "1", "yes")
+    )
+    enable_lifespan_warmup: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_LIFESPAN_WARMUP", "true").strip().lower() in ("true", "1", "yes")
+    )
     redis_ttl_seconds: int = field(
         default_factory=lambda: int(os.getenv("REDIS_TTL_SECONDS", "3600"))
     )
     redis_socket_timeout: float = field(
         default_factory=lambda: float(os.getenv("REDIS_SOCKET_TIMEOUT", "2.0"))
     )
+    admin_user_ids: str = field(
+        default_factory=lambda: os.getenv("ADMIN_USER_IDS", "4")
+    )
+    admin_token: str = field(
+        default_factory=lambda: os.getenv("ADMIN_TOKEN", "")
+    )
 
+
+    def get_admin_user_ids(self) -> set[int]:
+        ids: set[int] = set()
+        for part in (self.admin_user_ids or "").split(","):
+            clean = part.strip()
+            if clean.isdigit():
+                ids.add(int(clean))
+        return ids
+
+    def verify_admin_token(self, provided_token: str | None) -> bool:
+        if not provided_token or not provided_token.strip():
+            return False
+        configured = (self.admin_token or "").strip()
+        if not configured:
+            return False
+        return secrets.compare_digest(
+            configured.encode("utf-8"),
+            provided_token.strip().encode("utf-8"),
+        )
 
     def get_postgres_dsn(self) -> str | None:
         if self.database_url.strip():

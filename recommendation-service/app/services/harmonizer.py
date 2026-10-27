@@ -143,6 +143,9 @@ class OutfitHarmonizer:
         self.engine = search_engine
         self.model_name = model_name
         self._client: OpenAI | None = None
+        self.last_latency: float = 0.0
+        self.last_prompt_tokens: int = 0
+        self.last_completion_tokens: int = 0
 
     def _get_client(self) -> OpenAI:
         if self._client is None:
@@ -319,7 +322,10 @@ class OutfitHarmonizer:
         end_time = time.perf_counter()
 
         self.last_latency = end_time - start_time
-        logger.debug("Harmonizer 단일 (%s) 응답 시간: %.4f초", self.model_name, self.last_latency)
+        usage = getattr(completion, "usage", None)
+        p_tok = int(getattr(usage, "prompt_tokens", 0) or 0)
+        c_tok = int(getattr(usage, "completion_tokens", 0) or 0)
+        logger.debug("Harmonizer 단일 (%s) 응답 시간: %.4f초, tokens=(prompt=%d, completion=%d)", self.model_name, self.last_latency, p_tok, c_tok)
 
         message = completion.choices[0].message
 
@@ -343,6 +349,8 @@ class OutfitHarmonizer:
             "pass_status": consistent_pass_status,
             "violated_rules": deduped_rules,
             "feedback_summary": result.feedback_summary,
+            "prompt_tokens": p_tok,
+            "completion_tokens": c_tok,
         }
 
     def select_best_outfits(
@@ -353,6 +361,9 @@ class OutfitHarmonizer:
             total_budget: int | None = None,
             pre_filtered_combos: list[tuple] | None = None,
     ) -> list[dict[str, Any]]:
+        self.last_prompt_tokens = 0
+        self.last_completion_tokens = 0
+
         if top_k < 1:
             raise ValueError("top_k는 1 이상이어야 합니다.")
 
@@ -465,6 +476,9 @@ class OutfitHarmonizer:
                     error,
                 )
                 continue
+
+            self.last_prompt_tokens += int(gate_result.get("prompt_tokens", 0) or 0)
+            self.last_completion_tokens += int(gate_result.get("completion_tokens", 0) or 0)
 
             final_score = round(
                 gate_result["harmony_score"] - candidate["budget_penalty"],

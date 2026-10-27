@@ -1,6 +1,8 @@
 package com.fitzza.community.client;
 
+import io.micrometer.observation.ObservationRegistry;
 import java.util.Optional;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,8 +23,11 @@ public class VirtualTryOnServiceClient implements FittingResults {
     @Autowired
     public VirtualTryOnServiceClient(
             @Value("${fitzza.vton-service.base-url:}") String baseUrl,
-            @Value("${fitzza.service-token}") String serviceToken) {
-        this(UserClientConfig.plainRestClientBuilder(), baseUrl, serviceToken);
+            @Value("${fitzza.service-token}") String serviceToken,
+            ObjectProvider<ObservationRegistry> observationRegistry) {
+        this(UserClientConfig.plainRestClientBuilder()
+                .observationRegistry(observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP)),
+                baseUrl, serviceToken);
     }
 
     VirtualTryOnServiceClient(RestClient.Builder builder, String baseUrl, String serviceToken) {

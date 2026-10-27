@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import (
@@ -21,6 +22,7 @@ from app.clients.notification_client import NotificationServiceClient
 from app.clients.product_client import ProductServiceClient
 from app.clients.redis_client import RedisClient
 from app.clients.user_client import UserServiceClient
+from app.clients.vton_client import VtonServiceClient
 from app.core.config import Settings, get_settings
 from app.core.database import RecommendationRepository
 from app.services.cache_service import CacheService
@@ -28,6 +30,8 @@ from app.services.cache_service import CacheService
 from app.schemas.recommendation import (
     InternalComboProductItem,
     InternalComboResponse,
+    PersonalizedPageResponse,
+    PersonalizedProductItem,
     RecommendationAcceptedResponse,
     RecommendationCreateRequest,
     RecommendationDetailResponse,
@@ -39,6 +43,7 @@ from app.schemas.recommendation import (
     VisualSearchResultItem,
     VisualSearchResponse,
 )
+from app.schemas.analytics import AnalyticsResponse
 
 FIT_SOURCE_EVIDENCE_MAP: dict[str, str] = {
     "learned_preference": "기존 구매·설문 기반 선호 실측과 가장 유사한 사이즈입니다.",
@@ -94,6 +99,23 @@ def _require_service_token(
         )
 
 
+def _require_admin(
+    settings: Settings,
+    x_user_id: str | None,
+    x_admin_token: str | None = None,
+) -> None:
+    if settings.verify_admin_token(x_admin_token):
+        return
+
+    user_id = _require_user_id(x_user_id)
+    if user_id not in settings.get_admin_user_ids():
+        raise RecommendationApiError(
+            status_code=status.HTTP_403_FORBIDDEN,
+            code="FORBIDDEN",
+            message="관리자 권한이 필요합니다.",
+        )
+
+
 def _get_repository(request: Request) -> RecommendationRepository:
     repo = getattr(request.app.state, "repository", None)
     if repo is None:
@@ -138,6 +160,15 @@ def _get_cache_service(app: Any) -> CacheService:
     return cache_service
 
 
+def _get_vton_client(request: Request) -> VtonServiceClient:
+    vton_client = getattr(request.app.state, "vton_client", None)
+    if vton_client is None:
+        settings = _get_settings(request)
+        vton_client = VtonServiceClient(settings)
+        request.app.state.vton_client = vton_client
+    return vton_client
+
+
 def _get_coordinator(app: Any) -> Any:
     coordinator = getattr(app.state, "coordinator", None)
     if coordinator is None:
@@ -156,6 +187,32 @@ def _get_search_engine(app: Any) -> Any:
         search_engine = coordinator.engine
         app.state.search_engine = search_engine
     return search_engine
+
+
+def _get_personalized_feed_service(app: Any) -> Any:
+    feed_service = getattr(app.state, "personalized_feed_service", None)
+    if feed_service is None:
+        from app.services.personalized_feed_service import PersonalizedFeedService
+        from app.services.personalized_vector_engine import PersonalizedVectorEngine
+
+        settings = _get_settings_from_app(app)
+        search_engine = getattr(app.state, "search_engine", None)
+        qdrant_client = getattr(search_engine, "client", None) if search_engine else None
+
+        vector_engine = PersonalizedVectorEngine(
+            qdrant_client=qdrant_client,
+            collection_name=settings.qdrant_collection_name,
+            search_engine=search_engine,
+            qdrant_url=settings.qdrant_url,
+        )
+        feed_service = PersonalizedFeedService(
+            qdrant_client=qdrant_client,
+            collection_name=settings.qdrant_collection_name,
+            vector_engine=vector_engine,
+            qdrant_url=settings.qdrant_url,
+        )
+        app.state.personalized_feed_service = feed_service
+    return feed_service
 
 
 
@@ -393,6 +450,9 @@ def process_recommendation_request(
 
         tpo_summary = pipeline_result.get("tpo")
         comment = pipeline_result.get("comment")
+        is_cache_hit = cached_result is not None
+        prompt_tokens = 0 if is_cache_hit else int(pipeline_result.get("prompt_tokens") or 0)
+        completion_tokens = 0 if is_cache_hit else int(pipeline_result.get("completion_tokens") or 0)
 
         if result_type == "single":
             raw_items = pipeline_result.get("results") or []
@@ -402,6 +462,8 @@ def process_recommendation_request(
                 tpo_summary=tpo_summary,
                 items=mapped_items,
                 message=comment,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
         else:
             raw_outfits = pipeline_result.get("outfits") or []
@@ -412,6 +474,8 @@ def process_recommendation_request(
                 tpo_summary=tpo_summary,
                 combos=mapped_combos,
                 message=comment,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
     except Exception as exc:
         logger.error(
@@ -438,6 +502,54 @@ def process_recommendation_request(
 
 public_router = APIRouter(tags=["추천"])
 internal_router = APIRouter(tags=["내부 통신"])
+
+
+@public_router.get(
+    "/personalized",
+    response_model=PersonalizedPageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="홈 화면 개인화 추천 상품 피드 조회 (무한 스크롤)",
+    description=(
+        "사용자의 행동 이력(이상형 월드컵 1등, 찜/장바구니, 최근 구매 5건)을 바탕으로 "
+        "취향 벡터를 합성하여 5대 카테고리(상의, 하의, 아우터, 신발, 모자) 상품을 라운드 로빈 교차 인터리빙한 "
+        "개인화 피드를 제공합니다.\n\n"
+        "- 최근 구매 완료한 상품은 피드에서 제외됩니다.\n"
+        "- 비로그인(게스트) 또는 이력이 없는 유저는 호불호 없는 베이직 룩 추천으로 자동 폴백(Cold-Start)됩니다.\n"
+        "- 5분(300초)간 Redis에 캐싱되며, refresh=true 쿼리로 즉시 강제 갱신할 수 있습니다.\n"
+        "- 한 번에 size(기본 20개)씩 최대 4페이지(총 80개)까지 페이징 제공됩니다."
+    ),
+)
+async def get_personalized_recommendation_feed(
+    request: Request,
+    page: int = Query(default=0, ge=0, description="페이지 번호 (0부터 시작)"),
+    size: int = Query(default=20, gt=0, le=50, description="페이지당 상품 개수 (기본 20, 최대 50)"),
+    refresh: bool = Query(default=False, description="캐시 무효화 및 강제 새로고침 여부"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
+) -> PersonalizedPageResponse:
+    parsed_user_id = 0
+    if x_user_id is not None and str(x_user_id).strip():
+        try:
+            uid = int(str(x_user_id).strip())
+            if uid > 0:
+                parsed_user_id = uid
+        except (ValueError, TypeError):
+            parsed_user_id = 0
+
+    feed_service = await run_in_threadpool(
+        _get_personalized_feed_service,
+        request.app,
+    )
+    cache_service = _get_cache_service(request.app)
+
+    return await feed_service.get_personalized_feed_page(
+        user_id=parsed_user_id,
+        page=page,
+        size=size,
+        refresh=refresh,
+        cache_service=cache_service,
+    )
+
+
 
 
 @public_router.post(
@@ -513,8 +625,31 @@ def list_recommendations(
     return RecommendationHistoryPageResponse(
         content=items,
         page=page_data["page"],
+        size=page_data.get("size", size),
+        totalElements=page_data.get("totalElements", 0),
         totalPages=page_data["totalPages"],
+        hasNext=page_data.get("hasNext", False),
     )
+
+
+@public_router.get(
+    "/analytics",
+    response_model=AnalyticsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="관리자 대시보드 통계 집계 조회",
+    description="현재 날짜(KST)를 기준으로 일간/주간/월간/연간 토큰 사용량 추이, 인기 스타일 키워드, 추천 상품 통계를 집계하여 반환합니다.",
+)
+def get_recommendation_analytics(
+    request: Request,
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> AnalyticsResponse:
+    settings = _get_settings(request)
+    _require_admin(settings, x_user_id=x_user_id, x_admin_token=x_admin_token)
+    repository = _get_repository(request)
+    vton_client = _get_vton_client(request)
+    data = repository.get_analytics_data(vton_client=vton_client)
+    return AnalyticsResponse(**data)
 
 
 @public_router.get(
@@ -547,6 +682,7 @@ def get_recommendation_detail(
 
     return RecommendationDetailResponse(
         requestId=record["requestId"],
+        queryText=str(record.get("queryText") or ""),
         status=record["status"],
         searchType=record["searchType"],
         tpoSummary=record["tpoSummary"],

@@ -123,6 +123,9 @@ class QueryParser:
     def __init__(self, model_name: str = "gpt-6.1-sol"):
         self.model_name = model_name
         self._client: OpenAI | None = None
+        self.last_latency: float = 0.0
+        self.last_prompt_tokens: int = 0
+        self.last_completion_tokens: int = 0
 
     def _get_client(self) -> OpenAI:
         """실제 API 호출이 필요할 때 OpenAI 클라이언트를 준비한다."""
@@ -784,7 +787,16 @@ class QueryParser:
 
         end_time = time.perf_counter()  # 측정 종료
         self.last_latency = end_time - start_time  # 소요 시간 저장 (초 단위)
-        logger.debug("QueryParser (%s) 응답 시간: %.4f초", self.model_name, self.last_latency)
+        usage = getattr(completion, "usage", None)
+        self.last_prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        self.last_completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        logger.debug(
+            "QueryParser (%s) 응답 시간: %.4f초, tokens=(prompt=%d, completion=%d)",
+            self.model_name,
+            self.last_latency,
+            self.last_prompt_tokens,
+            self.last_completion_tokens,
+        )
 
         parsed_intent = completion.choices[0].message.parsed
 

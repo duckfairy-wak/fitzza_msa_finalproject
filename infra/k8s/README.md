@@ -7,14 +7,14 @@ This directory contains the local, credential-free Kubernetes deployment baselin
 - An EKS cluster with the AWS Load Balancer Controller installed
 - ECR repositories for every application image, with tag immutability enabled
 - An RDS PostgreSQL endpoint reachable from the private subnets
-- An IAM association for the `fitzza-application` service account using EKS Pod Identity or IRSA
+- The existing operator-managed association for `fitzza-application` and the foundation stack's dedicated EKS Pod Identity association for `fitzza-vton`
 - A Kubernetes Secret named `fitzza-app-secrets`, populated from the approved secret store. The SSM transition is tracked in FITZZA-251; the existing RDS password still uses Secrets Manager until that transition is verified.
 
 Do not apply `base/secret.example.yaml`. It documents required keys only and is intentionally excluded from Kustomize.
 
-Production VTON uses the operator-managed `fitzza-prod-vton-runtime` Pod Identity role on
-`fitzza/fitzza-application`. Scope that role to object read/write/delete on
-`fitzza-prod-assets-vton` and send/receive/delete/change-visibility on `vton-jobs`.
+Production VTON uses the foundation-managed `VtonRuntimeRole` Pod Identity role on
+`fitzza/fitzza-vton`. That role is scoped to object read/write/delete on
+`fitzza-prod-assets-vton` and send/receive/delete/change-visibility on the foundation VTON job queue.
 The foundation S3 Gateway Endpoint separately admits that role only to the VTON asset
 bucket. Keep `VTON_STORAGE_BACKEND=local` and `VTON_QUEUE_BACKEND=memory` until the
 association and endpoint access are verified; then switch both values together.
@@ -26,6 +26,39 @@ variables sourced with `envFrom` are captured only when a Pod starts. In particu
 restart and wait for both `vton-service` and `vton-worker`; verify only the presence of
 the `OPENAI_API_KEY` variable and never print its value.
 
+## Distributed tracing (FITZZA-284)
+
+Production tracing remains disabled. The pilot cluster runs on one `t4g.large` worker
+without spare rollout capacity, and no trace retention, storage, or UI access policy has
+been approved. Do not deploy a Jaeger or OpenTelemetry collector and do not add tracing
+variables to `fitzza-app-config` until those decisions and the collector's resource
+requests have been reviewed. Java and FastAPI services default to a sampling probability
+of `0.0`, so the current manifests do not export spans.
+
+To enable tracing later:
+
+1. Deploy a collector with an OTLP/HTTP receiver reachable only inside the cluster. Define
+   its resource requests and limits, trace backend, retention period, and UI access policy.
+2. Confirm that the collector and all existing Pods fit within the node's actual
+   allocatable CPU, memory, and Pod count. Obtain cost approval before adding storage or
+   increasing worker capacity.
+3. Add both values to `fitzza-app-config`; the endpoint must include the OTLP HTTP traces
+   path rather than only the collector host:
+
+   ```yaml
+   MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+   MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
+   ```
+
+4. Apply the ConfigMap and restart the traced Deployments. Values supplied by `envFrom`
+   are read only when each Pod starts. Config Server and Discovery Service are not traced.
+5. Verify application health, one end-to-end trace across Gateway and domain services,
+   collector export errors, and actual resource use before keeping tracing enabled.
+
+For rollback, set `MANAGEMENT_TRACING_SAMPLING_PROBABILITY` to `"0.0"` (or remove both
+keys), apply the ConfigMap, and restart the same Deployments. Removing or changing the
+ConfigMap alone does not update an existing Pod's environment.
+
 ## Values to replace
 
 Before deployment, replace the following placeholders through an environment-specific overlay or pipeline step:
@@ -36,6 +69,8 @@ Before deployment, replace the following placeholders through an environment-spe
 - `CHANGE_ME_ALB_SECURITY_GROUP_ID` (CloudFormation output `AlbSecurityGroupId`)
 - `CHANGE_ME_API_DOMAIN`
 - `CHANGE_ME_REFRESH_COOKIE_SECURE` (set by `scripts/render_production_manifests.py`: `true` with TLS, `false` without)
+- `CHANGE_ME_VTON_JOB_QUEUE_URL` (CloudFormation output `VtonJobQueueUrl`)
+- `CHANGE_ME_VTON_JOB_DLQ_URL` (CloudFormation output `VtonJobDeadLetterQueueUrl`)
 
 The production overlay contains image mappings for all 11 application services. CodeBuild's `post_build` step fills `CHANGE_ME_ECR_REGISTRY`, `CHANGE_ME_ECR_REPOSITORY_PREFIX`, and `CHANGE_ME_COMMIT_TAG` from `image-definitions.json`, using the same ECR paths and 12-character Git commit tag as the image build. CodeBuild requires a resolved Git commit SHA; there is no `local` tag fallback.
 

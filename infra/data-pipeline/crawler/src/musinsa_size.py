@@ -21,6 +21,7 @@ def normalize_actual_size(data: dict[str, Any] | None) -> dict[str, Any]:
     if not data:
         return {
             "available": False,
+            "source": "actual_measurement",
             "type_name": None,
             "type_number": None,
             "unit": "cm",
@@ -48,10 +49,50 @@ def normalize_actual_size(data: dict[str, Any] | None) -> dict[str, Any]:
 
     return {
         "available": bool(rows),
+        "source": "actual_measurement",
         "type_name": data.get("typeName"),
         "type_number": data.get("typeNumber"),
         "unit": "cm",
         "description": data.get("description"),
         "guide_image": _full_image_url(data.get("webImage")),
         "measurements": rows,
+    }
+
+
+def normalize_accessory_option_size(product: dict[str, Any]) -> dict[str, Any]:
+    """Preserve purchasable accessory sizes when no measurement table is published."""
+    values: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    option_name = None
+
+    for option in product.get("options") or []:
+        name = str(option.get("name") or "").strip()
+        normalized_name = name.casefold()
+        if "사이즈" not in name and "size" not in normalized_name:
+            continue
+        option_name = name
+        for item in option.get("values") or []:
+            label = str(item.get("name") or "").strip()
+            if not label or label in seen:
+                continue
+            seen.add(label)
+            values.append({
+                "size": label,
+                "code": str(item.get("code") or label),
+            })
+
+    numeric_millimeters = bool(values) and all(
+        value["size"].isdigit() and 100 <= int(value["size"]) <= 400
+        for value in values
+    )
+    return {
+        "available": bool(values),
+        "source": "sales_option",
+        "type_name": option_name,
+        "type_number": None,
+        "unit": "mm" if numeric_millimeters else "label",
+        "description": "Purchasable accessory size options from the product page",
+        "guide_image": None,
+        "measurements": [],
+        "options": values,
     }

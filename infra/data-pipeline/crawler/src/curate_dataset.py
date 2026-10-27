@@ -12,7 +12,11 @@ import tarfile
 from urllib.parse import urlparse
 
 from src.collector.config import CATEGORY_CONFIG
-from src.collector.rules import is_allowed_gender, logical_category
+from src.collector.rules import (
+    ACCESSORY_FALLBACK_CATEGORIES,
+    is_allowed_gender,
+    logical_category,
+)
 from src.collector.season_allocator import possible_seasons
 from src.collector.select_balanced import Dinic, SEASONS
 
@@ -24,6 +28,31 @@ MEASUREMENTS = {
     "신발": {"발길이", "발볼", "발목높이", "굽높이"},
     "모자": {"머리둘레", "챙길이", "깊이"},
 }
+
+
+def external_product_contract(product: dict) -> dict:
+    """Return the original downstream JSON shape after internal fallback handling."""
+    item = deepcopy(product)
+    size = item.get("size")
+    if isinstance(size, dict):
+        size.pop("source", None)
+        options = size.pop("options", [])
+        if not size.get("measurements") and isinstance(options, list):
+            size["measurements"] = [
+                {"size": str(option.get("size") or "").strip(),
+                 "sequence": index, "measurements": {}}
+                for index, option in enumerate(options, 1)
+                if isinstance(option, dict) and str(option.get("size") or "").strip()
+            ]
+    mappings = item.get("color_image_mappings")
+    if isinstance(mappings, list):
+        for mapping in mappings:
+            if not isinstance(mapping, dict):
+                continue
+            mapping.pop("color_status", None)
+            if not isinstance(mapping.get("color_raw"), str) or not mapping["color_raw"].strip():
+                mapping["color_raw"] = "미지정"
+    return item
 
 
 def validate_product(product: dict) -> tuple[str, str]:
@@ -40,31 +69,49 @@ def validate_product(product: dict) -> tuple[str, str]:
         raise ValueError("gender_not_allowed")
     size = product.get("size") or {}
     rows = size.get("measurements") or []
-    if size.get("available") is not True or size.get("unit") != "cm" or not rows:
-        raise ValueError("actual_size_missing_or_wrong_unit")
-    for row in rows:
-        measurements = row.get("measurements") or {}
-        if not row.get("size") or not any(
-            key in MEASUREMENTS[category] and isinstance(value, (int, float))
-            and not isinstance(value, bool) and math.isfinite(value) and value > 0
-            for key, value in measurements.items()
-        ):
-            raise ValueError("invalid_actual_size")
+    if (category in ACCESSORY_FALLBACK_CATEGORIES
+            and size.get("source") == "sales_option"):
+        options = size.get("options") or []
+        if (size.get("available") is not True
+                or size.get("unit") not in {"mm", "label"}
+                or not options
+                or not all(str(item.get("size") or "").strip() for item in options)):
+            raise ValueError("invalid_accessory_size_options")
+    else:
+        if size.get("available") is not True or size.get("unit") != "cm" or not rows:
+            raise ValueError("actual_size_missing_or_wrong_unit")
+        for row in rows:
+            measurements = row.get("measurements") or {}
+            if not row.get("size") or not any(
+                key in MEASUREMENTS[category] and isinstance(value, (int, float))
+                and not isinstance(value, bool) and math.isfinite(value) and value > 0
+                for key, value in measurements.items()
+            ):
+                raise ValueError("invalid_actual_size")
     mappings = product.get("color_image_mappings")
     if not isinstance(mappings, list) or not mappings:
         raise ValueError("color_image_mappings_missing")
     seen = set()
     for mapping in mappings:
         raw, url = mapping.get("color_raw"), mapping.get("image_url")
-        if not isinstance(raw, str) or not raw.strip() or not isinstance(url, str):
+        evidence = mapping.get("evidence")
+        unspecified_accessory = (
+            category in ACCESSORY_FALLBACK_CATEGORIES
+            and raw is None
+            and mapping.get("color_status") == "unspecified"
+            and evidence == "Detail.primaryImage.colorUnspecified"
+        )
+        if ((not unspecified_accessory
+             and (not isinstance(raw, str) or not raw.strip()))
+                or not isinstance(url, str)):
             raise ValueError("invalid_color_image_mapping")
         parsed = urlparse(url)
         if (parsed.scheme != "https" or parsed.hostname not in IMAGE_HOSTS
                 or parsed.username or parsed.password or parsed.port not in (None, 443)):
             raise ValueError("unapproved_image_url")
-        if str(mapping.get("product_id", "")) != identifier or not mapping.get("evidence"):
+        if str(mapping.get("product_id", "")) != identifier or not evidence:
             raise ValueError("color_image_evidence_missing")
-        pair = (raw.strip().lower(), url)
+        pair = (raw.strip().lower() if isinstance(raw, str) else None, url)
         if pair in seen:
             raise ValueError("duplicate_color_image_mapping")
         seen.add(pair)
@@ -133,7 +180,7 @@ def prepare(sources: list[Path]) -> tuple[dict, dict[str, bytes]]:
         for item in items:
             item.setdefault("dataset", {}).update(logical_category=category,
                 primary_season=item["season"]["primary"], gender_scope="MALE_AND_UNISEX")
-        selected.extend(items)
+        selected.extend(external_product_contract(item) for item in items)
     files = {f"data/{item['dataset']['logical_category']}/{int(item['product_id'])}.json":
              (json.dumps(item, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8")
              for item in selected}

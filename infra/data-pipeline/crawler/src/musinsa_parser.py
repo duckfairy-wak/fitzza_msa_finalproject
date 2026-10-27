@@ -5,7 +5,10 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-from src.color_image_mappings import extract_color_image_mappings
+from src.color_image_mappings import (
+    extract_color_image_mappings,
+    extract_accessory_image_fallback,
+)
 
 
 FIT_TYPE_BY_RAW = {
@@ -253,6 +256,15 @@ def normalize_musinsa_product(html: str, source_url: str) -> dict[str, Any]:
         for image in detail.get("goodsImages", [])
     )
     images = [image for image in images if image]
+    color_image_mappings = extract_color_image_mappings(product_id, options)
+    category = detail.get("category") or {}
+    if (not color_image_mappings
+            and category.get("categoryDepth1Name") in {"신발", "모자"}):
+        color_image_mappings = extract_accessory_image_fallback(
+            product_id,
+            options,
+            images,
+        )
 
     return {
         "source": "musinsa",
@@ -270,7 +282,7 @@ def normalize_musinsa_product(html: str, source_url: str) -> dict[str, Any]:
             "name_en": brand_info.get("brandEnglishName"),
         },
 
-        "category": detail.get("category"),
+        "category": category,
 
         "season": {
             "original": original_seasons,
@@ -316,7 +328,7 @@ def normalize_musinsa_product(html: str, source_url: str) -> dict[str, Any]:
 
         "options": option_groups,
         "option_items": option_items,
-        "color_image_mappings": extract_color_image_mappings(product_id, options),
+        "color_image_mappings": color_image_mappings,
 
         "review": {
             "rating": review.get("satisfactionScore"),

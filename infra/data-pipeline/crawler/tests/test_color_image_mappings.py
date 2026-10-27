@@ -3,7 +3,11 @@ import json
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from src.color_image_mappings import extract_color_image_mappings, product_image_url
+from src.color_image_mappings import (
+    extract_color_image_mappings,
+    extract_accessory_image_fallback,
+    product_image_url,
+)
 from src.musinsa_parser import normalize_musinsa_product
 from src.curate_dataset import validate_product
 from src.collector.batch_crawler import BatchProductCrawler
@@ -21,6 +25,41 @@ def options_fixture():
 
 
 class ColorImageMappingTests(unittest.TestCase):
+    def test_shoe_single_color_uses_primary_image(self):
+        options = options_fixture()
+        options["basic"][0]["displayType"] = "DROPDOWN"
+        options["basic"][0]["optionValues"][0]["imageUrl"] = None
+        mappings = extract_accessory_image_fallback(
+            123, options, ["https://image.msscdn.net/images/shoe.jpg"]
+        )
+        self.assertEqual(len(mappings), 1)
+        self.assertEqual(mappings[0]["color_raw"], "블랙_기모")
+        self.assertEqual(mappings[0]["color_status"], "declared_single_option")
+
+    def test_shoe_without_color_keeps_unspecified_primary_image(self):
+        mappings = extract_accessory_image_fallback(
+            123,
+            {"basic": [], "optionItems": []},
+            ["https://image.msscdn.net/images/shoe.jpg"],
+        )
+        self.assertEqual(len(mappings), 1)
+        self.assertIsNone(mappings[0]["color_raw"])
+        self.assertEqual(mappings[0]["color_status"], "unspecified")
+
+    def test_shoe_multiple_colors_without_images_remains_rejected(self):
+        options = options_fixture()
+        options["basic"][0]["displayType"] = "DROPDOWN"
+        second = deepcopy(options["basic"][0]["optionValues"][0])
+        second.update(no=22, name="화이트", imageUrl=None)
+        options["basic"][0]["optionValues"].append(second)
+        options["optionItems"][0]["optionValueNos"].append(22)
+        options["optionItems"][0]["optionValues"].append(
+            {"no": 22, "optionNo": 10, "name": "화이트"}
+        )
+        self.assertEqual(extract_accessory_image_fallback(
+            123, options, ["https://image.msscdn.net/images/shoe.jpg"]
+        ), [])
+
     def test_explicit_mapping_preserves_raw_and_evidence(self):
         options = options_fixture()
         before = deepcopy(options)

@@ -1,10 +1,15 @@
 import json
+import logging
 import math
 import re
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
+KST = timezone(timedelta(hours=9))
 
 
 def _validate_identifier(identifier: str) -> str:
@@ -82,11 +87,15 @@ class RecommendationRepository:
                                 tpo_summary TEXT,
                                 items_json TEXT NOT NULL DEFAULT '[]',
                                 message TEXT,
+                                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                                completion_tokens INTEGER NOT NULL DEFAULT 0,
                                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
                             );
 
                             CREATE INDEX IF NOT EXISTS idx_rec_requests_user_created
                                 ON {schema}.recommendation_requests (user_id, request_id DESC);
+                            CREATE INDEX IF NOT EXISTS idx_rec_requests_status_created
+                                ON {schema}.recommendation_requests (status, created_at DESC);
 
                             CREATE TABLE IF NOT EXISTS {schema}.recommendation_combos (
                                 combo_id BIGSERIAL PRIMARY KEY,
@@ -174,6 +183,26 @@ class RecommendationRepository:
                                         ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz,
                                         ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;
                                 END IF;
+
+                                IF NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = '{schema}'
+                                      AND table_name = 'recommendation_requests'
+                                      AND column_name = 'prompt_tokens'
+                                ) THEN
+                                    ALTER TABLE {schema}.recommendation_requests
+                                        ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0;
+                                END IF;
+
+                                IF NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = '{schema}'
+                                      AND table_name = 'recommendation_requests'
+                                      AND column_name = 'completion_tokens'
+                                ) THEN
+                                    ALTER TABLE {schema}.recommendation_requests
+                                        ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0;
+                                END IF;
                             END $$;
                             """
                         )
@@ -194,11 +223,15 @@ class RecommendationRepository:
                         tpo_summary TEXT,
                         items_json TEXT NOT NULL DEFAULT '[]',
                         message TEXT,
+                        prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                        completion_tokens INTEGER NOT NULL DEFAULT 0,
                         created_at TEXT NOT NULL
                     );
 
                     CREATE INDEX IF NOT EXISTS idx_recommendation_requests_user_created
                         ON recommendation_requests (user_id, request_id DESC);
+                    CREATE INDEX IF NOT EXISTS idx_rec_requests_status_created
+                        ON recommendation_requests (status, created_at DESC);
 
                     CREATE TABLE IF NOT EXISTS recommendation_combos (
                         combo_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -237,6 +270,21 @@ class RecommendationRepository:
                     );
                     """
                 )
+                # SQLite 마이그레이션: 기존 파일 DB에 새 컬럼이 없을 경우 추가
+                columns = [
+                    row["name"]
+                    for row in conn.execute(
+                        "PRAGMA table_info(recommendation_requests)"
+                    ).fetchall()
+                ]
+                if "prompt_tokens" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recommendation_requests ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0"
+                    )
+                if "completion_tokens" not in columns:
+                    conn.execute(
+                        "ALTER TABLE recommendation_requests ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0"
+                    )
                 conn.commit()
             finally:
                 self._close_sqlite_if_transient(conn)
@@ -307,6 +355,8 @@ class RecommendationRepository:
         tpo_summary: str | None,
         items: list[dict[str, Any]],
         message: str | None,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
     ) -> None:
         items_str = json.dumps(items, ensure_ascii=False)
         if self._use_postgres:
@@ -320,10 +370,12 @@ class RecommendationRepository:
                                 search_type = 'SINGLE',
                                 tpo_summary = %s,
                                 items_json = %s,
-                                message = %s
+                                message = %s,
+                                prompt_tokens = %s,
+                                completion_tokens = %s
                             WHERE request_id = %s
                             """,
-                            (tpo_summary, items_str, message, request_id),
+                            (tpo_summary, items_str, message, prompt_tokens, completion_tokens, request_id),
                         )
                     conn.commit()
             return
@@ -338,10 +390,12 @@ class RecommendationRepository:
                         search_type = 'SINGLE',
                         tpo_summary = ?,
                         items_json = ?,
-                        message = ?
+                        message = ?,
+                        prompt_tokens = ?,
+                        completion_tokens = ?
                     WHERE request_id = ?
                     """,
-                    (tpo_summary, items_str, message, request_id),
+                    (tpo_summary, items_str, message, prompt_tokens, completion_tokens, request_id),
                 )
                 conn.commit()
             finally:
@@ -354,6 +408,8 @@ class RecommendationRepository:
         tpo_summary: str | None,
         combos: list[dict[str, Any]],
         message: str | None,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
     ) -> list[dict[str, Any]]:
         saved_combos: list[dict[str, Any]] = []
         if self._use_postgres:
@@ -409,10 +465,12 @@ class RecommendationRepository:
                                 search_type = 'COMBO',
                                 tpo_summary = %s,
                                 items_json = '[]',
-                                message = %s
+                                message = %s,
+                                prompt_tokens = %s,
+                                completion_tokens = %s
                             WHERE request_id = %s
                             """,
-                            (tpo_summary, message, request_id),
+                            (tpo_summary, message, prompt_tokens, completion_tokens, request_id),
                         )
                     conn.commit()
             return saved_combos
@@ -474,10 +532,12 @@ class RecommendationRepository:
                         search_type = 'COMBO',
                         tpo_summary = ?,
                         items_json = '[]',
-                        message = ?
+                        message = ?,
+                        prompt_tokens = ?,
+                        completion_tokens = ?
                     WHERE request_id = ?
                     """,
-                    (tpo_summary, message, request_id),
+                    (tpo_summary, message, prompt_tokens, completion_tokens, request_id),
                 )
                 conn.commit()
                 return saved_combos
@@ -532,7 +592,8 @@ class RecommendationRepository:
                         cur.execute(
                             """
                             SELECT request_id, user_id, query_text, status, search_type,
-                                   tpo_summary, items_json, message, created_at
+                                   tpo_summary, items_json, message, prompt_tokens,
+                                   completion_tokens, created_at
                             FROM recommendation_requests
                             WHERE request_id = %s
                             """,
@@ -561,7 +622,8 @@ class RecommendationRepository:
                 row = conn.execute(
                     """
                     SELECT request_id, user_id, query_text, status, search_type,
-                           tpo_summary, items_json, message, created_at
+                           tpo_summary, items_json, message, prompt_tokens,
+                           completion_tokens, created_at
                     FROM recommendation_requests
                     WHERE request_id = ?
                     """,
@@ -608,6 +670,8 @@ class RecommendationRepository:
             "items": json.loads(row["items_json"] or "[]"),
             "combos": combos,
             "message": row["message"],
+            "promptTokens": int(row.get("prompt_tokens", 0) if hasattr(row, "get") else row["prompt_tokens"] if "prompt_tokens" in row.keys() else 0),
+            "completionTokens": int(row.get("completion_tokens", 0) if hasattr(row, "get") else row["completion_tokens"] if "completion_tokens" in row.keys() else 0),
             "createdAt": RecommendationRepository._format_utc_timestamp(row["created_at"]),
         }
 
@@ -645,7 +709,7 @@ class RecommendationRepository:
                             (user_id, size, offset),
                         )
                         rows = cur.fetchall()
-            return self._build_page_dict(rows, page, total_pages)
+            return self._build_page_dict(rows, page, total_pages, total_count=total_count, size=size)
 
         with self._lock:
             conn = self._get_sqlite_connection()
@@ -671,7 +735,7 @@ class RecommendationRepository:
                     """,
                     (user_id, size, offset),
                 ).fetchall()
-                return self._build_page_dict(rows, page, total_pages)
+                return self._build_page_dict(rows, page, total_pages, total_count=total_count, size=size)
             finally:
                 self._close_sqlite_if_transient(conn)
 
@@ -680,6 +744,8 @@ class RecommendationRepository:
         rows: list[Any],
         page: int,
         total_pages: int,
+        total_count: int = 0,
+        size: int = 20,
     ) -> dict[str, Any]:
         content = [
             {
@@ -690,10 +756,14 @@ class RecommendationRepository:
             }
             for r in rows
         ]
+        has_next = (page + 1) < total_pages
         return {
             "content": content,
             "page": page,
+            "size": size,
+            "totalElements": total_count,
             "totalPages": total_pages,
+            "hasNext": has_next,
         }
 
     def get_combo(self, combo_id: int) -> dict[str, Any] | None:
@@ -959,3 +1029,336 @@ class RecommendationRepository:
                 return json.loads(row["preference_spec_json"] or "{}")
             finally:
                 self._close_sqlite_if_transient(conn)
+
+    def get_analytics_data(
+        self,
+        reference_dt: datetime | None = None,
+        vton_client: Any | None = None,
+    ) -> dict[str, Any]:
+        """일간/주간/월간/연간 토큰 사용량, 인기 키워드, 추천 상품 통계를 한국 시간(KST) 현재 날짜 기준으로 집계하여 반환합니다."""
+        if reference_dt is None:
+            now = datetime.now(KST)
+        elif reference_dt.tzinfo is None:
+            now = reference_dt.replace(tzinfo=KST)
+        else:
+            now = reference_dt.astimezone(KST)
+
+        # 1. 일간 (오늘 00:00:00 ~ 오늘 23:59:59.999999 KST)
+        daily_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_end = daily_start + timedelta(days=1) - timedelta(microseconds=1)
+
+        # 2. 주간 (이번 주 월요일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
+        weekly_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        weekly_end = daily_end
+
+        # 3. 월간 (이번 달 1일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
+        monthly_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        monthly_end = daily_end
+
+        # 4. 연간 (올해 1월 1일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
+        yearly_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        yearly_end = daily_end
+
+        daily_data = self._aggregate_period_analytics("daily", "일간", daily_start, daily_end, vton_client=vton_client)
+        weekly_data = self._aggregate_period_analytics("weekly", "주간", weekly_start, weekly_end, vton_client=vton_client)
+        monthly_data = self._aggregate_period_analytics("monthly", "월간", monthly_start, monthly_end, vton_client=vton_client)
+        yearly_data = self._aggregate_period_analytics("yearly", "연간", yearly_start, yearly_end, vton_client=vton_client)
+
+        return {
+            "daily": daily_data,
+            "weekly": weekly_data,
+            "monthly": monthly_data,
+            "yearly": yearly_data,
+        }
+
+    def _get_requests_in_range(
+        self,
+        start_dt: datetime,
+        end_dt: datetime,
+        limit: int = 3000,
+    ) -> list[dict[str, Any]]:
+        """지정된 기간 동안 완료(DONE)된 추천 요청 및 코디 상품 데이터를 조회합니다 (최대 limit건)."""
+        start_utc = start_dt.astimezone(timezone.utc)
+        end_utc = end_dt.astimezone(timezone.utc)
+        start_iso = start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_iso = end_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        if self._use_postgres:
+            with self._lock:
+                with self._get_pg_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            SELECT r.request_id, r.query_text, r.search_type, r.tpo_summary,
+                                   r.items_json, r.prompt_tokens, r.completion_tokens, r.created_at,
+                                   COALESCE(
+                                       json_agg(c.items_json) FILTER (WHERE c.combo_id IS NOT NULL),
+                                       '[]'::json
+                                   ) AS combo_items_json
+                            FROM recommendation_requests r
+                            LEFT JOIN recommendation_combos c ON r.request_id = c.request_id
+                            WHERE r.created_at >= %s AND r.created_at <= %s
+                              AND r.status = 'DONE'
+                            GROUP BY r.request_id
+                            ORDER BY r.created_at DESC
+                            LIMIT %s
+                            """,
+                            (start_utc, end_utc, limit),
+                        )
+                        rows = cur.fetchall()
+            return [dict(r) for r in reversed(rows)]
+
+        with self._lock:
+            conn = self._get_sqlite_connection()
+            try:
+                rows = conn.execute(
+                    """
+                    SELECT request_id, query_text, search_type, tpo_summary,
+                           items_json, prompt_tokens, completion_tokens, created_at
+                    FROM recommendation_requests
+                    WHERE created_at >= ? AND created_at <= ?
+                      AND status = 'DONE'
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                    """,
+                    (start_iso, end_iso, limit),
+                ).fetchall()
+                results = []
+                for r in reversed(rows):
+                    req_dict = dict(r)
+                    req_id = req_dict["request_id"]
+                    c_rows = conn.execute(
+                        "SELECT items_json FROM recommendation_combos WHERE request_id = ?",
+                        (req_id,),
+                    ).fetchall()
+                    req_dict["combo_items_json"] = [cr["items_json"] for cr in c_rows]
+                    results.append(req_dict)
+                return results
+            finally:
+                self._close_sqlite_if_transient(conn)
+
+    def _get_vton_tokens_in_range(
+        self,
+        start_dt: datetime,
+        end_dt: datetime,
+        vton_client: Any | None = None,
+        limit: int = 3000,
+    ) -> list[dict[str, Any]]:
+        """지정된 기간 동안 완료(COMPLETED)된 가상 피팅(VTON) 요청의 OpenAI 토큰 사용량을 조회합니다 (최대 limit건)."""
+        start_utc = start_dt.astimezone(timezone.utc)
+        end_utc = end_dt.astimezone(timezone.utc)
+        start_iso = start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_iso = end_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # 1. MSA 내부 통신 API 우선 호출 (vton-service HTTP 클라이언트)
+        if vton_client is not None and getattr(vton_client, "is_configured", False):
+            try:
+                records = vton_client.get_token_usage_in_range(start_iso=start_iso, end_iso=end_iso)
+                if records:
+                    return [
+                        {
+                            "prompt_tokens": int(r.get("promptTokens") or r.get("prompt_tokens") or 0),
+                            "completion_tokens": int(r.get("completionTokens") or r.get("completion_tokens") or 0),
+                            "created_at": r.get("createdAt") or r.get("created_at"),
+                        }
+                        for r in records
+                    ]
+            except Exception as exc:
+                logger.warning("VTON 토큰 사용량 내부 통신 실패: %s: %s", type(exc).__name__, exc)
+
+        # 2. PostgreSQL 운영 환경에서는 SQLite 폴백을 타지 않고 즉시 반환
+        if self._use_postgres:
+            return []
+
+        # 3. 로컬 개발/테스트용 SQLite 또는 단일 DB 폴백
+        with self._lock:
+            conn = self._get_sqlite_connection()
+            try:
+                rows = conn.execute(
+                    """
+                    SELECT prompt_tokens, completion_tokens, created_at
+                    FROM fittings
+                    WHERE created_at >= ? AND created_at <= ?
+                      AND status = 'COMPLETED'
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                    """,
+                    (start_iso, end_iso, limit),
+                ).fetchall()
+                return [dict(r) for r in reversed(rows)]
+            except Exception:
+                return []
+            finally:
+                self._close_sqlite_if_transient(conn)
+
+    @staticmethod
+    def _parse_record_kst_datetime(created_at_raw: Any, fallback_dt: datetime) -> datetime:
+        if isinstance(created_at_raw, datetime):
+            if created_at_raw.tzinfo is None:
+                return created_at_raw.replace(tzinfo=timezone.utc).astimezone(KST)
+            return created_at_raw.astimezone(KST)
+        if created_at_raw:
+            dt = datetime.fromisoformat(str(created_at_raw).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(KST)
+        return fallback_dt
+
+    def _aggregate_period_analytics(
+        self,
+        period: str,
+        label: str,
+        start_dt: datetime,
+        end_dt: datetime,
+        vton_client: Any | None = None,
+    ) -> dict[str, Any]:
+        records = self._get_requests_in_range(start_dt, end_dt)
+        vton_records = self._get_vton_tokens_in_range(start_dt, end_dt, vton_client=vton_client)
+
+        # 1. 토큰 사용량 집계 (슬롯 레이블 초기화)
+        usage_buckets = self._init_usage_buckets(period, start_dt, end_dt)
+        keyword_counts: Counter[str] = Counter()
+        product_counts: dict[tuple[str, str], int] = Counter()
+
+        for rec in records:
+            rec_dt = self._parse_record_kst_datetime(rec.get("created_at"), start_dt)
+
+            bucket_key = self._get_bucket_key(period, rec_dt, start_dt)
+            p_tokens = int(rec.get("prompt_tokens") or 0)
+            c_tokens = int(rec.get("completion_tokens") or 0)
+
+            if bucket_key in usage_buckets:
+                usage_buckets[bucket_key]["input"] += p_tokens
+                usage_buckets[bucket_key]["output"] += c_tokens
+
+            # 키워드 집계 (tpo_summary 및 query_text 파싱)
+            extracted_keywords = self._extract_keywords(rec.get("tpo_summary"), rec.get("query_text"))
+            for kw in extracted_keywords:
+                keyword_counts[kw] += 1
+
+            # 상품 집계
+            items_to_count = []
+            single_items_raw = rec.get("items_json")
+            if single_items_raw:
+                try:
+                    loaded = json.loads(single_items_raw) if isinstance(single_items_raw, str) else single_items_raw
+                    if isinstance(loaded, list):
+                        items_to_count.extend(loaded)
+                except Exception:
+                    pass
+
+            combos_raw = rec.get("combo_items_json")
+            if combos_raw:
+                for c_item in combos_raw:
+                    try:
+                        c_loaded = json.loads(c_item) if isinstance(c_item, str) else c_item
+                        if isinstance(c_loaded, list):
+                            items_to_count.extend(c_loaded)
+                    except Exception:
+                        pass
+
+            for it in items_to_count:
+                if not isinstance(it, dict):
+                    continue
+                p_name = it.get("productName") or it.get("product_name") or ""
+                p_brand = it.get("brandName") or it.get("brand_name") or ""
+                if p_name:
+                    product_counts[(p_name, p_brand)] += 1
+
+        # 2. 가상 피팅(VTON) OpenAI 토큰 합산
+        for v_rec in vton_records:
+            v_dt = self._parse_record_kst_datetime(v_rec.get("created_at"), start_dt)
+            bucket_key = self._get_bucket_key(period, v_dt, start_dt)
+            vp_tokens = int(v_rec.get("prompt_tokens") or 0)
+            vc_tokens = int(v_rec.get("completion_tokens") or 0)
+            if bucket_key in usage_buckets:
+                usage_buckets[bucket_key]["input"] += vp_tokens
+                usage_buckets[bucket_key]["output"] += vc_tokens
+
+        usage_list = [
+            {"label": val["label"], "input": val["input"], "output": val["output"]}
+            for val in usage_buckets.values()
+        ]
+
+        keywords_list = [
+            {"name": name, "count": count}
+            for name, count in keyword_counts.most_common(10)
+        ]
+
+        products_list = [
+            {"name": name, "brand": brand, "count": count}
+            for (name, brand), count in sorted(product_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        ]
+
+        return {
+            "label": label,
+            "startDate": start_dt.strftime("%Y-%m-%d"),
+            "endDate": end_dt.strftime("%Y-%m-%d"),
+            "usage": usage_list,
+            "keywords": keywords_list,
+            "products": products_list,
+        }
+
+    @staticmethod
+    def _calendar_week_of_month(dt: datetime) -> int:
+        """달력 기준(월~일 한 주)으로 해당 날짜가 몇 주차인지 계산합니다."""
+        first_day = dt.replace(day=1)
+        return ((dt.day + first_day.weekday() - 1) // 7) + 1
+
+    @classmethod
+    def _init_usage_buckets(cls, period: str, start_dt: datetime, end_dt: datetime) -> dict[str, dict[str, Any]]:
+        buckets: dict[str, dict[str, Any]] = {}
+        if period == "daily":
+            for h in (0, 4, 8, 12, 16, 20):
+                label = f"{h:02d}시"
+                buckets[label] = {"label": label, "input": 0, "output": 0}
+        elif period == "weekly":
+            day_labels = ["월", "화", "수", "목", "금", "토", "일"]
+            max_weekday = end_dt.weekday()
+            for d in day_labels[: max_weekday + 1]:
+                buckets[d] = {"label": d, "input": 0, "output": 0}
+        elif period == "monthly":
+            max_week = cls._calendar_week_of_month(end_dt)
+            for w in range(1, max_week + 1):
+                label = f"{w}주"
+                buckets[label] = {"label": label, "input": 0, "output": 0}
+        elif period == "yearly":
+            max_month = end_dt.month
+            for m in range(1, max_month + 1):
+                label = f"{m}월"
+                buckets[label] = {"label": label, "input": 0, "output": 0}
+        return buckets
+
+    @classmethod
+    def _get_bucket_key(cls, period: str, rec_dt: datetime, start_dt: datetime) -> str:
+        if period == "daily":
+            h = rec_dt.hour
+            slot_h = (h // 4) * 4
+            return f"{slot_h:02d}시"
+        if period == "weekly":
+            day_labels = ["월", "화", "수", "목", "금", "토", "일"]
+            return day_labels[rec_dt.weekday()]
+        if period == "monthly":
+            week_idx = cls._calendar_week_of_month(rec_dt)
+            return f"{week_idx}주"
+        if period == "yearly":
+            return f"{rec_dt.month}월"
+        return ""
+
+    @staticmethod
+    def _extract_keywords(tpo_summary: str | None, query_text: str | None) -> list[str]:
+        target_text = f"{tpo_summary or ''} {query_text or ''}"
+        standard_keywords = [
+            "출근룩", "미니멀", "캐주얼", "가을 코디", "데이트룩",
+            "오버핏", "스트릿", "하객룩", "여행룩", "포멀", "댄디",
+            "와이드", "스포티", "빈티지", "시티보이", "겨울 코디", "봄 코디", "여름 코디"
+        ]
+        found = []
+        for kw in standard_keywords:
+            if kw in target_text:
+                found.append(kw)
+        if not found and tpo_summary:
+            words = [w.strip() for w in re.split(r"[,\s]+", tpo_summary) if len(w.strip()) >= 2]
+            found.extend(words[:3])
+        return found
+

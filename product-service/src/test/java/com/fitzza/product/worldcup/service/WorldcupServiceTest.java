@@ -14,6 +14,7 @@ import com.fitzza.product.product.entity.BrandEntity;
 import com.fitzza.product.product.entity.ProductEntity;
 import com.fitzza.product.product.entity.ProductStatus;
 import com.fitzza.product.product.repository.ProductRepository;
+import com.fitzza.product.product.service.ProductImageUrlService;
 import com.fitzza.product.wishlist.repository.WishlistRepository;
 import com.fitzza.product.worldcup.dto.WorldcupCreateRequest;
 import com.fitzza.product.worldcup.dto.WorldcupInternalResponse;
@@ -23,6 +24,7 @@ import com.fitzza.product.worldcup.repository.WorldcupHistoryRepository;
 import java.util.List;
 import java.util.Optional;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,8 +46,18 @@ class WorldcupServiceTest {
     @Mock
     private WishlistRepository wishlistRepository;
 
+    @Mock
+    private ProductImageUrlService productImageUrlService;
+
     @InjectMocks
     private WorldcupService worldcupService;
+
+    @BeforeEach
+    void stubImageUrlPassthrough() {
+        org.mockito.Mockito.lenient()
+                .when(productImageUrlService.resolve(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     @Test
     void saveWorldcupStoresHistoryWithWinnerProduct() {

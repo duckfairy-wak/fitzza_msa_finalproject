@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 import logging
 import os
 
@@ -8,6 +10,7 @@ from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
+logger = logging.getLogger(__name__)
 
 from app.api.recommendations import (
     RecommendationApiError,
@@ -16,7 +19,35 @@ from app.api.recommendations import (
 )
 from app.schemas.common import HealthResponse
 
-app = FastAPI(title="Fitzza Recommendation Service", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm-up: 서버 기동 시 Fashion-CLIP 모델 및 추천 컴포넌트 사전 적재
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        settings = getattr(app.state, "settings", None)
+        if settings is None:
+            from app.core.config import get_settings
+
+            settings = get_settings()
+            app.state.settings = settings
+
+        if getattr(settings, "enable_lifespan_warmup", True):
+            try:
+                from app.api.recommendations import _get_coordinator
+
+                logger.info("Fashion-CLIP 모델 및 추천 컴포넌트 사전 적재(Warm-up) 시작...")
+                await asyncio.to_thread(_get_coordinator, app)
+                logger.info("Fashion-CLIP 모델 및 추천 컴포넌트 사전 적재 완료")
+            except Exception as e:
+                logger.warning("사전 적재 실패 (지연 로딩으로 폴백): %s", e)
+    yield
+
+
+app = FastAPI(
+    title="Fitzza Recommendation Service",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 app.state.ready = True
 
 

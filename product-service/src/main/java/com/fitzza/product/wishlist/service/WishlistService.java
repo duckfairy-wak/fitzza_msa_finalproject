@@ -6,6 +6,7 @@ import com.fitzza.product.global.exception.ErrorCode;
 import com.fitzza.product.product.entity.ProductEntity;
 import com.fitzza.product.product.entity.ProductStatus;
 import com.fitzza.product.product.repository.ProductRepository;
+import com.fitzza.product.product.service.ProductImageUrlService;
 import com.fitzza.product.wishlist.dto.WishlistCheckResponse;
 import com.fitzza.product.wishlist.dto.WishlistCreateRequest;
 import com.fitzza.product.wishlist.dto.WishlistItemResponse;
@@ -34,6 +35,7 @@ public class WishlistService {
 
     private final WishlistRepository wishlistRepository;
     private final ProductRepository productRepository;
+    private final ProductImageUrlService productImageUrlService;
 
     @Transactional(readOnly = true)
     public PageResponse<WishlistItemResponse> findWishlists(Long userId, int page, int size) {
@@ -41,7 +43,7 @@ public class WishlistService {
                 userId, PageRequest.of(page, size, WISHLIST_SORT));
         Map<String, ProductEntity> productsByItemId = loadWishlistProducts(wishlists.getContent());
         return PageResponse.from(wishlists.map(wishlist -> WishlistItemResponse.of(
-                wishlist, productsByItemId.get(wishlist.getItemId()))));
+                wishlist, productsByItemId.get(wishlist.getItemId()), productImageUrlService::resolve)));
     }
 
     public WishlistResponse addWishlist(Long userId, WishlistCreateRequest request) {

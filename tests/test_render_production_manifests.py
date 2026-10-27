@@ -11,7 +11,9 @@ def write_manifests(root: Path) -> None:
     (base / "configmap.yaml").write_text(
         "POSTGRES_HOST: CHANGE_ME_RDS_ENDPOINT\n"
         "CORS_ALLOWED_ORIGINS: CHANGE_ME_FRONTEND_ORIGIN\n"
-        "REFRESH_COOKIE_SECURE: CHANGE_ME_REFRESH_COOKIE_SECURE\n",
+        "REFRESH_COOKIE_SECURE: CHANGE_ME_REFRESH_COOKIE_SECURE\n"
+        "AWS_SQS_QUEUE_URL: CHANGE_ME_VTON_JOB_QUEUE_URL\n"
+        "AWS_SQS_DLQ_URL: CHANGE_ME_VTON_JOB_DLQ_URL\n",
         encoding="utf-8",
     )
     (base / "ingress.yaml").write_text(
@@ -37,12 +39,15 @@ def test_render_http_only(tmp_path: Path) -> None:
         rds_endpoint="fitzza.abc.ap-northeast-2.rds.amazonaws.com",
         frontend_origin="https://app.example.com/",
         alb_security_group_id="sg-0123456789abcdef0",
+        vton_job_queue_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs",
+        vton_job_dlq_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq",
     )
 
     configmap = (tmp_path / "infra/k8s/base/configmap.yaml").read_text()
     ingress = (tmp_path / "infra/k8s/base/ingress.yaml").read_text()
     assert "fitzza.abc.ap-northeast-2.rds.amazonaws.com" in configmap
     assert "https://app.example.com" in configmap
+    assert "fitzza-prod-vton-jobs" in configmap
     assert 'REFRESH_COOKIE_SECURE: "false"' in configmap
     assert 'listen-ports: \'[{"HTTP": 80}]\'' in ingress
     assert "ssl-redirect" not in ingress
@@ -59,6 +64,8 @@ def test_render_https(tmp_path: Path) -> None:
         rds_endpoint="fitzza.abc.ap-northeast-2.rds.amazonaws.com",
         frontend_origin="https://app.example.com",
         alb_security_group_id="sg-0123456789abcdef0",
+        vton_job_queue_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs",
+        vton_job_dlq_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq",
         api_domain="api.example.com",
         acm_certificate_arn=(
             "arn:aws:acm:ap-northeast-2:123456789012:certificate/"
@@ -84,6 +91,8 @@ def test_render_rejects_partial_tls_configuration(tmp_path: Path) -> None:
             rds_endpoint="fitzza.abc.ap-northeast-2.rds.amazonaws.com",
             frontend_origin="https://app.example.com",
             alb_security_group_id="sg-0123456789abcdef0",
+            vton_job_queue_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs",
+            vton_job_dlq_url="https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq",
             api_domain="api.example.com",
         )
 
@@ -95,7 +104,14 @@ def test_render_failure_preserves_both_inputs(tmp_path: Path) -> None:
     ingress.write_text(ingress.read_text() + "unknown: CHANGE_ME_UNKNOWN\n")
     before = {path: path.read_bytes() for path in base.iterdir()}
     with pytest.raises(ValueError, match="unresolved"):
-        render(tmp_path, "db.example.com", "https://app.example.com", "sg-0123456789abcdef0")
+        render(
+            tmp_path,
+            "db.example.com",
+            "https://app.example.com",
+            "sg-0123456789abcdef0",
+            "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs",
+            "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq",
+        )
     assert all(path.read_bytes() == content for path, content in before.items())
 
 
@@ -104,5 +120,12 @@ def test_frontend_path_rejected_without_writing(tmp_path: Path) -> None:
     base = tmp_path / "infra/k8s/base"
     before = {path: path.read_bytes() for path in base.iterdir()}
     with pytest.raises(ValueError, match="must not include a path"):
-        render(tmp_path, "db.example.com", "https://app.example.com/login", "sg-0123456789abcdef0")
+        render(
+            tmp_path,
+            "db.example.com",
+            "https://app.example.com/login",
+            "sg-0123456789abcdef0",
+            "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs",
+            "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq",
+        )
     assert all(path.read_bytes() == content for path, content in before.items())

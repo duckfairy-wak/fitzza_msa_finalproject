@@ -11,6 +11,7 @@ import com.fitzza.product.global.exception.BusinessException;
 import com.fitzza.product.global.exception.ErrorCode;
 import com.fitzza.product.product.entity.ProductStatus;
 import com.fitzza.product.product.repository.ProductRepository;
+import com.fitzza.product.product.service.ProductImageUrlService;
 import com.fitzza.product.wishlist.dto.WishlistCreateRequest;
 import com.fitzza.product.wishlist.dto.WishlistResponse;
 import com.fitzza.product.wishlist.entity.WishlistEntity;
@@ -37,6 +38,9 @@ class WishlistServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private ProductImageUrlService productImageUrlService;
 
     @InjectMocks
     private WishlistService wishlistService;

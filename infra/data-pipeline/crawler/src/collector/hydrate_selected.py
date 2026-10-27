@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from src.collector.config import CATEGORY_CONFIG
-from src.collector.rules import has_actual_size
+from src.collector.rules import has_required_size
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,7 +51,7 @@ async def run(args: argparse.Namespace | None = None) -> None:
                 existing = json.loads(output_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 existing = {}
-            if has_actual_size(existing):
+            if has_required_size(existing, args.category):
                 continue
 
         screened_path = screened_dir / f"{product_id}.json"
@@ -59,8 +59,8 @@ async def run(args: argparse.Namespace | None = None) -> None:
             continue
 
         product = json.loads(screened_path.read_text(encoding="utf-8"))
-        if not has_actual_size(product):
-            print(f"SKIP {product_id}: actual-size unavailable")
+        if not has_required_size(product, args.category):
+            print(f"SKIP {product_id}: required size unavailable")
             continue
 
         product.setdefault("season", {})

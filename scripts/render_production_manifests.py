@@ -15,6 +15,9 @@ DOMAIN_PATTERN = re.compile(r"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[
 CERTIFICATE_ARN_PATTERN = re.compile(
     r"^arn:(?:aws|aws-us-gov|aws-cn):acm:[a-z0-9-]+:\d{12}:certificate/[0-9a-f-]+$"
 )
+SQS_QUEUE_URL_PATTERN = re.compile(
+    r"^https://sqs\.[a-z0-9-]+\.amazonaws\.com(?:\.cn)?/\d{12}/[A-Za-z0-9_-]{1,80}$"
+)
 
 
 def validate_frontend_origin(value: str) -> str:
@@ -46,6 +49,8 @@ def render(
     rds_endpoint: str,
     frontend_origin: str,
     alb_security_group_id: str,
+    vton_job_queue_url: str,
+    vton_job_dlq_url: str,
     api_domain: str = "",
     acm_certificate_arn: str = "",
 ) -> None:
@@ -54,6 +59,14 @@ def render(
     alb_security_group_id = require_match(
         alb_security_group_id, SECURITY_GROUP_PATTERN, "ALB security group ID"
     )
+    vton_job_queue_url = require_match(
+        vton_job_queue_url, SQS_QUEUE_URL_PATTERN, "VTON job queue URL"
+    )
+    vton_job_dlq_url = require_match(
+        vton_job_dlq_url, SQS_QUEUE_URL_PATTERN, "VTON job DLQ URL"
+    )
+    if vton_job_queue_url == vton_job_dlq_url:
+        raise ValueError("VTON job queue and DLQ URLs must differ")
 
     has_domain = bool(api_domain)
     has_certificate = bool(acm_certificate_arn)
@@ -81,6 +94,18 @@ def render(
         "CHANGE_ME_REFRESH_COOKIE_SECURE",
         '"true"' if has_domain else '"false"',
         "refresh cookie security",
+    )
+    configmap = replace_once(
+        configmap,
+        "CHANGE_ME_VTON_JOB_QUEUE_URL",
+        vton_job_queue_url,
+        "VTON job queue URL",
+    )
+    configmap = replace_once(
+        configmap,
+        "CHANGE_ME_VTON_JOB_DLQ_URL",
+        vton_job_dlq_url,
+        "VTON job DLQ URL",
     )
 
     ingress = ingress_path.read_text(encoding="utf-8")
@@ -129,6 +154,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rds-endpoint", required=True)
     parser.add_argument("--frontend-origin", required=True)
     parser.add_argument("--alb-security-group-id", required=True)
+    parser.add_argument("--vton-job-queue-url", required=True)
+    parser.add_argument("--vton-job-dlq-url", required=True)
     parser.add_argument("--api-domain", default="")
     parser.add_argument("--acm-certificate-arn", default="")
     return parser.parse_args()
@@ -141,6 +168,8 @@ def main() -> None:
         rds_endpoint=args.rds_endpoint,
         frontend_origin=args.frontend_origin,
         alb_security_group_id=args.alb_security_group_id,
+        vton_job_queue_url=args.vton_job_queue_url,
+        vton_job_dlq_url=args.vton_job_dlq_url,
         api_domain=args.api_domain,
         acm_certificate_arn=args.acm_certificate_arn,
     )

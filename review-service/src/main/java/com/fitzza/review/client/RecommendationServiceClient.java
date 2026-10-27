@@ -1,6 +1,8 @@
 package com.fitzza.review.client;
 
 import com.fitzza.review.config.RestClientConfig;
+import io.micrometer.observation.ObservationRegistry;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -21,8 +23,12 @@ public class RecommendationServiceClient implements SizeFeedbacks {
     @Autowired
     public RecommendationServiceClient(
             @Value("${fitzza.recommendation-service.base-url:}") String baseUrl,
-            @Value("${fitzza.service-token:}") String serviceToken) {
-        this(RestClient.builder().requestFactory(RestClientConfig.timeoutRequestFactory()), baseUrl, serviceToken);
+            @Value("${fitzza.service-token:}") String serviceToken,
+            ObjectProvider<ObservationRegistry> observationRegistry) {
+        this(RestClient.builder()
+                .requestFactory(RestClientConfig.timeoutRequestFactory())
+                .observationRegistry(observationRegistry.getIfAvailable(() -> ObservationRegistry.NOOP)),
+                baseUrl, serviceToken);
     }
 
     RecommendationServiceClient(RestClient.Builder builder, String baseUrl, String serviceToken) {

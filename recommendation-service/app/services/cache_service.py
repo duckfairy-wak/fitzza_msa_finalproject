@@ -140,3 +140,33 @@ class CacheService:
     def invalidate_user_pipeline(self, user_id: str) -> int:
         pattern = f"pipeline:{user_id}:*"
         return self.redis.delete_pattern(pattern)
+
+    # 5. 홈 개인화 추천 피드 캐시
+    PERSONALIZED_FEED_TTL = 300  # 5분 (300초)
+
+    def get_personalized_feed(
+        self, user_id: int | str
+    ) -> Optional[list[dict[str, Any]]]:
+        """캐시된 80개 개인화 피드 상품 딕셔너리 목록을 조회한다."""
+        cache_key = f"feed:{user_id}"
+        cached = self.redis.get(cache_key)
+        if isinstance(cached, list):
+            logger.info("개인화 피드 캐시 적중 (userId=%s, items=%d)", user_id, len(cached))
+            return cached
+        return None
+
+    def set_personalized_feed(
+        self,
+        user_id: int | str,
+        items: list[dict[str, Any]],
+        ttl_seconds: int = PERSONALIZED_FEED_TTL,
+    ) -> bool:
+        """80개 개인화 피드 상품 목록을 Redis에 5분(300초)간 캐싱한다."""
+        cache_key = f"feed:{user_id}"
+        return self.redis.set(cache_key, items, ttl_seconds=ttl_seconds)
+
+    def delete_personalized_feed(self, user_id: int | str) -> bool:
+        """개인화 피드 캐시를 수동 무효화한다 (새로고침 시)."""
+        cache_key = f"feed:{user_id}"
+        return self.redis.delete(cache_key)
+

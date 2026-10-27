@@ -14,6 +14,8 @@
   { "ParameterKey": "EksClusterSecurityGroupId", "ParameterValue": "sg-REPLACE_EKS" },
   { "ParameterKey": "AlbSecurityGroupId", "ParameterValue": "sg-REPLACE_ALB" },
   { "ParameterKey": "RdsEndpointAddress", "ParameterValue": "REPLACE_ME.ap-northeast-2.rds.amazonaws.com" },
+  { "ParameterKey": "VtonJobQueueUrl", "ParameterValue": "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs" },
+  { "ParameterKey": "VtonJobDeadLetterQueueUrl", "ParameterValue": "https://sqs.ap-northeast-2.amazonaws.com/123456789012/fitzza-prod-vton-jobs-dlq" },
   { "ParameterKey": "FrontendOrigin", "ParameterValue": "https://REPLACE_ME" },
   { "ParameterKey": "ApiDomain", "ParameterValue": "" },
   { "ParameterKey": "AcmCertificateArn", "ParameterValue": "" }

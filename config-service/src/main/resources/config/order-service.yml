@@ -2,9 +2,9 @@ server:
   port: 8083
 spring:
   datasource:
-    # 서비스 전용 DB 계정(order_service_app)이 있으면 그걸 쓰고, 없으면 공용 계정(POSTGRES_USER)을 쓴다.
-    username: ${ORDER_SERVICE_DB_USER:${POSTGRES_USER:fitzza}}
-    password: ${ORDER_SERVICE_DB_PASSWORD:${POSTGRES_PASSWORD:fitzza_local}}
+    # 운영에서는 서비스 전용 계정을 필수로 사용한다.
+    username: ${ORDER_SERVICE_DB_USER}
+    password: ${ORDER_SERVICE_DB_PASSWORD}
     hikari:
       schema: order_service
   flyway:

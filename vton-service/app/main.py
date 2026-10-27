@@ -22,6 +22,7 @@ from app.api.vton import router as vton_router
 from app.services.vton_generator import (
     DEFAULT_MODEL,
     SUPPORTED_CATEGORIES,
+    TryonResult,
     VtonConfigurationError,
     VtonError,
     VtonUpstreamError,
@@ -284,11 +285,12 @@ async def clothing_transfer(
             raw_images.append(chunk)
 
         # 이벤트 루프 차단을 방지하기 위해 동기 함수인 generate_tryon_image를 스레드 풀에서 실행
-        output_png = await run_in_threadpool(
+        output = await run_in_threadpool(
             generate_tryon_image,
             categories=categories_json,
             clothing_images=raw_images,
         )
+        output_png = output.image_bytes if isinstance(output, TryonResult) else output
 
         return Response(
             content=output_png,

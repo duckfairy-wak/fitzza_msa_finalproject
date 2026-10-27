@@ -35,13 +35,22 @@ patches:
             value: native,prod
   - target:
       kind: Deployment
-      name: (gateway-service|user-service|product-service|order-service|community-service|review-service|notification-service)
+      name: gateway-service
     patch: |-
       - op: add
         path: /spec/template/spec/containers/0/env
         value:
           - name: SPRING_CONFIG_IMPORT
             value: configserver:http://config-service:8888
+  - target:
+      kind: Deployment
+      name: (user-service|product-service|order-service|community-service|review-service|notification-service)
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_CONFIG_IMPORT
+          value: configserver:http://config-service:8888
 images:
   - name: fitzza/config-service
     newName: CHANGE_ME_ECR_REGISTRY/CHANGE_ME_ECR_REPOSITORY_PREFIX/config-service

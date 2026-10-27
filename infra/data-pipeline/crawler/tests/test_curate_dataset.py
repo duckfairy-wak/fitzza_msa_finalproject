@@ -8,8 +8,16 @@ import tempfile
 import unittest
 from unittest.mock import patch, Mock
 
-from src.curate_dataset import prepare, validate_product, write_bundle, select_products
+from src.curate_dataset import (
+    external_product_contract,
+    prepare,
+    select_products,
+    validate_product,
+    write_bundle,
+)
 from src.cloud_curate import main, curate, restore_product
+from src.collector.rules import has_required_size
+from src.musinsa_size import normalize_accessory_option_size
 
 
 def product(identifier=1, category="상의"):
@@ -25,6 +33,73 @@ def product(identifier=1, category="상의"):
 class CurateTests(unittest.TestCase):
     def test_valid_contract(self):
         self.assertEqual(validate_product(product()), ("1", "상의"))
+
+    def test_shoe_sales_options_are_valid_size_fallback(self):
+        item = product(category="신발")
+        item["size"] = normalize_accessory_option_size({"options": [{
+            "name": "사이즈",
+            "values": [
+                {"name": "250", "code": "250"},
+                {"name": "260", "code": "260"},
+            ],
+        }]})
+        self.assertTrue(has_required_size(item, "신발"))
+        self.assertEqual(item["size"]["source"], "sales_option")
+        self.assertEqual(item["size"]["unit"], "mm")
+        self.assertEqual(validate_product(item), ("1", "신발"))
+
+    def test_shoe_unspecified_color_primary_image_is_valid(self):
+        item = product(category="신발")
+        item["size"]["measurements"][0]["measurements"] = {"발길이": 25}
+        item["color_image_mappings"] = [{
+            "product_id": 1,
+            "color_raw": None,
+            "color_status": "unspecified",
+            "image_url": "https://image.msscdn.net/images/shoe.jpg",
+            "evidence": "Detail.primaryImage.colorUnspecified",
+        }]
+        self.assertEqual(validate_product(item), ("1", "신발"))
+
+        item["category"]["categoryDepth1Name"] = "상의"
+        item["size"]["measurements"][0]["measurements"] = {"총장": 70}
+        with self.assertRaisesRegex(ValueError, "invalid_color"):
+            validate_product(item)
+
+    def test_hat_sales_size_and_unspecified_image_are_valid(self):
+        item = product(category="모자")
+        item["size"] = normalize_accessory_option_size({"options": [{
+            "name": "사이즈",
+            "values": [{"name": "FREE", "code": "FREE"}],
+        }]})
+        item["color_image_mappings"] = [{
+            "product_id": 1,
+            "color_raw": None,
+            "color_status": "unspecified",
+            "image_url": "https://image.msscdn.net/images/hat.jpg",
+            "evidence": "Detail.primaryImage.colorUnspecified",
+        }]
+        self.assertTrue(has_required_size(item, "모자"))
+        self.assertEqual(validate_product(item), ("1", "모자"))
+
+        external = external_product_contract(item)
+        self.assertNotIn("source", external["size"])
+        self.assertNotIn("options", external["size"])
+        self.assertEqual(external["size"]["measurements"], [{
+            "size": "FREE", "sequence": 1, "measurements": {}
+        }])
+        mapping = external["color_image_mappings"][0]
+        self.assertEqual(mapping["color_raw"], "미지정")
+        self.assertNotIn("color_status", mapping)
+
+    def test_sales_options_do_not_replace_apparel_measurements(self):
+        item = product(category="상의")
+        item["size"] = normalize_accessory_option_size({"options": [{
+            "name": "SIZE",
+            "values": [{"name": "M", "code": "M"}],
+        }]})
+        self.assertFalse(has_required_size(item, "상의"))
+        with self.assertRaisesRegex(ValueError, "actual_size_missing"):
+            validate_product(item)
 
     def test_missing_color_mapping_is_not_guessed(self):
         item = product()

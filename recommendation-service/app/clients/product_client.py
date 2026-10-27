@@ -111,3 +111,164 @@ class ProductServiceClient:
             except (TypeError, ValueError):
                 continue
         return None
+
+    def get_latest_worldcup_winner(
+        self,
+        user_id: int,
+        request_id_header: str | None = None,
+    ) -> int | None:
+        """최근 이상형 월드컵 1등 상품 ID를 동기 조회합니다. (없거나 오류 시 None)"""
+        if not self.settings.product_service_url.strip() or user_id <= 0:
+            return None
+
+        base_url = self.settings.product_service_url.rstrip("/")
+        url = f"{base_url}/api/worldcups/latest"
+        headers = {"X-User-Id": str(user_id)}
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+
+        try:
+            with httpx.Client(timeout=self.settings.http_timeout_seconds) as client:
+                resp = client.get(url, headers=headers)
+                if resp.status_code == 404:
+                    return None
+                resp.raise_for_status()
+                payload = resp.json()
+                if isinstance(payload, dict):
+                    winner = payload.get("winnerProduct")
+                    if isinstance(winner, dict) and winner.get("productId"):
+                        return int(winner["productId"])
+                return None
+        except Exception as exc:
+            logger.warning(
+                "product-service 월드컵 우승 상품 조회 실패 (userId=%s): %s: %s",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+            return None
+
+    async def get_latest_worldcup_winner_async(
+        self,
+        user_id: int,
+        request_id_header: str | None = None,
+    ) -> int | None:
+        """최근 이상형 월드컵 1등 상품 ID를 비동기 조회합니다. (없거나 오류 시 None)"""
+        if not self.settings.product_service_url.strip() or user_id <= 0:
+            return None
+
+        base_url = self.settings.product_service_url.rstrip("/")
+        url = f"{base_url}/api/worldcups/latest"
+        headers = {"X-User-Id": str(user_id)}
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.http_timeout_seconds) as client:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 404:
+                    return None
+                resp.raise_for_status()
+                payload = resp.json()
+                if isinstance(payload, dict):
+                    winner = payload.get("winnerProduct")
+                    if isinstance(winner, dict) and winner.get("productId"):
+                        return int(winner["productId"])
+                return None
+        except Exception as exc:
+            logger.warning(
+                "product-service 월드컵 우승 상품 비동기 조회 실패 (userId=%s): %s: %s",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+            return None
+
+    def get_user_wishlist_product_ids(
+        self,
+        user_id: int,
+        size: int = 50,
+        request_id_header: str | None = None,
+    ) -> list[int]:
+        """사용자가 찜한 상품 ID 목록을 동기 조회합니다. (오류 시 빈 리스트)"""
+        if not self.settings.product_service_url.strip() or user_id <= 0:
+            return []
+
+        base_url = self.settings.product_service_url.rstrip("/")
+        url = f"{base_url}/api/wishlists"
+        params = {"page": 0, "size": min(max(size, 1), 100)}
+        headers = {"X-User-Id": str(user_id)}
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+
+        try:
+            with httpx.Client(timeout=self.settings.http_timeout_seconds) as client:
+                resp = client.get(url, params=params, headers=headers)
+                if resp.status_code == 404:
+                    return []
+                resp.raise_for_status()
+                payload = resp.json()
+                content = payload.get("content") if isinstance(payload, dict) else []
+                if isinstance(content, list):
+                    product_ids = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("itemId"):
+                            try:
+                                product_ids.append(int(item["itemId"]))
+                            except (ValueError, TypeError):
+                                pass
+                    return list(dict.fromkeys(product_ids))
+                return []
+        except Exception as exc:
+            logger.warning(
+                "product-service 찜 목록 조회 실패 (userId=%s): %s: %s",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+            return []
+
+    async def get_user_wishlist_product_ids_async(
+        self,
+        user_id: int,
+        size: int = 50,
+        request_id_header: str | None = None,
+    ) -> list[int]:
+        """사용자가 찜한 상품 ID 목록을 비동기 조회합니다. (오류 시 빈 리스트)"""
+        if not self.settings.product_service_url.strip() or user_id <= 0:
+            return []
+
+        base_url = self.settings.product_service_url.rstrip("/")
+        url = f"{base_url}/api/wishlists"
+        params = {"page": 0, "size": min(max(size, 1), 100)}
+        headers = {"X-User-Id": str(user_id)}
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.http_timeout_seconds) as client:
+                resp = await client.get(url, params=params, headers=headers)
+                if resp.status_code == 404:
+                    return []
+                resp.raise_for_status()
+                payload = resp.json()
+                content = payload.get("content") if isinstance(payload, dict) else []
+                if isinstance(content, list):
+                    product_ids = []
+                    for item in content:
+                        if isinstance(item, dict) and item.get("itemId"):
+                            try:
+                                product_ids.append(int(item["itemId"]))
+                            except (ValueError, TypeError):
+                                pass
+                    return list(dict.fromkeys(product_ids))
+                return []
+        except Exception as exc:
+            logger.warning(
+                "product-service 찜 목록 비동기 조회 실패 (userId=%s): %s: %s",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+            return []
+

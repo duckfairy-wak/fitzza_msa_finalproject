@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from src.collector.config import CATEGORY_CONFIG
-from src.collector.rules import has_actual_size
+from src.collector.rules import has_required_size
 from src.collector.season_allocator import possible_seasons
 
 
@@ -93,7 +93,7 @@ def load_products(category: str) -> list[dict[str, Any]]:
         except Exception:
             continue
 
-        if not has_actual_size(product):
+        if not has_required_size(product, category):
             continue
 
         candidates, source = possible_seasons(product)

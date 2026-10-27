@@ -20,7 +20,7 @@ phases:
       - aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_DEFAULT_REGION}"
       - kubectl -n fitzza get pvc redis-data qdrant-storage-qdrant-0
       - kubectl -n fitzza get statefulset qdrant
-      - python scripts/render_production_manifests.py --rds-endpoint "${RDS_ENDPOINT}" --frontend-origin "${FRONTEND_ORIGIN}" --alb-security-group-id "${ALB_SECURITY_GROUP_ID}" --api-domain "${API_DOMAIN:-}" --acm-certificate-arn "${ACM_CERTIFICATE_ARN:-}"
+      - python scripts/render_production_manifests.py --rds-endpoint "${RDS_ENDPOINT}" --frontend-origin "${FRONTEND_ORIGIN}" --alb-security-group-id "${ALB_SECURITY_GROUP_ID}" --vton-job-queue-url "${VTON_JOB_QUEUE_URL}" --vton-job-dlq-url "${VTON_JOB_DLQ_URL}" --api-domain "${API_DOMAIN:-}" --acm-certificate-arn "${ACM_CERTIFICATE_ARN:-}"
       - kubectl kustomize infra/k8s/overlays/delivery >/tmp/fitzza-rendered.yaml
   build:
     on-failure: ABORT

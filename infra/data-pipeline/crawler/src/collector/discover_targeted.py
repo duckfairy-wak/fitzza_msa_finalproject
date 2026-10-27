@@ -36,6 +36,12 @@ def parse_args() -> argparse.Namespace:
         help="최종 목표 대비 후보 oversampling 배수 (기본 1.6)",
     )
     parser.add_argument(
+        "--min-candidates",
+        type=int,
+        default=0,
+        help="카테고리별 최소 후보 수 (기본 0)",
+    )
+    parser.add_argument(
         "--category",
         choices=list(CATEGORY_CONFIG.keys()),
         default=None,
@@ -88,6 +94,8 @@ async def run(args: argparse.Namespace | None = None) -> None:
 
     if args.factor < 1.0:
         raise ValueError("--factor는 1.0 이상이어야 합니다.")
+    if args.min_candidates < 0:
+        raise ValueError("--min-candidates는 0 이상이어야 합니다.")
     if not 1 <= args.page_size <= 60:
         raise ValueError("--page-size는 1~60 범위로 사용하세요.")
 
@@ -96,6 +104,7 @@ async def run(args: argparse.Namespace | None = None) -> None:
 
     summary: dict[str, Any] = {
         "factor": args.factor,
+        "min_candidates": args.min_candidates,
         "page_size": args.page_size,
         "sort_codes": DISCOVERY_SORT_CODES,
         "categories": {},
@@ -123,7 +132,10 @@ async def run(args: argparse.Namespace | None = None) -> None:
             for category in categories:
                 config = CATEGORY_CONFIG[category]
                 target = config["total_quota"]
-                candidate_target = math.ceil(target * args.factor)
+                candidate_target = max(
+                    math.ceil(target * args.factor),
+                    args.min_candidates,
+                )
                 category_code = config["source_category"]
 
                 path = output_dir / f"{category}.json"
@@ -194,7 +206,9 @@ async def run(args: argparse.Namespace | None = None) -> None:
                             break
 
                 result = list(collected.values())
-                result.sort(key=lambda x: x["product_id"])
+                # 최근 상품이 색상 이미지와 실측 데이터를 보유할 가능성이 높다.
+                # screening은 파일 순서를 따르므로 최신 ID를 먼저 검증한다.
+                result.sort(key=lambda x: x["product_id"], reverse=True)
 
                 path.write_text(
                     json.dumps(result, ensure_ascii=False, indent=2),

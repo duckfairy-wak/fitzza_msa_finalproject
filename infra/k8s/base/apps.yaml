@@ -110,6 +110,11 @@ spec:
           image: fitzza/user-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8081 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: USER_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: USER_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -141,6 +146,11 @@ spec:
           image: fitzza/product-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8082 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: PRODUCT_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: PRODUCT_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -172,6 +182,11 @@ spec:
           image: fitzza/order-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8083 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: ORDER_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: ORDER_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -203,6 +218,11 @@ spec:
           image: fitzza/community-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8084 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: COMMUNITY_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: COMMUNITY_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -234,6 +254,11 @@ spec:
           image: fitzza/review-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8085 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: REVIEW_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: REVIEW_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -265,6 +290,11 @@ spec:
           image: fitzza/notification-service:latest
           imagePullPolicy: Always
           ports: [{ name: http, containerPort: 8086 }]
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: NOTIFICATION_SERVICE_DB_USER } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: NOTIFICATION_SERVICE_DB_PASSWORD } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -327,7 +357,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: vton-service }
     spec:
-      serviceAccountName: fitzza-application
+      serviceAccountName: fitzza-vton
       containers:
         - name: vton-service
           image: fitzza/vton-service:latest
@@ -368,7 +398,7 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: vton-worker }
     spec:
-      serviceAccountName: fitzza-application
+      serviceAccountName: fitzza-vton
       containers:
         - name: vton-worker
           image: fitzza/vton-service:latest

@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crawler-schema-restore-20261026-01
+  namespace: fitzza
+  labels:
+    app.kubernetes.io/name: fitzza-crawler-schema-restore
+    fitzza.io/run-id: collection-20261025-01
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fitzza-crawler-schema-restore
+        fitzza.io/run-id: collection-20261025-01
+    spec:
+      serviceAccountName: fitzza-crawler
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: schema-restore
+          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/crawler:full-20261026-13
+          imagePullPolicy: Always
+          command: ["python", "-u", "-m", "src.restore_external_schema"]
+          args:
+            - "--bucket"
+            - "fitzza-prod-foundation-databucket-wwng6wfc0hqy"
+            - "--run-id"
+            - "collection-20261025-01"
+            - "--workers"
+            - "16"
+            - "--execute"
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+            - name: HOME
+              value: /work
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi

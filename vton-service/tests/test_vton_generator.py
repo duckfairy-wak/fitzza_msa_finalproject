@@ -10,6 +10,7 @@ from PIL import Image
 
 from app.services.vton_generator import (
     SUPPORTED_CATEGORIES,
+    TryonResult,
     VtonConfigurationError,
     VtonUpstreamError,
     VtonValidationError,
@@ -109,7 +110,8 @@ def test_generate_tryon_image_calls_openai_images_edit_and_decodes_png() -> None
                     SimpleNamespace(
                         b64_json=base64.b64encode(expected_output).decode("ascii")
                     )
-                ]
+                ],
+                usage=SimpleNamespace(input_tokens=450, output_tokens=900),
             )
 
     fake_client = SimpleNamespace(images=FakeImagesClient())
@@ -123,7 +125,10 @@ def test_generate_tryon_image_calls_openai_images_edit_and_decodes_png() -> None
         model="gpt-image-2.5-sunburst",
     )
 
-    assert result == expected_output
+    assert isinstance(result, TryonResult)
+    assert result.image_bytes == expected_output
+    assert result.prompt_tokens == 450
+    assert result.completion_tokens == 900
     assert captured_kwargs["model"] == "gpt-image-2.5-sunburst"
     assert captured_kwargs["size"] == "1024x1536"
     assert captured_kwargs["quality"] == "high"

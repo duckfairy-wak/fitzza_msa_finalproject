@@ -33,11 +33,14 @@ class VtonWorker:
         """단일 SQS 메시지를 수신하여 비동기 피팅을 수행하고 메시지를 삭제합니다."""
         receipt_handle = message.get("receipt_handle")
         payload = message.get("body")
+        receive_count = message.get("receive_count", 1)
 
         if not isinstance(payload, dict):
-            logger.error("잘못된 SQS 메시지 페이로드 수신: %s", payload)
-            if receipt_handle:
-                self.sqs_client.delete_message(receipt_handle)
+            logger.error(
+                "잘못된 SQS 메시지 페이로드 수신 (attempt=%s): %s",
+                receive_count,
+                payload,
+            )
             return False
 
         fitting_id = payload.get("fitting_id")
@@ -47,18 +50,23 @@ class VtonWorker:
         result_image_url = payload.get("result_image_url") or f"/api/vton/{fitting_id}/image"
         request_id_header = payload.get("request_id_header")
         item_image_urls = payload.get("item_image_urls")
+        finalize_failure = receive_count >= self.settings.sqs_max_receive_count
 
         if fitting_id is None or user_id is None:
-            logger.error("필수 식별자 누락 (fitting_id=%s, user_id=%s)", fitting_id, user_id)
-            if receipt_handle:
-                self.sqs_client.delete_message(receipt_handle)
+            logger.error(
+                "필수 식별자 누락 (fitting_id=%s, user_id=%s, attempt=%s)",
+                fitting_id,
+                user_id,
+                receive_count,
+            )
             return False
 
         logger.info(
-            "SQS 피팅 작업 수신 -> 처리 시작 (fittingId=%s, userId=%s, products=%s)",
+            "SQS 피팅 작업 수신 -> 처리 시작 (fittingId=%s, userId=%s, products=%s, attempt=%s)",
             fitting_id,
             user_id,
             product_ids,
+            receive_count,
         )
 
         try:
@@ -71,6 +79,7 @@ class VtonWorker:
                 "result_image_url": result_image_url,
                 "request_id_header": request_id_header,
                 "user_face_bytes": None,  # 워커 프로세스는 저장된 S3/로컬 파일 참조
+                "finalize_failure": finalize_failure,
             }
             if item_image_urls:
                 vton_kwargs["item_image_urls"] = item_image_urls
@@ -87,18 +96,13 @@ class VtonWorker:
 
         except Exception as exc:
             logger.error(
-                "SQS 피팅 작업 실행 중 예외 발생 (fittingId=%s): %s",
+                "SQS 피팅 작업 실행 중 예외 발생; 메시지를 삭제하지 않아 SQS 재시도/DLQ 정책을 따릅니다 "
+                "(fittingId=%s, attempt=%s): %s",
                 fitting_id,
+                receive_count,
                 exc,
                 exc_info=True,
             )
-            # DLQ 전송 시도
-            try:
-                self.sqs_client.send_to_dlq(payload, error_message=str(exc))
-                if receipt_handle:
-                    self.sqs_client.delete_message(receipt_handle)
-            except Exception as dlq_exc:
-                logger.warning("DLQ 전송 중 오류 발생: %s", dlq_exc)
             return False
 
     def run(self, max_iterations: Optional[int] = None) -> None:

@@ -8,8 +8,8 @@ spring:
     import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:8888}
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:fitzza}
-    username: ${POSTGRES_USER:postgres}
-    password: ${POSTGRES_PASSWORD}
+    username: ${PRODUCT_SERVICE_DB_USER}
+    password: ${PRODUCT_SERVICE_DB_PASSWORD}
     hikari:
       schema: product_service
   flyway:
@@ -72,3 +72,10 @@ fitzza:
     category-code:
       # 한글 카테고리 이름이 남은 상품이 있으면 기동 시 코드로 바꾼다. 남은 상품이 없으면 아무것도 하지 않는다.
       enabled: ${CATEGORY_CODE_MIGRATION_ENABLED:true}
+  # 비공개 데이터 버킷의 상품 이미지 object key → Presigned GET URL.
+  # DB에는 key(또는 기존 HTTPS URL)를 두고, 응답 직전 imageUrl/thumbnailUrl/images에 서명 URL을 넣는다.
+  # 현재 crawl 적재 키 prefix 예: pipeline/runs/<run-id>/images/products/
+  product-images:
+    presign-enabled: ${PRODUCT_IMAGE_PRESIGN_ENABLED:false}
+    bucket: ${PRODUCT_IMAGE_S3_BUCKET:}
+    presign-ttl: ${PRODUCT_IMAGE_PRESIGN_TTL:1h}

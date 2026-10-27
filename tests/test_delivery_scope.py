@@ -46,14 +46,49 @@ def test_vton_runtime_endpoint_access_is_role_and_bucket_scoped():
     template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
     assert "Sid: AllowVtonRuntimeAssets" in template
     assert "s3:::${ProjectName}-${Environment}-assets-vton/*" in template
-    assert "role/${ProjectName}-${Environment}-vton-runtime" in template
+    assert "aws:PrincipalArn: !GetAtt VtonRuntimeRole.Arn" in template
     assert "Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]" in template
 
 
 def test_production_vton_uses_aws_backends():
-    config = (ROOT / "infra/k8s/base/configmap.yaml").read_text()
+    config = (ROOT / "infra/k8s/base/configmap.yaml").read_text(encoding="utf-8")
     assert "VTON_STORAGE_BACKEND: s3" in config
     assert "VTON_QUEUE_BACKEND: sqs" in config
+    assert "AWS_SQS_QUEUE_URL: CHANGE_ME_VTON_JOB_QUEUE_URL" in config
+    assert "AWS_SQS_DLQ_URL: CHANGE_ME_VTON_JOB_DLQ_URL" in config
+    assert 'SQS_MAX_RECEIVE_COUNT: "3"' in config
+
+
+def test_vton_queue_has_bounded_retry_dlq_and_transport_protection():
+    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    assert "VtonJobQueue:" in template
+    assert "VtonJobDeadLetterQueue:" in template
+    assert "ReceiveMessageWaitTimeSeconds: 20" in template
+    assert "VisibilityTimeout: 300" in template
+    assert "maxReceiveCount: 3" in template
+    assert "redrivePermission: byQueue" in template
+    assert template.count("SqsManagedSseEnabled: true") >= 2
+    assert "Sid: DenyInsecureTransport" in template
+    assert "Action: sqs:*" in template
+
+
+def test_vton_uses_dedicated_pod_identity_and_least_privilege_queue_role():
+    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    apps = (ROOT / "infra/k8s/base/apps.yaml").read_text()
+    service_accounts = (ROOT / "infra/k8s/base/service-account.yaml").read_text()
+    assert "VtonRuntimePodIdentityAssociation:" in template
+    assert "ServiceAccount: fitzza-vton" in template
+    assert "Resource: !GetAtt VtonJobQueue.Arn" in template
+    assert "sqs:SendMessage" in template
+    assert "sqs:ReceiveMessage" in template
+    assert "name: fitzza-vton" in service_accounts
+    assert apps.count("serviceAccountName: fitzza-vton") == 2
+
+
+def test_production_tracing_stays_disabled_without_an_approved_collector():
+    config = (ROOT / "infra/k8s/base/configmap.yaml").read_text(encoding="utf-8")
+    assert "MANAGEMENT_OTLP_TRACING_ENDPOINT" not in config
+    assert "MANAGEMENT_TRACING_SAMPLING_PROBABILITY" not in config
 
 
 @pytest.mark.skipif(shutil.which("kubectl") is None, reason="kubectl unavailable")

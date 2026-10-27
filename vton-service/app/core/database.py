@@ -85,6 +85,8 @@ class VtonRepository:
                                 status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
                                 result_image_url TEXT,
                                 error_message TEXT,
+                                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                                completion_tokens INTEGER NOT NULL DEFAULT 0,
                                 is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
                                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -117,9 +119,13 @@ class VtonRepository:
                             END $$;
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS request_id BIGINT;
+                            ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER NOT NULL DEFAULT 0;
+                            ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS completion_tokens INTEGER NOT NULL DEFAULT 0;
 
                             CREATE INDEX IF NOT EXISTS idx_fittings_user_created
                                 ON {schema}.fittings (user_id, fitting_id DESC);
+                            CREATE INDEX IF NOT EXISTS idx_fittings_status_created
+                                ON {schema}.fittings (status, created_at DESC);
 
                             CREATE TABLE IF NOT EXISTS {schema}.fitting_products (
                                 id BIGSERIAL PRIMARY KEY,
@@ -176,6 +182,8 @@ class VtonRepository:
                             status TEXT NOT NULL DEFAULT 'PENDING',
                             result_image_url TEXT,
                             error_message TEXT,
+                            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                            completion_tokens INTEGER NOT NULL DEFAULT 0,
                             is_deleted INTEGER NOT NULL DEFAULT 0,
                             created_at TEXT NOT NULL,
                             updated_at TEXT NOT NULL
@@ -189,11 +197,21 @@ class VtonRepository:
                         cur.execute("ALTER TABLE fittings ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;")
                     if "request_id" not in columns:
                         cur.execute("ALTER TABLE fittings ADD COLUMN request_id INTEGER;")
+                    if "prompt_tokens" not in columns:
+                        cur.execute("ALTER TABLE fittings ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0;")
+                    if "completion_tokens" not in columns:
+                        cur.execute("ALTER TABLE fittings ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0;")
 
                     cur.execute(
                         """
                         CREATE INDEX IF NOT EXISTS idx_fittings_user_created
                             ON fittings (user_id, fitting_id DESC);
+                        """
+                    )
+                    cur.execute(
+                        """
+                        CREATE INDEX IF NOT EXISTS idx_fittings_status_created
+                            ON fittings (status, created_at DESC);
                         """
                     )
                     cur.execute(
@@ -364,6 +382,8 @@ class VtonRepository:
         self,
         fitting_id: int,
         result_image_url: str,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
     ) -> None:
         now = self._now_iso()
         if self._use_postgres:
@@ -376,10 +396,12 @@ class VtonRepository:
                             UPDATE {schema}.fittings
                             SET status = 'COMPLETED',
                                 result_image_url = %s,
+                                prompt_tokens = %s,
+                                completion_tokens = %s,
                                 updated_at = %s
                             WHERE fitting_id = %s;
                             """,
-                            (result_image_url, now, fitting_id),
+                            (result_image_url, prompt_tokens, completion_tokens, now, fitting_id),
                         )
                         conn.commit()
         else:
@@ -392,10 +414,12 @@ class VtonRepository:
                         UPDATE fittings
                         SET status = 'COMPLETED',
                             result_image_url = ?,
+                            prompt_tokens = ?,
+                            completion_tokens = ?,
                             updated_at = ?
                         WHERE fitting_id = ?;
                         """,
-                        (result_image_url, now, fitting_id),
+                        (result_image_url, prompt_tokens, completion_tokens, now, fitting_id),
                     )
                     conn.commit()
                 finally:
@@ -501,7 +525,8 @@ class VtonRepository:
                     with conn.cursor() as cur:
                         query = f"""
                             SELECT fitting_id, user_id, photo_id, request_id, status,
-                                   result_image_url, error_message, is_deleted, created_at, updated_at
+                                   result_image_url, error_message, prompt_tokens, completion_tokens,
+                                   is_deleted, created_at, updated_at
                             FROM {schema}.fittings
                             WHERE fitting_id = %s
                         """
@@ -529,7 +554,8 @@ class VtonRepository:
                     cur = conn.cursor()
                     query = """
                         SELECT fitting_id, user_id, photo_id, request_id, status,
-                               result_image_url, error_message, is_deleted, created_at, updated_at
+                               result_image_url, error_message, prompt_tokens, completion_tokens,
+                               is_deleted, created_at, updated_at
                         FROM fittings
                         WHERE fitting_id = ?
                     """
@@ -573,6 +599,8 @@ class VtonRepository:
             "status": fitting_row["status"],
             "resultImageUrl": fitting_row["result_image_url"],
             "errorMessage": fitting_row["error_message"],
+            "promptTokens": int(fitting_row.get("prompt_tokens") or 0),
+            "completionTokens": int(fitting_row.get("completion_tokens") or 0),
             "isDeleted": bool(fitting_row.get("is_deleted", False)),
             "products": products,
             "createdAt": self._format_utc_timestamp(fitting_row["created_at"]),
@@ -680,6 +708,7 @@ class VtonRepository:
         user_id: int,
         limit: int = 20,
         offset: int = 0,
+        request_id: int | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """사용자의 활성(삭제되지 않은) 피팅 목록을 최신순으로 조회하고 전체 건수와 함께 반환합니다."""
         items: list[dict[str, Any]] = []
@@ -690,14 +719,21 @@ class VtonRepository:
             with self._lock:
                 with self._get_pg_connection() as conn:
                     with conn.cursor() as cur:
+                        where_clauses = ["user_id = %s", "is_deleted = FALSE"]
+                        params: list[Any] = [user_id]
+                        if request_id is not None:
+                            where_clauses.append("request_id = %s")
+                            params.append(request_id)
+                        where_sql = " AND ".join(where_clauses)
+
                         # 전체 건수
                         cur.execute(
                             f"""
                             SELECT COUNT(*) AS total_count
                             FROM {schema}.fittings
-                            WHERE user_id = %s AND is_deleted = FALSE;
+                            WHERE {where_sql};
                             """,
-                            (user_id,),
+                            tuple(params),
                         )
                         count_row = cur.fetchone()
                         if count_row:
@@ -713,16 +749,17 @@ class VtonRepository:
                             return [], 0
 
                         # 목록 조회
+                        query_params = list(params) + [limit, offset]
                         cur.execute(
                             f"""
                             SELECT fitting_id, user_id, photo_id, request_id, status,
                                    result_image_url, error_message, created_at, updated_at
                             FROM {schema}.fittings
-                            WHERE user_id = %s AND is_deleted = FALSE
+                            WHERE {where_sql}
                             ORDER BY fitting_id DESC
                             LIMIT %s OFFSET %s;
                             """,
-                            (user_id, limit, offset),
+                            tuple(query_params),
                         )
                         rows = cur.fetchall() or []
                         fitting_ids = [int(r["fitting_id"]) for r in rows]
@@ -769,13 +806,20 @@ class VtonRepository:
                 conn = self._get_sqlite_connection()
                 try:
                     cur = conn.cursor()
+                    where_clauses = ["user_id = ?", "is_deleted = 0"]
+                    params: list[Any] = [user_id]
+                    if request_id is not None:
+                        where_clauses.append("request_id = ?")
+                        params.append(request_id)
+                    where_sql = " AND ".join(where_clauses)
+
                     cur.execute(
-                        """
+                        f"""
                         SELECT COUNT(*)
                         FROM fittings
-                        WHERE user_id = ? AND is_deleted = 0;
+                        WHERE {where_sql};
                         """,
-                        (user_id,),
+                        tuple(params),
                     )
                     count_row = cur.fetchone()
                     total_count = int(count_row[0]) if count_row else 0
@@ -783,16 +827,17 @@ class VtonRepository:
                     if total_count == 0:
                         return [], 0
 
+                    query_params = list(params) + [limit, offset]
                     cur.execute(
-                        """
+                        f"""
                         SELECT fitting_id, user_id, photo_id, request_id, status,
                                result_image_url, error_message, created_at, updated_at
                         FROM fittings
-                        WHERE user_id = ? AND is_deleted = 0
+                        WHERE {where_sql}
                         ORDER BY fitting_id DESC
                         LIMIT ? OFFSET ?;
                         """,
-                        (user_id, limit, offset),
+                        tuple(query_params),
                     )
                     rows = [dict(r) for r in cur.fetchall()]
                     fitting_ids = [int(r["fitting_id"]) for r in rows]
@@ -838,3 +883,72 @@ class VtonRepository:
                     self._close_sqlite_if_transient(conn)
 
         return items, total_count
+
+    def get_token_usage_in_range(
+        self,
+        start_iso: str,
+        end_iso: str,
+        limit: int = 3000,
+    ) -> list[dict[str, Any]]:
+        """지정된 기간 동안 완료(COMPLETED)된 피팅의 OpenAI 토큰 사용량과 생성일시를 조회합니다 (최대 limit건)."""
+        if self._use_postgres:
+            schema = self.postgres_schema
+            try:
+                start_param: Any = datetime.fromisoformat(str(start_iso).replace("Z", "+00:00"))
+            except Exception:
+                start_param = start_iso
+            try:
+                end_param: Any = datetime.fromisoformat(str(end_iso).replace("Z", "+00:00"))
+            except Exception:
+                end_param = end_iso
+
+            with self._lock:
+                with self._get_pg_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""
+                            SELECT prompt_tokens, completion_tokens, created_at
+                            FROM {schema}.fittings
+                            WHERE created_at >= %s AND created_at <= %s
+                              AND status = 'COMPLETED'
+                            ORDER BY created_at DESC
+                            LIMIT %s;
+                            """,
+                            (start_param, end_param, limit),
+                        )
+                        rows = cur.fetchall() or []
+                        return [
+                            {
+                                "promptTokens": int(r.get("prompt_tokens") or 0),
+                                "completionTokens": int(r.get("completion_tokens") or 0),
+                                "createdAt": self._format_utc_timestamp(r["created_at"]),
+                            }
+                            for r in reversed(rows)
+                        ]
+        else:
+            with self._lock:
+                conn = self._get_sqlite_connection()
+                try:
+                    cur = conn.cursor()
+                    cur.execute(
+                        """
+                        SELECT prompt_tokens, completion_tokens, created_at
+                        FROM fittings
+                        WHERE created_at >= ? AND created_at <= ?
+                          AND status = 'COMPLETED'
+                        ORDER BY created_at DESC
+                        LIMIT ?;
+                        """,
+                        (start_iso, end_iso, limit),
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
+                    return [
+                        {
+                            "promptTokens": int(r.get("prompt_tokens") or 0),
+                            "completionTokens": int(r.get("completion_tokens") or 0),
+                            "createdAt": self._format_utc_timestamp(r["created_at"]),
+                        }
+                        for r in reversed(rows)
+                    ]
+                finally:
+                    self._close_sqlite_if_transient(conn)

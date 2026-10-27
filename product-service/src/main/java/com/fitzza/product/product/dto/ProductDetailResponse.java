@@ -38,8 +38,9 @@ public record ProductDetailResponse(
         @Schema(description = "상품 색상-이미지 매핑(무신사 color_image_mappings). 없으면 빈 목록")
         List<ColorImageMappingResponse> colorImageMappings,
         @Schema(description = "상품 설명") String description,
-        @Schema(description = "대표 이미지 URL") String thumbnailUrl,
-        @Schema(description = "상품 이미지 URL 목록(노출 순서). 첫 번째가 대표 이미지") List<String> images,
+        @Schema(description = "대표 이미지 URL. S3 object key면 Presigned GET URL") String thumbnailUrl,
+        @Schema(description = "상품 이미지 URL 목록(노출 순서). 첫 번째가 대표. S3 object key면 Presigned GET URL")
+                List<String> images,
         @Schema(description = "사이즈 안내와 사이즈별 실측값. 정보가 없으면 null") SizeGuideResponse sizeGuide,
         @Schema(description = "옵션 목록") List<ProductDetailOptionResponse> options,
         @Schema(description = "판매 상태") ProductStatus status,

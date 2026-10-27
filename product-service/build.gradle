@@ -21,6 +21,8 @@ dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
+    // 비공개 상품 이미지 버킷 object key → Presigned GET URL 발급
+    implementation 'software.amazon.awssdk:s3'
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'

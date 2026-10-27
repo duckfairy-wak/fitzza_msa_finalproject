@@ -80,6 +80,14 @@ Parameters:
     Type: String
     Default: ''
     AllowedPattern: '^[A-Za-z0-9.-]*$'
+  VtonJobQueueUrl:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^https://sqs\.[a-z0-9-]+\.amazonaws\.com(?:\.cn)?/[0-9]{12}/[A-Za-z0-9_-]{1,80}$'
+  VtonJobDeadLetterQueueUrl:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^https://sqs\.[a-z0-9-]+\.amazonaws\.com(?:\.cn)?/[0-9]{12}/[A-Za-z0-9_-]{1,80}$'
   FrontendOrigin:
     Type: String
     Default: http://localhost:5173
@@ -107,6 +115,12 @@ Rules:
         AssertDescription: AlbSecurityGroupId is required when EnableDeployStage is true.
       - Assert: !Not [!Equals [!Ref RdsEndpointAddress, '']]
         AssertDescription: RdsEndpointAddress is required when EnableDeployStage is true.
+      - Assert: !Not [!Equals [!Ref VtonJobQueueUrl, '']]
+        AssertDescription: VtonJobQueueUrl is required when EnableDeployStage is true.
+      - Assert: !Not [!Equals [!Ref VtonJobDeadLetterQueueUrl, '']]
+        AssertDescription: VtonJobDeadLetterQueueUrl is required when EnableDeployStage is true.
+      - Assert: !Not [!Equals [!Ref VtonJobQueueUrl, !Ref VtonJobDeadLetterQueueUrl]]
+        AssertDescription: VTON source queue and dead-letter queue URLs must differ.
       - Assert: !Or
           - !And
             - !Equals [!Ref ApiDomain, '']
@@ -518,6 +532,8 @@ Resources:
         EnvironmentVariables:
           - { Name: EKS_CLUSTER_NAME, Type: PLAINTEXT, Value: !Ref EksClusterName }
           - { Name: RDS_ENDPOINT, Type: PLAINTEXT, Value: !Ref RdsEndpointAddress }
+          - { Name: VTON_JOB_QUEUE_URL, Type: PLAINTEXT, Value: !Ref VtonJobQueueUrl }
+          - { Name: VTON_JOB_DLQ_URL, Type: PLAINTEXT, Value: !Ref VtonJobDeadLetterQueueUrl }
           - { Name: FRONTEND_ORIGIN, Type: PLAINTEXT, Value: !Ref FrontendOrigin }
           - { Name: ALB_SECURITY_GROUP_ID, Type: PLAINTEXT, Value: !Ref AlbSecurityGroupId }
           - Name: API_DOMAIN

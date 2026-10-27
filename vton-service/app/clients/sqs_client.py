@@ -98,6 +98,7 @@ class SqsClient:
                 MaxNumberOfMessages=max(1, min(max_n, 10)),
                 WaitTimeSeconds=max(0, min(wait_sec, 20)),
                 VisibilityTimeout=vis_timeout,
+                AttributeNames=["ApproximateReceiveCount"],
                 MessageAttributeNames=["All"],
             )
 
@@ -116,6 +117,9 @@ class SqsClient:
                         "message_id": msg.get("MessageId", ""),
                         "receipt_handle": msg.get("ReceiptHandle", ""),
                         "body": parsed_body,
+                        "receive_count": int(
+                            msg.get("Attributes", {}).get("ApproximateReceiveCount", "1")
+                        ),
                         "raw_message": msg,
                     }
                 )
@@ -167,20 +171,3 @@ class SqsClient:
         except (ClientError, BotoCoreError, Exception) as exc:
             logger.warning("SQS 가시성 타임아웃 변경 실패: %s", exc)
             return False
-
-    def send_to_dlq(
-        self,
-        payload: dict[str, Any],
-        error_message: str | None = None,
-    ) -> str | None:
-        """재시도 초과 실패 건을 Dead Letter Queue로 전송합니다."""
-        dlq_url = self.settings.aws_sqs_dlq_url.strip()
-        if not dlq_url:
-            logger.warning("AWS_SQS_DLQ_URL이 설정되지 않아 DLQ 전송을 건너뜁니다.")
-            return None
-
-        enriched = dict(payload)
-        if error_message:
-            enriched["_dlq_error"] = error_message
-
-        return self.send_message(enriched, queue_url=dlq_url)
