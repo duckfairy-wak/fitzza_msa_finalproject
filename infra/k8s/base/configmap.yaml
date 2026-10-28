@@ -32,7 +32,7 @@ data:
   SQS_MAX_RECEIVE_COUNT: "3"
   # 상품 이미지: DB의 S3 object key → Presigned GET. 운영에서 true로 켠 뒤 product-service 재시작.
   # fitzza-application Pod Identity에 해당 버킷 GetObject가 필요하다.
-  PRODUCT_IMAGE_PRESIGN_ENABLED: "false"
+  PRODUCT_IMAGE_PRESIGN_ENABLED: "true"
   PRODUCT_IMAGE_S3_BUCKET: fitzza-prod-foundation-databucket-wwng6wfc0hqy
   PRODUCT_IMAGE_PRESIGN_TTL: 1h
 
