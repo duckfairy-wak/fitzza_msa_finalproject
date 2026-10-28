@@ -10,6 +10,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fitzza.community.client.ProductCatalog.ProductSummary;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -60,6 +62,21 @@ class ProductServiceClientTest {
 
         assertThat(client.findProduct(55L))
                 .contains(new ProductSummary(55L, "Fitzza", "오버핏 셔츠", 39000, "https://cdn.example.com/55.png", "ON_SALE"));
+        server.verify();
+    }
+
+    @Test
+    void readsFreshImageUrlsForManyProductsInOneRequest() {
+        server.expect(requestTo(BASE_URL + "/products?productIds=55&productIds=56&productIds=57"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(ProductServiceClient.SERVICE_TOKEN_HEADER, SERVICE_TOKEN))
+                .andRespond(withSuccess(
+                        "[{\"productId\":55,\"imageUrl\":\"https://s3.example.com/55.jpg?X-Amz-Expires=3600\"},"
+                                + "{\"productId\":56,\"imageUrl\":\"\"}]",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(client.findImageUrls(List.of(55L, 56L, 57L)))
+                .containsExactly(Map.entry(55L, "https://s3.example.com/55.jpg?X-Amz-Expires=3600"));
         server.verify();
     }
 

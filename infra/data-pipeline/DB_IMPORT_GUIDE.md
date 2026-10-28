@@ -115,3 +115,31 @@ aws s3 cp s3://fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/coll
 ```
 
 운영 DB 반영 전에는 반드시 staging 적재 결과와 원본 S3 파일 수를 비교합니다.
+
+## 6. 자동 무결성 검증
+
+staging DB에서 다음 형식의 집계 JSON을 만든 뒤 S3 원본과 함께 검증합니다. 다른 서비스의 스키마를 직접 읽지 않고 각 적재 작업이 생성한 집계만 사용합니다.
+
+```json
+{
+  "product_count": 3000,
+  "distinct_product_count": 3000,
+  "image_count": 28569,
+  "review_count": 87434,
+  "orphan_image_count": 0,
+  "orphan_review_count": 0
+}
+```
+
+```powershell
+$env:AWS_PROFILE = "fitzza"
+$env:AWS_DEFAULT_REGION = "ap-northeast-2"
+python scripts/verify_s3_import_integrity.py `
+  --bucket fitzza-prod-foundation-databucket-wwng6wfc0hqy `
+  --prefix pipeline/runs/collection-20261025-01 `
+  --db-summary .data/collection-20261025-01/db-summary.json `
+  --output .data/collection-20261025-01/integrity-report.json `
+  --report-key pipeline/runs/collection-20261025-01/integrity/report.json
+```
+
+검증기는 manifest 파일 목록과 SHA-256, 상품 ID 중복, 이미지 object key의 상품 ID, 리뷰 외래키, 원본·DB 건수, orphan 레코드를 확인합니다. `verify()`가 완료된 경우에만 불일치 항목과 `s3://` 경로가 로컬 보고서에 남고, `--report-key`를 지정하면 S3에도 업로드됩니다. manifest·S3 객체·DB 집계를 초기에 읽는 중 `read_object`, `load_json`, `load_db_summary`가 예외를 발생시켜 `main()`이 보고서 저장 단계에 도달하지 못하면 로컬과 S3 보고서는 생성되지 않습니다.

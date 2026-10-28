@@ -8,7 +8,9 @@ import com.fitzza.community.domain.PostCategory;
 import com.fitzza.community.domain.PostLikeId;
 import com.fitzza.community.domain.PostType;
 import com.fitzza.community.domain.SharedSnapshot;
+import com.fitzza.community.domain.VoteOption;
 import com.fitzza.community.dto.AuthorResponse;
+import com.fitzza.community.dto.LatestImageUrls;
 import com.fitzza.community.dto.LikeCountResponse;
 import com.fitzza.community.dto.LikeStatusResponse;
 import com.fitzza.community.dto.PostCreateRequest;
@@ -29,6 +31,7 @@ import com.fitzza.community.repository.PostRepository;
 import com.fitzza.community.repository.PostSpecifications;
 import com.fitzza.community.repository.VoteOptionRepository;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Page;
@@ -53,6 +56,7 @@ public class PostService {
     private final UserDirectory userDirectory;
     private final VoteService voteService;
     private final SharedTargetGateway sharedTargetGateway;
+    private final ProductImages productImages;
 
     public PostService(
             PostRepository postRepository,
@@ -61,7 +65,8 @@ public class PostService {
             VoteOptionRepository voteOptionRepository,
             UserDirectory userDirectory,
             VoteService voteService,
-            SharedTargetGateway sharedTargetGateway) {
+            SharedTargetGateway sharedTargetGateway,
+            ProductImages productImages) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
@@ -69,6 +74,7 @@ public class PostService {
         this.userDirectory = userDirectory;
         this.voteService = voteService;
         this.sharedTargetGateway = sharedTargetGateway;
+        this.productImages = productImages;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +91,8 @@ public class PostService {
         Map<Long, Long> commentCounts = IdCount.toMap(commentRepository.countActiveByPostIds(postIds));
         Map<Long, String> nicknames = userDirectory.findNicknames(
                 posts.getContent().stream().map(Post::getUserId).toList());
-        Map<Long, String> firstOptionImages = firstOptionImagesOf(posts.getContent());
+        Map<Long, PostImage> firstOptions = firstOptionsOf(posts.getContent());
+        LatestImageUrls latest = latestImagesOf(posts.getContent(), firstOptions);
 
         List<PostSummaryResponse> content = posts.getContent().stream()
                 .map(post -> new PostSummaryResponse(
@@ -95,7 +102,7 @@ public class PostService {
                         post.getPostType(),
                         nicknames.get(post.getUserId()),
                         post.getCreatedAt(),
-                        thumbnailOf(post, firstOptionImages),
+                        thumbnailOf(post, firstOptions, latest),
                         likeCounts.getOrDefault(post.getId(), 0L),
                         commentCounts.getOrDefault(post.getId(), 0L)))
                 .toList();
@@ -103,22 +110,38 @@ public class PostService {
     }
 
     // 썸네일은 투표글의 첫 번째 선택지 이미지, 공유 대상 스냅샷 이미지 순으로 고른다. 사용자가 직접 올린 이미지는 없다.
-    private static String thumbnailOf(Post post, Map<Long, String> firstOptionImages) {
-        String optionImage = firstOptionImages.get(post.getId());
-        if (hasText(optionImage)) {
-            return optionImage;
+    // 상품 이미지는 저장된 주소가 만료되므로 새로 받은 주소(latest)를 먼저 쓴다.
+    private static String thumbnailOf(Post post, Map<Long, PostImage> firstOptions, LatestImageUrls latest) {
+        PostImage option = firstOptions.get(post.getId());
+        if (option != null) {
+            String optionImage = latest.pick(option.productId(), option.imageUrl());
+            if (hasText(optionImage)) {
+                return optionImage;
+            }
         }
         SharedSnapshot snapshot = post.getSharedSnapshot();
-        return snapshot != null && hasText(snapshot.getImageUrl()) ? snapshot.getImageUrl() : null;
+        if (snapshot == null) {
+            return null;
+        }
+        String sharedImage = latest.pick(SharedResponse.snapshotProductIdOf(post), snapshot.getImageUrl());
+        return hasText(sharedImage) ? sharedImage : null;
     }
 
     // 투표글만 선택지 이미지를 찾는다. 해당하는 글이 없으면 조회하지 않는다.
-    private Map<Long, String> firstOptionImagesOf(List<Post> posts) {
+    private Map<Long, PostImage> firstOptionsOf(List<Post> posts) {
         List<Long> voteIds = posts.stream().filter(Post::isVote).map(Post::getId).toList();
         if (voteIds.isEmpty()) {
             return Map.of();
         }
-        return PostImage.toMap(voteOptionRepository.findFirstOptionImages(voteIds));
+        return PostImage.byPostId(voteOptionRepository.findFirstOptionImages(voteIds));
+    }
+
+    // 한 페이지에 보이는 상품 이미지를 상품 서비스에서 한 번에 새로 받는다.
+    private LatestImageUrls latestImagesOf(List<Post> posts, Map<Long, PostImage> firstOptions) {
+        List<Long> productIds = new ArrayList<>();
+        firstOptions.values().forEach(option -> productIds.add(option.productId()));
+        posts.forEach(post -> productIds.add(SharedResponse.snapshotProductIdOf(post)));
+        return new LatestImageUrls(productImages.latest(productIds));
     }
 
     private static boolean hasText(String value) {
@@ -134,11 +157,12 @@ public class PostService {
         Post post = findVisiblePost(postId);
         boolean liked = viewerId != null && postLikeRepository.existsById(new PostLikeId(postId, viewerId));
         String nickname = userDirectory.findNicknames(List.of(post.getUserId())).get(post.getUserId());
-        List<VoteOptionResponse> voteOptions = post.isVote()
-                ? voteOptionRepository.findByPostIdOrderByDisplayOrderAsc(postId).stream()
-                        .map(VoteOptionResponse::from)
-                        .toList()
-                : List.of();
+        List<VoteOption> options =
+                post.isVote() ? voteOptionRepository.findByPostIdOrderByDisplayOrderAsc(postId) : List.of();
+        LatestImageUrls latest = latestImagesOf(post, options);
+        List<VoteOptionResponse> voteOptions = options.stream()
+                .map(option -> VoteOptionResponse.from(option, latest))
+                .toList();
         return new PostDetailResponse(
                 post.getId(),
                 post.getTitle(),
@@ -146,7 +170,7 @@ public class PostService {
                 post.getCategory(),
                 post.getPostType(),
                 new AuthorResponse(post.getUserId(), nickname),
-                SharedResponse.of(post),
+                SharedResponse.of(post, latest),
                 postLikeRepository.countByPostId(postId),
                 liked,
                 commentRepository.countByPostIdAndDeletedFalse(postId),
@@ -156,6 +180,17 @@ public class PostService {
                 post.getVoteEndAt(),
                 post.isVote() && post.isVoteClosedAt(Instant.now()),
                 voteOptions);
+    }
+
+    // 상세 화면에 보이는 상품 이미지(투표 상품 선택지, 공유 스냅샷, 공유한 상품 목록)를 새로 받는다.
+    private LatestImageUrls latestImagesOf(Post post, List<VoteOption> options) {
+        List<Long> productIds = new ArrayList<>();
+        options.forEach(option -> productIds.add(VoteOptionResponse.productIdOf(option)));
+        productIds.add(SharedResponse.snapshotProductIdOf(post));
+        if (post.isShared()) {
+            post.getSharedItems().forEach(item -> productIds.add(item.getProductId()));
+        }
+        return new LatestImageUrls(productImages.latest(productIds));
     }
 
     @Transactional

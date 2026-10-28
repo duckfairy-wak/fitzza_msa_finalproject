@@ -78,8 +78,8 @@ class VoteOptionRepositoryTest {
 
         assertThat(voteOptionRepository.findFirstOptionImages(List.of(POST_ID, OTHER_POST_ID)))
                 .containsExactlyInAnyOrder(
-                        new PostImage(POST_ID, "https://cdn.example.com/a.png"),
-                        new PostImage(OTHER_POST_ID, "https://cdn.example.com/other.png"));
+                        new PostImage(POST_ID, "https://cdn.example.com/a.png", VoteItemType.PRODUCT, "1"),
+                        new PostImage(OTHER_POST_ID, "https://cdn.example.com/other.png", VoteItemType.PRODUCT, "1"));
     }
 
     private static VoteOption option(Long postId, int displayOrder, String imageUrl) {

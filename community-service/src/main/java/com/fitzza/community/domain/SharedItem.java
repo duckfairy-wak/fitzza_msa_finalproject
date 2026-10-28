@@ -16,7 +16,7 @@ public class SharedItem {
     @Column(name = "price")
     private Integer price;
 
-    @Column(name = "image_url", length = SharedSnapshot.IMAGE_URL_MAX_LENGTH)
+    @Column(name = "image_url", columnDefinition = "text")
     private String imageUrl;
 
     protected SharedItem() {

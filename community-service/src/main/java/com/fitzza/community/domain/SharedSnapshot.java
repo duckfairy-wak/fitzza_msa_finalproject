@@ -9,8 +9,6 @@ import jakarta.persistence.Embeddable;
 @Embeddable
 public class SharedSnapshot {
 
-    public static final int IMAGE_URL_MAX_LENGTH = 500;
-
     @Column(name = "shared_product_id")
     private Long productId;
 
@@ -23,7 +21,7 @@ public class SharedSnapshot {
     @Column(name = "shared_price")
     private Integer price;
 
-    @Column(name = "shared_image_url", length = IMAGE_URL_MAX_LENGTH)
+    @Column(name = "shared_image_url", columnDefinition = "text")
     private String imageUrl;
 
     // 추천 코디의 조화도 요약(feedbackSummary). 월드컵·피팅은 비어 있다.

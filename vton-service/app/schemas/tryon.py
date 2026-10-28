@@ -127,11 +127,6 @@ class FittingDetailResponse(BaseModel):
         description="가상 피팅을 요청했던 추천 대화의 requestId",
         json_schema_extra={"example": 6},
     )
-    userImageUrl: str | None = Field(
-        default=None,
-        description="사용자 원본 얼굴/전신 사진 URL (요청 시 업로드한 경우)",
-        json_schema_extra={"example": "http://api.fitzza.com/api/vton/1/user-image"},
-    )
     status: Literal["PENDING", "COMPLETED", "FAILED"] = Field(
         description="피팅 진행 상태 (PENDING, COMPLETED, FAILED)",
         json_schema_extra={"example": "COMPLETED"},
@@ -181,11 +176,6 @@ class FittingSummaryResponse(BaseModel):
         default=None,
         description="피팅 완성 이미지 URL",
         json_schema_extra={"example": "http://api.fitzza.com/api/vton/1/image"},
-    )
-    userImageUrl: str | None = Field(
-        default=None,
-        description="피팅에 사용된 사용자 얼굴 이미지 URL",
-        json_schema_extra={"example": "http://api.fitzza.com/api/vton/1/user-image"},
     )
     productCount: int = Field(
         default=0,

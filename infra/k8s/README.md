@@ -31,6 +31,13 @@ the `OPENAI_API_KEY` variable and never print its value.
 
 ## Distributed tracing (FITZZA-284)
 
+An opt-in EKS Jaeger pilot is available in
+[observability/jaeger](observability/jaeger/README.md). It provides a separate
+Deployment and ClusterIP Service using the Compose image, bounded trace count in
+memory, resource requests/limits, and local port-forward UI access. It is excluded
+from the default overlays. Review capacity and accept restart-time data loss before
+applying it; follow that runbook to enable sampling and restart applications.
+
 Production tracing remains disabled. The pilot cluster runs on one `t4g.large` worker
 without spare rollout capacity, and no trace retention, storage, or UI access policy has
 been approved. Do not deploy a Jaeger or OpenTelemetry collector and do not add tracing

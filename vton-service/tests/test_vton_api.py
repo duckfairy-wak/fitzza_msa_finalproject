@@ -740,11 +740,11 @@ def test_get_fitting_user_image_flow(tmp_path: Path) -> None:
     photo_id = photo_record["photoId"]
     fitting_id = repo.create_fitting(user_id=7, photo_id=photo_id, product_ids=[101])
 
-    # 2. GET /api/vton/{fittingId} 상세 조회 시 userImageUrl이 올바른 경로인지 확인
+    # 2. GET /api/vton/{fittingId} 상세 조회 시 userImageUrl 필드가 제거되었는지 확인
     resp_detail = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
     assert resp_detail.status_code == 200
     detail_data = resp_detail.json()
-    assert detail_data["userImageUrl"].endswith(f"/api/vton/{fitting_id}/user-image")
+    assert "userImageUrl" not in detail_data
 
     # 3. 인증 헤더 누락 시 401 Unauthorized
     resp_no_auth = client.get(f"/api/vton/{fitting_id}/user-image")
@@ -1181,7 +1181,56 @@ def test_fitting_image_endpoint_idor_security_and_s3_redirect(tmp_path: Path) ->
     set_dependencies_for_tests(None, None, None, None)
 
 
+def test_save_fitting_products_idempotent_on_retry() -> None:
+    repo = VtonRepository(db_path=":memory:")
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101, 201])
+    products = [
+        {
+            "productId": 101,
+            "productName": "티셔츠",
+            "price": 20000,
+            "imageUrl": "https://cdn.example.com/top.png",
+            "categoryName": "상의",
+        },
+        {
+            "productId": 201,
+            "productName": "바지",
+            "price": 30000,
+            "imageUrl": "https://cdn.example.com/bottom.png",
+            "categoryName": "하의",
+        },
+    ]
+
+    # 첫 번째 시도 저장 후 재시도로 인해 동일 피팅에 다시 저장되는 시나리오
+    repo.save_fitting_products(fitting_id, products)
+    repo.save_fitting_products(fitting_id, products)
+
+    detail = repo.get_fitting_detail(fitting_id)
+    assert detail is not None
+    assert len(detail["products"]) == 2
+    assert [p["productId"] for p in detail["products"]] == [101, 201]
 
 
+def test_fitting_id_and_user_id_validation_rejects_non_positive() -> None:
+    client = TestClient(app)
+    token = "community-secret-token-32bytes-long-padding!"
 
-
+    for invalid_id in (0, -1):
+        assert client.get(f"/api/vton/{invalid_id}", headers={"X-User-Id": "7"}).status_code == 400
+        assert client.delete(f"/api/vton/{invalid_id}", headers={"X-User-Id": "7"}).status_code == 400
+        assert client.get(f"/api/vton/{invalid_id}/image", headers={"X-User-Id": "7"}).status_code == 400
+        assert client.get(f"/api/vton/{invalid_id}/user-image", headers={"X-User-Id": "7"}).status_code == 400
+        assert (
+            client.get(
+                f"/fittings/{invalid_id}?userId=7",
+                headers={"X-Service-Token": token},
+            ).status_code
+            == 400
+        )
+        assert (
+            client.get(
+                f"/fittings/1?userId={invalid_id}",
+                headers={"X-Service-Token": token},
+            ).status_code
+            == 400
+        )

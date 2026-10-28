@@ -3,6 +3,7 @@ import os
 import time
 from itertools import product
 from typing import Any, Literal
+from contextvars import ContextVar
 import numpy as np
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -11,6 +12,9 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+_harmonizer_prompt_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_prompt_tokens_ctx", default=0)
+_harmonizer_completion_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_completion_tokens_ctx", default=0)
 
 # 후보 조합 중 Vision LLM 검수 대상의 최대 개수
 MAX_CANDIDATES_TO_REVIEW = 9
@@ -144,8 +148,22 @@ class OutfitHarmonizer:
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
-        self.last_prompt_tokens: int = 0
-        self.last_completion_tokens: int = 0
+
+    @property
+    def last_prompt_tokens(self) -> int:
+        return _harmonizer_prompt_tokens_ctx.get()
+
+    @last_prompt_tokens.setter
+    def last_prompt_tokens(self, val: int) -> None:
+        _harmonizer_prompt_tokens_ctx.set(int(val or 0))
+
+    @property
+    def last_completion_tokens(self) -> int:
+        return _harmonizer_completion_tokens_ctx.get()
+
+    @last_completion_tokens.setter
+    def last_completion_tokens(self, val: int) -> None:
+        _harmonizer_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
         if self._client is None:
@@ -517,4 +535,4 @@ class OutfitHarmonizer:
             )
             return rejected_outfits[:top_k]
 
-        return passed_outfits[:top_k]
+        return passed_outfits[:top_k]

@@ -1,0 +1,80 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fashion-clip-embed-20261025-02
+  namespace: fitzza
+  annotations:
+    fitzza.io/execution-policy: manual-approval-required
+  labels:
+    fitzza.io/run-id: collection-20261025-01
+spec:
+  # Prepared only: the run copy sets suspend: false, adds --execute-approved-run and
+  # replaces the model revision with the commit the recommendation-service pod serves.
+  suspend: true
+  backoffLimit: 0
+  # Parts are written create-only, so a Job stopped by this deadline resumes under a new Job name.
+  activeDeadlineSeconds: 7200
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fitzza-indexer
+    spec:
+      serviceAccountName: fitzza-indexer
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: embed
+          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/fashion-clip:vector-20261028-02
+          command: ["python", "/pipeline/embed_job.py"]
+          args: ["--bucket", "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "--run-id", "collection-20261025-01",
+                 "--vector-run-id", "collection-20261025-01-fclip-01", "--model-revision", "SET-SERVING-MODEL-REVISION"]
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+            # boto3 1.40 reads only AWS_DEFAULT_REGION.
+            - name: AWS_DEFAULT_REGION
+              value: ap-northeast-2
+            - name: HOME
+              value: /work
+            - name: WORK_DIR
+              value: /work
+            - name: HF_HOME
+              value: /work/huggingface
+            - name: EMBED_THREADS
+              value: "1"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "1"
+              memory: 3Gi
+              ephemeral-storage: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: work
+          emptyDir:
+            # Model download (~0.6 GB) + approved bundle (~2 MB); images are streamed from S3.
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

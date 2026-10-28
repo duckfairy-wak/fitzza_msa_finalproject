@@ -11,9 +11,10 @@ logger = logging.getLogger(__name__)
 # 자연어 의도 분석 -> 단품/코디 분기 -> 조화도 검수 -> 응답 생성하는 전체 흐름 총괄
 
 class FashionPipelineCoordinator:
-    def __init__(self, cache_service: Any = None):
+    def __init__(self, cache_service: Any = None, repository: Any = None):
         logger.info("패션 추천 파이프라인 컴포넌트 초기화 중...")
         self.cache_service = cache_service
+        self.repository = repository
         self.parser = QueryParser()
         self.engine = FashionSearchEngine(cache_service=cache_service)
         self.size_resolver = SizeProfileResolver()
@@ -22,7 +23,6 @@ class FashionPipelineCoordinator:
 
         logger.info("전체 파이프라인 준비 완료")
 
-
     def _attach_size_info(
             self,
             items: list[dict[str, Any]],
@@ -30,7 +30,23 @@ class FashionPipelineCoordinator:
             user_id: str,
     ) -> list[dict[str, Any]]:
         """
-        검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.        """
+        검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
+        """
+        learned_pref: dict[str, float] | None = None
+        if self.repository is not None and slot.subcategory:
+            try:
+                learned_pref = self.repository.get_user_size_preference(
+                    user_id=user_id,
+                    subcategory=slot.subcategory,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "선호 실측 DB 조회 실패 (userId=%s, subcategory=%s): %s",
+                    user_id,
+                    slot.subcategory,
+                    exc,
+                )
+
         evaluated_items = []
         for item in items:
             size_result = self.size_resolver.resolve_and_calculate_size(
@@ -39,6 +55,7 @@ class FashionPipelineCoordinator:
                 fit_type=slot.fit_type,
                 candidate_products=[item],
                 category_type=slot.category,
+                learned_preference=learned_pref,
             )
 
             item["size_recommendation"] = size_result.get("recommendation")
@@ -245,4 +262,4 @@ class FashionPipelineCoordinator:
             "outfits": best_outfits,
             "prompt_tokens": total_prompt_tokens,
             "completion_tokens": total_completion_tokens,
-        }
+        }

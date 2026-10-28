@@ -6,7 +6,7 @@ import json
 import logging
 import math
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path as FilePath
 from typing import Annotated, Any
 import uuid
 from fastapi import (
@@ -16,6 +16,7 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Path,
     Query,
     Request,
     Response,
@@ -29,7 +30,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.clients.notification_client import NotificationServiceClient
 from app.clients.product_client import ProductServiceClient
-from app.clients.sqs_client import SqsClient
+from app.clients.sqs_client import SqsClient, SqsClientError
 from app.clients.storage_client import StorageClient
 from app.core.config import Settings, get_settings
 from app.core.database import VtonRepository
@@ -53,92 +54,21 @@ from app.services.vton_generator import (
     load_sample_clothing_png,
     to_png_bytes,
 )
+from app.services.vton_processor import (
+    get_notification_client,
+    get_product_client,
+    get_repo,
+    get_sqs_client,
+    get_storage_client,
+    resolve_result_image_url as _resolve_result_image_url,
+    resolve_user_image_url as _resolve_user_image_url,
+    run_background_vton as _service_run_background_vton,
+    set_dependencies_for_tests,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# 전역 의존성 인스턴스 (테스트 시 주입/교체 가능)
-_REPO: VtonRepository | None = None
-_PRODUCT_CLIENT: ProductServiceClient | None = None
-_NOTIFICATION_CLIENT: NotificationServiceClient | None = None
-_STORAGE_CLIENT: StorageClient | None = None
-_SQS_CLIENT: SqsClient | None = None
-
-
-def get_repo() -> VtonRepository:
-    global _REPO
-    if _REPO is None:
-        settings = get_settings()
-        _REPO = VtonRepository(
-            db_path=settings.db_path,
-            postgres_dsn=settings.get_postgres_dsn(),
-            postgres_schema=settings.postgres_schema,
-        )
-    return _REPO
-
-
-def get_product_client() -> ProductServiceClient:
-    global _PRODUCT_CLIENT
-    if _PRODUCT_CLIENT is None:
-        _PRODUCT_CLIENT = ProductServiceClient()
-    return _PRODUCT_CLIENT
-
-
-def get_notification_client() -> NotificationServiceClient:
-    global _NOTIFICATION_CLIENT
-    if _NOTIFICATION_CLIENT is None:
-        _NOTIFICATION_CLIENT = NotificationServiceClient()
-    return _NOTIFICATION_CLIENT
-
-
-def get_storage_client() -> StorageClient:
-    global _STORAGE_CLIENT
-    if _STORAGE_CLIENT is None:
-        _STORAGE_CLIENT = StorageClient()
-    return _STORAGE_CLIENT
-
-
-def get_sqs_client() -> SqsClient:
-    global _SQS_CLIENT
-    if _SQS_CLIENT is None:
-        _SQS_CLIENT = SqsClient()
-    return _SQS_CLIENT
-
-
-def set_dependencies_for_tests(
-    repo: VtonRepository | None = None,
-    product_client: ProductServiceClient | None = None,
-    notification_client: NotificationServiceClient | None = None,
-    storage_client: StorageClient | None = None,
-    sqs_client: SqsClient | None = None,
-) -> None:
-    global _REPO, _PRODUCT_CLIENT, _NOTIFICATION_CLIENT, _STORAGE_CLIENT, _SQS_CLIENT
-    _REPO = repo
-    _PRODUCT_CLIENT = product_client
-    _NOTIFICATION_CLIENT = notification_client
-    _STORAGE_CLIENT = storage_client
-    _SQS_CLIENT = sqs_client
-
-
-
-def _resolve_result_image_url(fitting_id: int, request: Request | None) -> str:
-    storage = get_storage_client()
-    if storage.is_s3:
-        return storage.get_public_url(f"fittings/{fitting_id}.png")
-    settings = get_settings()
-    if settings.public_base_url.strip():
-        base = settings.public_base_url.rstrip("/")
-        return f"{base}/api/vton/{fitting_id}/image"
-    return f"/api/vton/{fitting_id}/image"
-
-
-def _resolve_user_image_url(fitting_id: int, request: Request | None) -> str:
-    settings = get_settings()
-    if settings.public_base_url.strip():
-        base = settings.public_base_url.rstrip("/")
-        return f"{base}/api/vton/{fitting_id}/user-image"
-    return f"/api/vton/{fitting_id}/user-image"
 
 
 def _run_background_vton(
@@ -152,167 +82,19 @@ def _run_background_vton(
     item_image_urls: dict[int, str] | None = None,
     finalize_failure: bool = True,
 ) -> bool:
-    """백그라운드 피팅을 수행하고 최종 실패일 때만 상태와 알림을 확정합니다."""
-    settings = get_settings()
-    repo = get_repo()
-    prod_client = get_product_client()
-    notif_client = get_notification_client()
-
-    logger.info("비동기 가상 피팅 시작 (fittingId=%s, userId=%s)", fitting_id, user_id)
-
-    try:
-        # 1. 상품 정보 및 이미지 수집 (기본 5대 카테고리 매핑)
-        used_categories: set[str] = set()
-        resolved_products: list[dict[str, Any]] = []
-
-        for pid in product_ids:
-            # 사용되지 않은 후보 카테고리 선정
-            fallback_category = next(
-                (c for c in SUPPORTED_CATEGORIES if c not in used_categories),
-                "상의",
-            )
-            override_url = (item_image_urls or {}).get(pid)
-            item = prod_client.resolve_product_item(
-                pid,
-                fallback_category=fallback_category,
-                request_id_header=request_id_header,
-                override_image_url=override_url,
-            )
-            cat = item.get("categoryName") or "상의"
-            if cat in used_categories:
-                raise VtonValidationError(
-                    f"같은 카테고리({cat})의 상품은 하나만 피팅할 수 있습니다."
-                )
-            used_categories.add(cat)
-            resolved_products.append(item)
-
-        # 상품 DB 영속화 (사용자가 요청한 실제 상품들만 DB에 저장)
-        repo.save_fitting_products(fitting_id, resolved_products)
-
-        categories = [p["categoryName"] for p in resolved_products]
-        clothing_images = [p["imageBytes"] for p in resolved_products]
-
-        # 1-1. 필수 카테고리(하의) 누락 시 기본 베이직 하의 샘플 이미지 자동 보완 (AI 생성 입력에만 추가)
-        if "하의" not in used_categories:
-            try:
-                sample_bottom_bytes = load_sample_clothing_png("하의")
-                categories.append("하의")
-                clothing_images.append(sample_bottom_bytes)
-                logger.info("하의 누락 감지 -> 기본 베이직 하의 이미지 자동 폴백 적용 (fittingId=%s)", fitting_id)
-            except Exception as e:
-                logger.warning("기본 하의 샘플 로드 실패: %s", e)
-
-        # 1-2. 사용자 얼굴 이미지 로드 (직접 전달받은 바이트가 없고 photo_id가 있는 경우에만 스토리지 다운로드)
-        if user_face_bytes is None and photo_id is not None:
-            photo_info = repo.get_user_photo(photo_id)
-            if not photo_info or not photo_info.get("filePath"):
-                raise VtonValidationError(f"지정된 사용자 이미지(photoId={photo_id}) 정보를 찾을 수 없습니다.")
-
-            file_ref = photo_info["filePath"]
-            try:
-                storage = get_storage_client()
-                user_face_bytes = storage.download_bytes(file_ref)
-                logger.info(
-                    "사용자 얼굴 사진 적용 (photoId=%s, ref=%s, size=%d)",
-                    photo_id,
-                    file_ref,
-                    len(user_face_bytes),
-                )
-            except Exception as exc:
-                logger.error(
-                    "사용자 얼굴 사진 파일 로드 실패 (photoId=%s, ref=%s): %s",
-                    photo_id,
-                    file_ref,
-                    exc,
-                )
-                raise VtonValidationError(f"사용자 이미지(photoId={photo_id})를 불러오는 데 실패했습니다.") from exc
-        elif user_face_bytes is not None:
-            logger.info(
-                "메모리 상의 사용자 얼굴 사진 직접 전달 적용 (photoId=%s, size=%d)",
-                photo_id,
-                len(user_face_bytes),
-            )
-
-        # 2. OpenAI 이미지 편집 피팅 실행 (아바타 몸 + 사용자 얼굴 + 의류)
-        tryon_res = generate_tryon_image(
-            categories=categories,
-            clothing_images=clothing_images,
-            avatar_bytes=None,  # 기본 아바타 몸(avatar.png) 사용
-            user_face_bytes=user_face_bytes,
-            model=settings.openai_image_model,
-            api_key=settings.openai_api_key or None,
-            timeout_seconds=settings.openai_timeout_seconds,
-            max_retries=settings.openai_max_retries,
-        )
-        if isinstance(tryon_res, TryonResult):
-            output_png = tryon_res.image_bytes
-            prompt_tokens = tryon_res.prompt_tokens
-            completion_tokens = tryon_res.completion_tokens
-        else:
-            output_png = tryon_res
-            prompt_tokens = 0
-            completion_tokens = 0
-
-        # 3. 결과 이미지 스토리지 저장 (S3 또는 Local Fallback)
-        storage = get_storage_client()
-        result_key = f"fittings/{fitting_id}.png"
-        uploaded_result_url = storage.upload_bytes(result_key, output_png, content_type="image/png")
-
-        # 3-1. 로컬 fallback을 위한 디스크 복제본 저장 (FileResponse 호환 보장)
-        try:
-            storage_dir = Path(settings.storage_dir)
-            storage_dir.mkdir(parents=True, exist_ok=True)
-            image_file = storage_dir / f"{fitting_id}.png"
-            image_file.write_bytes(output_png)
-        except Exception as file_exc:
-            logger.warning("로컬 피팅 파일 캐시 저장 건너뜀 (fittingId=%s): %s", fitting_id, file_exc)
-
-        # 4. DB 상태 완료(COMPLETED) 갱신
-        final_image_url = uploaded_result_url if storage.is_s3 else result_image_url
-        repo.mark_completed(
-            fitting_id,
-            result_image_url=final_image_url,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-        )
-
-        # 5. notification-service 피팅 완료 FCM 알림 전송
-        notif_client.send_fitting_done(
-            user_id=user_id,
-            fitting_id=fitting_id,
-            request_id_header=request_id_header,
-        )
-        logger.info("비동기 가상 피팅 성공 완료 (fittingId=%s)", fitting_id)
-        return True
-
-    except Exception as exc:
-        err_msg = str(exc) or type(exc).__name__
-        logger.error(
-            "가상 피팅 백그라운드 처리 실패 (fittingId=%s, userId=%s): %s",
-            fitting_id,
-            user_id,
-            err_msg,
-            exc_info=True,
-        )
-        if finalize_failure:
-            # 내부 시스템 경로 등 상세 스택트레이스를 숨기고 정제된 안내 메시지 저장
-            user_error_message = (
-                str(exc)
-                if isinstance(exc, VtonValidationError)
-                else "가상 피팅 생성 중 오류가 발생했습니다."
-            )
-            repo.mark_failed(fitting_id, error_message=user_error_message)
-            notif_client.send_fitting_failed(
-                user_id=user_id,
-                fitting_id=fitting_id,
-                request_id_header=request_id_header,
-            )
-        else:
-            logger.info(
-                "SQS 재시도를 위해 피팅 상태를 PENDING으로 유지합니다 (fittingId=%s)",
-                fitting_id,
-            )
-        return False
+    """서비스 계층의 가상 피팅 백그라운드 파이프라인을 호출합니다."""
+    return _service_run_background_vton(
+        fitting_id=fitting_id,
+        user_id=user_id,
+        photo_id=photo_id,
+        product_ids=product_ids,
+        result_image_url=result_image_url,
+        request_id_header=request_id_header,
+        user_face_bytes=user_face_bytes,
+        item_image_urls=item_image_urls,
+        finalize_failure=finalize_failure,
+        generate_fn=generate_tryon_image,
+    )
 
 
 MAX_PHOTO_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
@@ -364,7 +146,6 @@ def list_user_fittings(
     storage = get_storage_client()
     items: list[FittingSummaryResponse] = []
     for item in raw_items:
-        user_img_url = _resolve_user_image_url(item["fittingId"], request) if item.get("photoId") else None
         raw_res_url = item.get("resultImageUrl")
         if item.get("status") == "COMPLETED" and raw_res_url:
             target_key = (
@@ -382,7 +163,6 @@ def list_user_fittings(
                 requestId=item.get("requestId"),
                 status=item["status"],
                 resultImageUrl=res_img_url,
-                userImageUrl=user_img_url,
                 productCount=item.get("productCount", len(item.get("products", []))),
                 products=item.get("products", []),
                 createdAt=item["createdAt"],
@@ -699,7 +479,31 @@ async def request_fitting(
             "request_id_header": x_request_id,
             "item_image_urls": item_image_urls,
         }
-        sqs_client.send_message(sqs_payload)
+        try:
+            sqs_client.send_message(sqs_payload)
+        except SqsClientError as exc:
+            logger.error(
+                "SQS 피팅 작업 발행 실패 (fittingId=%s, userId=%s): %s",
+                fitting_id,
+                x_user_id,
+                exc,
+                exc_info=True,
+            )
+            try:
+                repo.update_fitting_failed(
+                    fitting_id=fitting_id,
+                    error_message="가상 피팅 작업 큐 등록에 실패했습니다.",
+                )
+            except Exception as db_exc:
+                logger.warning(
+                    "SQS 발행 실패 후 DB FAILED 상태 전환 중 예외 발생 (fittingId=%s): %s",
+                    fitting_id,
+                    db_exc,
+                )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="가상 피팅 작업 큐 등록에 실패했습니다.",
+            ) from exc
         logger.info(
             "SQS 피팅 작업 발행 완료 (queue_backend=sqs, fittingId=%s, userId=%s)",
             fitting_id,
@@ -722,15 +526,14 @@ async def request_fitting(
     return FittingCreateResponse(fittingId=fitting_id, status="PENDING")
 
 
-
 @router.get(
-    "/api/vton/{fitting_id}",
+    "/api/vton/{fittingId}",
     response_model=FittingDetailResponse,
     summary="가상 피팅 결과 상세 조회",
     description="피팅 ID로 현재 진행 상태(PENDING/COMPLETED/FAILED) 및 결과 이미지 URL, 상품 목록을 조회합니다.",
 )
 def get_fitting(
-    fitting_id: int,
+    fitting_id: Annotated[int, Path(alias="fittingId", gt=0, description="피팅 ID")],
     x_user_id: Annotated[int | None, Header(alias="X-User-Id", description="게이트웨이 인증 사용자 ID")] = None,
 ) -> FittingDetailResponse:
     if not x_user_id or x_user_id <= 0:
@@ -766,12 +569,10 @@ def get_fitting(
     else:
         result_img_url = None
 
-    user_img_url = _resolve_user_image_url(detail["fittingId"], None) if detail.get("photoId") else None
     return FittingDetailResponse(
         fittingId=detail["fittingId"],
         userId=detail["userId"],
         requestId=detail.get("requestId"),
-        userImageUrl=user_img_url,
         status=detail["status"],
         resultImageUrl=result_img_url,
         errorMessage=detail["errorMessage"],
@@ -782,13 +583,13 @@ def get_fitting(
 
 
 @router.delete(
-    "/api/vton/{fitting_id}",
+    "/api/vton/{fittingId}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="가상 피팅 기록 삭제 (소프트 삭제)",
     description="본인의 가상 피팅 기록을 삭제(소프트 삭제)합니다. 삭제된 피팅은 상세 조회 및 이미지 서빙이 차단됩니다.",
 )
 def delete_fitting(
-    fitting_id: int,
+    fitting_id: Annotated[int, Path(alias="fittingId", gt=0, description="피팅 ID")],
     x_user_id: Annotated[int | None, Header(alias="X-User-Id", description="게이트웨이 인증 사용자 ID")] = None,
 ) -> Response:
     if not x_user_id or x_user_id <= 0:
@@ -822,7 +623,7 @@ def delete_fitting(
 
 
 @router.get(
-    "/api/vton/{fitting_id}/image",
+    "/api/vton/{fittingId}/image",
     summary="가상 피팅 결과 PNG 이미지 서빙",
     description="피팅이 완료된 실제 바이너리 PNG 이미지를 브라우저나 앱에서 바로 렌더링할 수 있도록 반환합니다. 본인 소유 피팅만 접근 가능합니다.",
     responses={
@@ -834,7 +635,7 @@ def delete_fitting(
     },
 )
 def get_fitting_image(
-    fitting_id: int,
+    fitting_id: Annotated[int, Path(alias="fittingId", gt=0, description="피팅 ID")],
     x_user_id: Annotated[int | None, Header(alias="X-User-Id", description="게이트웨이 인증 사용자 ID")] = None,
 ) -> Response:
     if not x_user_id or x_user_id <= 0:
@@ -883,7 +684,7 @@ def get_fitting_image(
             )
 
     settings = get_settings()
-    storage_dir = Path(settings.storage_dir)
+    storage_dir = FilePath(settings.storage_dir)
     image_file = storage_dir / f"{fitting_id}.png"
 
     if image_file.is_file():
@@ -909,7 +710,7 @@ def get_fitting_image(
 
 
 @router.get(
-    "/api/vton/{fitting_id}/user-image",
+    "/api/vton/{fittingId}/user-image",
     summary="사용자 얼굴/상반신 이미지 파일 서빙 (로컬 개발용)",
     description="가상 피팅 요청 시 첨부했던 사용자 얼굴/상반신 원본 이미지를 브라우저나 앱에서 확인할 수 있도록 스트리밍합니다.",
     responses={
@@ -918,7 +719,7 @@ def get_fitting_image(
     },
 )
 def get_fitting_user_image(
-    fitting_id: int,
+    fitting_id: Annotated[int, Path(alias="fittingId", gt=0, description="피팅 ID")],
     x_user_id: Annotated[int | None, Header(alias="X-User-Id", description="게이트웨이 인증 사용자 ID")] = None,
 ) -> Response:
     if not x_user_id or x_user_id <= 0:
@@ -979,14 +780,14 @@ def get_fitting_user_image(
 
 
 @router.get(
-    "/fittings/{fitting_id}",
+    "/fittings/{fittingId}",
     response_model=InternalFittingResponse,
     summary="[내부 서비스용] 커뮤니티 공유 유효성 검증",
     description="community-service 전용 내부 API. X-Service-Token 헤더를 검증하고 해당 사용자의 소유권과 상품 목록을 반환합니다.",
 )
 def get_internal_fitting(
-    fitting_id: int,
-    user_id: Annotated[int, Query(alias="userId")],
+    fitting_id: Annotated[int, Path(alias="fittingId", gt=0, description="피팅 ID")],
+    user_id: Annotated[int, Query(alias="userId", gt=0, description="소유권 확인할 사용자 ID")],
     x_service_token: Annotated[str | None, Header(alias="X-Service-Token")] = None,
 ) -> InternalFittingResponse:
     settings = get_settings()

@@ -31,10 +31,25 @@ def _keys(s3: Any, bucket: str, prefix: str) -> list[str]:
         token = page["NextContinuationToken"]
 
 
+def manifest_hashes(manifest: dict[str, Any], prefix: str) -> dict[str, str]:
+    """Return curated-relative path -> SHA-256 from either manifest layout.
+
+    cloud_full_run writes ``products[].s3_key/sha256``; older bundles used ``files``.
+    """
+    hashes = dict(manifest.get("files") or {})
+    curated = f"{prefix}curated/"
+    for record in manifest.get("products") or []:
+        key = record["s3_key"]
+        if not key.startswith(f"{curated}data/") or not key.endswith(".json"):
+            raise ValueError(f"manifest product key is not a curated product JSON: {key}")
+        hashes[key[len(curated):]] = record["sha256"]
+    return hashes
+
+
 def validate_run(s3: Any, bucket: str, prefix: str) -> dict[str, Any]:
     prefix = prefix.rstrip("/") + "/"
     manifest = _json(s3, bucket, f"{prefix}curated/manifest.json")
-    expected = manifest.get("files", {})
+    expected = manifest_hashes(manifest, prefix)
     products = _keys(s3, bucket, f"{prefix}curated/data/")
     products = [key for key in products if key.endswith(".json")]
     reviews = [key for key in _keys(s3, bucket, f"{prefix}reviews/data/") if key.endswith(".json")]
@@ -46,14 +61,24 @@ def validate_run(s3: Any, bucket: str, prefix: str) -> dict[str, Any]:
     review_ids = {key.rsplit("/", 1)[-1][:-5] for key in reviews}
     missing_review_products = sorted(set(product_ids) - review_ids)
 
+    listed = {key[len(f"{prefix}curated/"):] for key in products}
+    expected_products = {relative for relative in expected
+                         if relative.startswith("data/") and relative.endswith(".json")}
+    not_in_manifest = sorted(listed - expected_products)
+    missing_in_s3 = sorted(expected_products - listed)
+
     manifest_mismatches: list[str] = []
-    for relative, expected_hash in expected.items():
+    checked = 0
+    for relative, expected_hash in sorted(expected.items()):
+        if relative in missing_in_s3:
+            continue
         key = f"{prefix}curated/{relative}"
         response = s3.get_object(Bucket=bucket, Key=key)
         try:
             actual_hash = hashlib.sha256(response["Body"].read()).hexdigest()
         finally:
             response["Body"].close()
+        checked += 1
         if actual_hash != expected_hash:
             manifest_mismatches.append(relative)
 
@@ -65,8 +90,14 @@ def validate_run(s3: Any, bucket: str, prefix: str) -> dict[str, Any]:
         "image_failure_audit_count": len(failures),
         "duplicate_product_ids": duplicate_ids,
         "products_without_review_file": missing_review_products,
+        "manifest_hash_entry_count": len(expected),
+        "manifest_sha256_checked_count": checked,
+        "products_not_in_manifest": not_in_manifest,
+        "manifest_products_missing_in_s3": missing_in_s3,
         "manifest_sha256_mismatches": manifest_mismatches,
-        "valid": not (duplicate_ids or manifest_mismatches),
+        # An empty hash list must fail: comparing nothing is not a passed integrity check.
+        "valid": bool(expected) and not (duplicate_ids or manifest_mismatches
+                                         or not_in_manifest or missing_in_s3),
     }
     return report
 

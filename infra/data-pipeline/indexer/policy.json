@@ -2,16 +2,34 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ReadApprovedBundleOnly",
+      "Sid": "ReadApprovedBundleManifestAndStoredImages",
       "Effect": "Allow",
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/approved/bundle.tar.gz"
+      "Resource": [
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/approved/bundle.tar.gz",
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/curated/manifest.json",
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/images/products/*"
+      ]
     },
     {
-      "Sid": "WriteIndexerReportOnly",
+      "Sid": "ListStoredImagesAndThisVectorRun",
       "Effect": "Allow",
-      "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/indexer/report.json"
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "pipeline/runs/collection-20261025-01/images/products/*",
+            "pipeline/vector-runs/collection-20261025-01-fclip-01/*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "ReadWriteThisVectorRunOnly",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/vector-runs/collection-20261025-01-fclip-01/*"
     }
   ]
 }

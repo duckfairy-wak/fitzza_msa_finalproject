@@ -88,6 +88,9 @@ class Settings:
     http_timeout_seconds: float = field(
         default_factory=lambda: float(os.getenv("HTTP_TIMEOUT_SECONDS", "5.0"))
     )
+    redis_url: str = field(
+        default_factory=lambda: os.getenv("REDIS_URL", "")
+    )
     redis_host: str = field(
         default_factory=lambda: os.getenv("REDIS_HOST", "localhost")
     )

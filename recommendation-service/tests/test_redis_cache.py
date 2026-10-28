@@ -125,11 +125,35 @@ def test_redis_client_graceful_fallback_on_network_error() -> None:
 
     # get fails gracefully
     assert client.get("broken_key") is None
-    # upon connection error, _available becomes False
+    # upon connection error, circuit opens and client becomes unavailable
     assert client.is_available is False
 
     # subsequent set fails gracefully without exception
     assert client.set("broken_key", "val") is False
+
+    # Cooldown expires: client automatically becomes available again for probe/recovery
+    client._circuit_open_until = 0.0
+    assert client.is_available is True
+
+
+def test_redis_client_initialization_with_redis_url(monkeypatch: Any) -> None:
+    settings = Settings(
+        redis_enabled=True,
+        redis_url="redis://:secret@redis-cluster:6379/2",
+    )
+    with patch("redis.ConnectionPool.from_url") as mock_from_url:
+        mock_pool = MagicMock()
+        mock_from_url.return_value = mock_pool
+        with patch("redis.Redis") as mock_redis_cls:
+            client = RedisClient(settings=settings)
+            mock_from_url.assert_called_once_with(
+                "redis://:secret@redis-cluster:6379/2",
+                socket_timeout=settings.redis_socket_timeout,
+                socket_connect_timeout=settings.redis_socket_timeout,
+                decode_responses=True,
+            )
+            mock_redis_cls.assert_called_once_with(connection_pool=mock_pool)
+            assert client.is_available is True
 
 
 

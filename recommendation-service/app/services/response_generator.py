@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from contextvars import ContextVar
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -8,13 +9,30 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+_responder_prompt_tokens_ctx: ContextVar[int] = ContextVar("responder_prompt_tokens_ctx", default=0)
+_responder_completion_tokens_ctx: ContextVar[int] = ContextVar("responder_completion_tokens_ctx", default=0)
+
 class ResponseGenerator:
     def __init__(self, model_name: str = "gpt-6-luna"):
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
-        self.last_prompt_tokens: int = 0
-        self.last_completion_tokens: int = 0
+
+    @property
+    def last_prompt_tokens(self) -> int:
+        return _responder_prompt_tokens_ctx.get()
+
+    @last_prompt_tokens.setter
+    def last_prompt_tokens(self, val: int) -> None:
+        _responder_prompt_tokens_ctx.set(int(val or 0))
+
+    @property
+    def last_completion_tokens(self) -> int:
+        return _responder_completion_tokens_ctx.get()
+
+    @last_completion_tokens.setter
+    def last_completion_tokens(self, val: int) -> None:
+        _responder_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
         """실제 API 호출이 필요할 때 OpenAI 클라이언트를 준비한다."""
@@ -122,7 +140,7 @@ class ResponseGenerator:
         [엄격한 제약 사항]:
         1. 반드시 위 '추천 코디 세트 정보'에 명시된 실제 상품들(브랜드명, 상품명, 카테고리, 가격)만 정확히 인용하세요. 목록에 없는 아이템을 임의로 지어내어 추천하지 마세요.
         2. AI 에디터 평가 포인트에 기반하여 각 코디 세트의 매력을 설명하되, 존재하지 않는 스펙이나 가격을 만들어내지 마세요.
-        
+
         당신은 최고의 패션 매거진 에디터입니다. 위 제약 사항을 준수하며 각 코디 세트의 매력과 TPO 적합성을 설명하는 추천 코멘트를 매끄럽고 세련되게 작성하세요.
         """
 
@@ -142,4 +160,4 @@ class ResponseGenerator:
         self.last_prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         self.last_completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
         logger.debug("ResponseGenerator 코디 (%s) 응답 시간: %.4f초, tokens=(prompt=%d, completion=%d)", self.model_name, self.last_latency, self.last_prompt_tokens, self.last_completion_tokens)
-        return res.choices[0].message.content
+        return res.choices[0].message.content

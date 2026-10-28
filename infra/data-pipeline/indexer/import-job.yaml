@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fashion-clip-import-20261025-01
+  namespace: fitzza
+  annotations:
+    fitzza.io/execution-policy: manual-approval-required
+  labels:
+    fitzza.io/run-id: collection-20261025-01
+spec:
+  # Prepared only: the run copy sets suspend: false and adds --execute-approved-run.
+  # It creates a new versioned collection and never changes an alias.
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fitzza-indexer
+        fitzza.io/qdrant-client: "true"
+    spec:
+      serviceAccountName: fitzza-indexer
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: import
+          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/fashion-clip:vector-20261028-02
+          command: ["python", "/pipeline/import_job.py"]
+          args: ["--bucket", "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "--vector-run-id", "collection-20261025-01-fclip-01",
+                 "--collection", "fitzza_products_20261025_01"]
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+            - name: AWS_DEFAULT_REGION
+              value: ap-northeast-2
+            - name: QDRANT_URL
+              value: http://qdrant.fitzza.svc.cluster.local:6333
+            - name: HOME
+              value: /work
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1536Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: work
+              mountPath: /work
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi

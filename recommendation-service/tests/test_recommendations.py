@@ -191,6 +191,8 @@ def configure_test_state() -> None:
     app.state.notification_client = StubNotificationClient()
     app.state.redis_client = None
     app.state.cache_service = None
+    app.state.size_resolver = None
+    app.state.qdrant_client = None
 
 
 
@@ -774,4 +776,327 @@ def test_process_recommendation_request_zeros_tokens_on_cache_hit() -> None:
     assert saved is not None
     assert saved["promptTokens"] == 0
     assert saved["completionTokens"] == 0
+
+
+def test_get_product_size_recommendation_from_qdrant_and_body_profile() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+    from app.services.size_resolver import SizeProfileResolver
+
+    resolver = SizeProfileResolver()
+    resolver.mock_db.setdefault("other_users_fits", []).append(
+        {
+            "subcategory": "반소매 티셔츠",
+            "height": 175.0,
+            "weight": 68.0,
+            "measurement_spec": {"총장": 70.0, "어깨너비": 50.0, "가슴단면": 58.0, "소매길이": 62.0},
+        }
+    )
+    app.state.size_resolver = resolver
+
+    mock_qdrant = MagicMock()
+    mock_point = SimpleNamespace(
+        payload={
+            "product_id": 1024,
+            "product_name": "릴렉스드 핏 크루 넥 반소매 티셔츠",
+            "category": "상의",
+            "subcategory": "반소매 티셔츠",
+            "features": {"핏": ["레귤러"]},
+            "sizes": [
+                {
+                    "size": "S",
+                    "measurements": {"총장": 66.0, "어깨너비": 46.0, "가슴단면": 53.0, "소매길이": 59.0},
+                },
+                {
+                    "size": "M",
+                    "measurements": {"총장": 68.0, "어깨너비": 48.0, "가슴단면": 55.5, "소매길이": 60.5},
+                },
+                {
+                    "size": "L",
+                    "measurements": {"총장": 70.0, "어깨너비": 50.0, "가슴단면": 58.0, "소매길이": 62.0},
+                },
+                {
+                    "size": "XL",
+                    "measurements": {"총장": 72.0, "어깨너비": 52.0, "가슴단면": 60.5, "소매길이": 63.5},
+                },
+            ],
+        }
+    )
+    mock_qdrant.scroll.return_value = ([mock_point], None)
+    app.state.qdrant_client = mock_qdrant
+
+    with TestClient(app) as client:
+        res = client.get(
+            "/api/recommendations/1024/size",
+            headers={"X-User-Id": "7"},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert set(data.keys()) == {"recommendedSize", "fitPercent", "evidence"}
+        assert data["recommendedSize"] == "L"
+        assert data["evidence"] == "유사 체형 사용자의 실측 데이터를 기준으로 추천된 사이즈입니다."
+        assert data["fitPercent"] == 100.0
+
+
+def test_get_product_size_recommendation_uses_learned_preference_after_size_feedback() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    mock_qdrant = MagicMock()
+    mock_point = SimpleNamespace(
+        payload={
+            "product_id": 2048,
+            "product_name": "옥스포드 오버핏 셔츠",
+            "category": "상의",
+            "subcategory": "셔츠/블라우스",
+            "features": {"핏": ["오버 사이즈"]},
+            "sizes": [
+                {
+                    "size": "M",
+                    "measurements": {"총장": 71.0, "어깨너비": 51.0, "가슴단면": 59.0, "소매길이": 61.0},
+                },
+                {
+                    "size": "L",
+                    "measurements": {"총장": 74.0, "어깨너비": 53.0, "가슴단면": 62.0, "소매길이": 63.0},
+                },
+            ],
+        }
+    )
+    mock_qdrant.scroll.return_value = ([mock_point], None)
+    app.state.qdrant_client = mock_qdrant
+
+    with TestClient(app) as client:
+        # 1. review-service가 설문 결과(FIT)를 전송 (StubProductClient는 71/51/59 M사이즈 실측 반환)
+        fb_res = client.post(
+            "/recommendations/size-feedback",
+            headers={"X-Service-Token": REVIEW_TOKEN},
+            json={
+                "userId": 77,
+                "productId": 2048,
+                "optionId": 501,
+                "sizeFeedback": "FIT",
+            },
+        )
+        assert fb_res.status_code == 202
+
+        # 2. 이후 동일 서브카테고리 상품 상세페이지 사이즈 추천 조회 시 1순위 learned_preference로 M 추천
+        size_res = client.get(
+            "/api/recommendations/2048/size",
+            headers={"X-User-Id": "77"},
+        )
+        assert size_res.status_code == 200
+        body = size_res.json()
+        assert set(body.keys()) == {"recommendedSize", "fitPercent", "evidence"}
+        assert body["recommendedSize"] == "M"
+        assert body["evidence"] == "기존 구매·설문 기반 선호 실측과 가장 유사한 사이즈입니다."
+        assert body["fitPercent"] == 100.0
+
+
+def test_get_product_size_recommendation_edge_cases() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    class EmptyUserClient:
+        def get_user_body(self, user_id: int, request_id_header: str | None = None) -> dict[str, Any]:
+            return {}
+
+    class EmptyProductClient:
+        def get_product_measurements(self, product_ids: list[int], request_id_header: str | None = None) -> dict[int, list[dict[str, Any]]]:
+            return {}
+
+    app.state.user_client = EmptyUserClient()
+    app.state.product_client = EmptyProductClient()
+
+    with TestClient(app) as client:
+        # 1. 존재하지 않는 상품 -> 404 PRODUCT_NOT_FOUND
+        not_found_res = client.get(
+            "/api/recommendations/99999/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert not_found_res.status_code == 404
+        assert not_found_res.json()["code"] == "PRODUCT_NOT_FOUND"
+
+        # 2. 단일 사이즈(FREE) 상품 -> 200 OK & recommendedSize=None
+        mock_qdrant = MagicMock()
+        mock_qdrant.scroll.return_value = (
+            [
+                SimpleNamespace(
+                    payload={
+                        "product_id": 3001,
+                        "product_name": "프리사이즈 볼캡",
+                        "category": "모자",
+                        "subcategory": "캡/야구모자",
+                        "sizes": [{"size": "FREE", "measurements": {"머리둘레": 58.0}}],
+                    }
+                )
+            ],
+            None,
+        )
+        app.state.qdrant_client = mock_qdrant
+
+        free_res = client.get(
+            "/api/recommendations/3001/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert free_res.status_code == 200
+        free_body = free_res.json()
+        assert free_body == {
+            "recommendedSize": None,
+            "fitPercent": None,
+            "evidence": "단일 사이즈(FREE)로 제공되는 상품입니다.",
+        }
+
+        # 3. 신체 정보 및 이력이 전혀 없는 유저 -> 200 OK & recommendedSize=None
+        mock_qdrant.scroll.return_value = (
+            [
+                SimpleNamespace(
+                    payload={
+                        "product_id": 3002,
+                        "product_name": "데님 팬츠",
+                        "category": "하의",
+                        "subcategory": "데님 팬츠",
+                        "sizes": [
+                            {"size": "S", "measurements": {"총장": 100.0, "허리단면": 38.0}},
+                            {"size": "M", "measurements": {"총장": 102.0, "허리단면": 40.0}},
+                        ],
+                    }
+                )
+            ],
+            None,
+        )
+        no_profile_res = client.get(
+            "/api/recommendations/3002/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert no_profile_res.status_code == 200
+        no_profile_body = no_profile_res.json()
+        assert no_profile_body == {
+            "recommendedSize": None,
+            "fitPercent": None,
+            "evidence": "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다.",
+        }
+
+        # 4. 유효하지 않은 productId (0 이하) -> 400 INVALID_REQUEST
+        invalid_id_res = client.get(
+            "/api/recommendations/0/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert invalid_id_res.status_code == 400
+        assert invalid_id_res.json()["code"] == "INVALID_REQUEST"
+
+
+def test_coordinator_attach_size_info_uses_learned_preference_from_repository() -> None:
+    from unittest.mock import MagicMock
+    from app.services.coordinator import FashionPipelineCoordinator
+    from app.services.query_parser import SlotQuery
+
+    mock_repo = MagicMock()
+    mock_repo.get_user_size_preference.return_value = {
+        "총장": 73.0,
+        "어깨너비": 52.0,
+        "가슴단면": 60.0,
+    }
+
+    coordinator = FashionPipelineCoordinator.__new__(FashionPipelineCoordinator)
+    coordinator.repository = mock_repo
+    coordinator.size_resolver = MagicMock()
+    coordinator.size_resolver.resolve_and_calculate_size.return_value = {
+        "source_type": "learned_preference",
+        "recommendation": {"size": "L"},
+    }
+
+    items = [{"product_id": 999, "name": "오버핏 셔츠"}]
+    slot = SlotQuery(
+        category="top",
+        subcategory="셔츠/블라우스",
+        clip_query_en="oversized shirt",
+        fit_type="오버 사이즈",
+    )
+
+    result = coordinator._attach_size_info(items=items, slot=slot, user_id="user_77")
+
+    mock_repo.get_user_size_preference.assert_called_once_with(
+        user_id="user_77",
+        subcategory="셔츠/블라우스",
+    )
+    coordinator.size_resolver.resolve_and_calculate_size.assert_called_once_with(
+        user_id="user_77",
+        subcategory="셔츠/블라우스",
+        fit_type="오버 사이즈",
+        candidate_products=[{"product_id": 999, "name": "오버핏 셔츠", "size_recommendation": {"size": "L"}, "fit_source_type": "learned_preference"}],
+        category_type="top",
+        learned_preference={"총장": 73.0, "어깨너비": 52.0, "가슴단면": 60.0},
+    )
+    assert result[0]["size_recommendation"] == {"size": "L"}
+    assert result[0]["fit_source_type"] == "learned_preference"
+
+
+def test_list_recommendations_and_detail_declarative_validation() -> None:
+    with TestClient(app) as client:
+        # page < 0
+        res_page_neg = client.get("/api/v1/recommendations?page=-1", headers={"X-User-Id": "1"})
+        assert res_page_neg.status_code == 400
+        assert res_page_neg.json()["code"] == "INVALID_REQUEST"
+
+        # size < 1
+        res_size_zero = client.get("/api/v1/recommendations?size=0", headers={"X-User-Id": "1"})
+        assert res_size_zero.status_code == 400
+        assert res_size_zero.json()["code"] == "INVALID_REQUEST"
+
+        # size > 100
+        res_size_large = client.get("/api/v1/recommendations?size=101", headers={"X-User-Id": "1"})
+        assert res_size_large.status_code == 400
+        assert res_size_large.json()["code"] == "INVALID_REQUEST"
+
+        # requestId <= 0 in GET /{requestId}
+        res_detail_zero = client.get("/api/v1/recommendations/0", headers={"X-User-Id": "1"})
+        assert res_detail_zero.status_code == 400
+        assert res_detail_zero.json()["code"] == "INVALID_REQUEST"
+
+        res_detail_neg = client.get("/api/v1/recommendations/-10", headers={"X-User-Id": "1"})
+        assert res_detail_neg.status_code == 400
+        assert res_detail_neg.json()["code"] == "INVALID_REQUEST"
+
+
+def test_llm_services_token_contextvars_concurrency() -> None:
+    import asyncio
+    from app.services.query_parser import QueryParser
+    from app.services.harmonizer import OutfitHarmonizer
+    from app.services.response_generator import ResponseGenerator
+
+    parser = QueryParser()
+    harmonizer = OutfitHarmonizer.__new__(OutfitHarmonizer)
+    responder = ResponseGenerator()
+
+    async def task_a() -> tuple[int, int, int]:
+        parser.last_prompt_tokens = 100
+        harmonizer.last_prompt_tokens = 200
+        responder.last_prompt_tokens = 300
+        await asyncio.sleep(0.02)
+        return (
+            parser.last_prompt_tokens,
+            harmonizer.last_prompt_tokens,
+            responder.last_prompt_tokens,
+        )
+
+    async def task_b() -> tuple[int, int, int]:
+        await asyncio.sleep(0.01)
+        parser.last_prompt_tokens = 999
+        harmonizer.last_prompt_tokens = 888
+        responder.last_prompt_tokens = 777
+        await asyncio.sleep(0.02)
+        return (
+            parser.last_prompt_tokens,
+            harmonizer.last_prompt_tokens,
+            responder.last_prompt_tokens,
+        )
+
+    async def runner() -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+        return await asyncio.gather(task_a(), task_b())
+
+    res_a, res_b = asyncio.run(runner())
+    # Task A's tokens must remain completely isolated from Task B
+    assert res_a == (100, 200, 300)
+    assert res_b == (999, 888, 777)
+
 

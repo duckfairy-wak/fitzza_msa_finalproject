@@ -219,6 +219,24 @@ class PostRepositoryTest {
         assertThat(loaded.getSharedItems().get(1).getPrice()).isEqualTo(50000);
     }
 
+    @Test
+    void aSharedPostKeepsPresignedImageUrlsLongerThanFiveHundredCharacters() {
+        String longImageUrl = "https://bucket.s3.ap-northeast-2.amazonaws.com/product.jpg?" + "signature".repeat(70);
+        Post post = Post.createNormal(AUTHOR_ID, "추천 코디", "어때요", PostCategory.FASHION);
+        post.attachShared(
+                SharedType.COMBO,
+                31L,
+                new SharedSnapshot(null, null, null, 89000, longImageUrl, "톤온톤으로 잘 어울려요"),
+                List.of(new SharedItem(1L, "셔츠", 39000, longImageUrl)));
+
+        Long postId = postRepository.saveAndFlush(post).getId();
+        entityManager.clear();
+
+        Post loaded = postRepository.findById(postId).orElseThrow();
+        assertThat(loaded.getSharedSnapshot().getImageUrl()).isEqualTo(longImageUrl);
+        assertThat(loaded.getSharedItems().get(0).getImageUrl()).isEqualTo(longImageUrl);
+    }
+
     private Post save(Post post) {
         return postRepository.save(post);
     }

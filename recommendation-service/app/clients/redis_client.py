@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Any, Optional
 
 import redis
@@ -18,6 +19,7 @@ class RedisClient:
     """
 
     DEFAULT_PREFIX = "fitzza:rec:"
+    CIRCUIT_COOLDOWN_SECONDS: float = 30.0
 
     def __init__(
         self,
@@ -29,6 +31,7 @@ class RedisClient:
         self.key_prefix = key_prefix
         self._enabled = settings.redis_enabled
         self._pool: Optional[redis.ConnectionPool] = None
+        self._circuit_open_until: float = 0.0
 
         if redis_instance is not None:
             self._client: Optional[redis.Redis] = redis_instance
@@ -39,23 +42,33 @@ class RedisClient:
             self._available = False
         else:
             try:
-                self._pool = redis.ConnectionPool(
-                    host=settings.redis_host,
-                    port=settings.redis_port,
-                    db=settings.redis_db,
-                    password=settings.redis_password,
-                    socket_timeout=settings.redis_socket_timeout,
-                    socket_connect_timeout=settings.redis_socket_timeout,
-                    decode_responses=True,
-                )
+                redis_url = (getattr(settings, "redis_url", "") or "").strip()
+                if redis_url:
+                    self._pool = redis.ConnectionPool.from_url(
+                        redis_url,
+                        socket_timeout=settings.redis_socket_timeout,
+                        socket_connect_timeout=settings.redis_socket_timeout,
+                        decode_responses=True,
+                    )
+                    logger.info("Redis 클라이언트 초기화 완료 (REDIS_URL 적용)")
+                else:
+                    self._pool = redis.ConnectionPool(
+                        host=settings.redis_host,
+                        port=settings.redis_port,
+                        db=settings.redis_db,
+                        password=settings.redis_password,
+                        socket_timeout=settings.redis_socket_timeout,
+                        socket_connect_timeout=settings.redis_socket_timeout,
+                        decode_responses=True,
+                    )
+                    logger.info(
+                        "Redis 클라이언트 초기화 완료 (host=%s, port=%d, db=%d)",
+                        settings.redis_host,
+                        settings.redis_port,
+                        settings.redis_db,
+                    )
                 self._client = redis.Redis(connection_pool=self._pool)
                 self._available = True
-                logger.info(
-                    "Redis 클라이언트 초기화 완료 (host=%s, port=%d, db=%d)",
-                    settings.redis_host,
-                    settings.redis_port,
-                    settings.redis_db,
-                )
             except Exception as exc:
                 logger.warning(
                     "Redis 클라이언트 초기화 실패, Fallback 모드로 동작합니다: %s", exc
@@ -65,7 +78,11 @@ class RedisClient:
 
     @property
     def is_available(self) -> bool:
-        return self._available and self._client is not None
+        if not self._available or self._client is None:
+            return False
+        if time.time() < self._circuit_open_until:
+            return False
+        return True
 
     def _format_key(self, key: str) -> str:
         clean_key = key.strip()
@@ -76,14 +93,21 @@ class RedisClient:
     def _handle_error(self, op: str, target: str, exc: Exception) -> None:
         logger.warning("Redis %s 실패 (target=%s): %s", op, target, exc)
         if isinstance(exc, (redis.ConnectionError, redis.TimeoutError)):
-            self._available = False
+            self._circuit_open_until = time.time() + self.CIRCUIT_COOLDOWN_SECONDS
+
+    def _reset_circuit(self) -> None:
+        if self._circuit_open_until > 0.0:
+            self._circuit_open_until = 0.0
 
     def ping(self) -> bool:
         if not self.is_available:
             return False
         try:
             assert self._client is not None
-            return bool(self._client.ping())
+            res = bool(self._client.ping())
+            if res:
+                self._reset_circuit()
+            return res
         except (RedisError, Exception) as exc:
             self._handle_error("PING", "server", exc)
             return False
@@ -95,6 +119,7 @@ class RedisClient:
         try:
             assert self._client is not None
             raw_val = self._client.get(full_key)
+            self._reset_circuit()
             if raw_val is None:
                 return None
             try:
@@ -125,8 +150,12 @@ class RedisClient:
                 serialized = json.dumps(value, ensure_ascii=False, default=str)
 
             if ttl > 0:
-                return bool(self._client.set(full_key, serialized, ex=ttl))
-            return bool(self._client.set(full_key, serialized))
+                res = bool(self._client.set(full_key, serialized, ex=ttl))
+            else:
+                res = bool(self._client.set(full_key, serialized))
+            if res:
+                self._reset_circuit()
+            return res
         except (RedisError, Exception) as exc:
             self._handle_error("SET", full_key, exc)
             return False

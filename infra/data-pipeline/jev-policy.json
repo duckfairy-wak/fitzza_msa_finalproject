@@ -2,19 +2,31 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ReadCuratedBundleAndPriorResponses",
+      "Sid": "ReadCuratedProductsAndPriorResponses",
       "Effect": "Allow",
       "Action": "s3:GetObject",
       "Resource": [
-        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/curated/bundle.tar.gz",
-        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/jev/color_map_jev_results.jsonl"
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/curated/manifest.json",
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/curated/data/*",
+        "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/jev/color_map_jev_results.jsonl"
       ]
+    },
+    {
+      "Sid": "CheckPriorResponsesExist",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+      "Condition": {
+        "StringEquals": {
+          "s3:prefix": "pipeline/runs/collection-20261025-01/jev/color_map_jev_results.jsonl"
+        }
+      }
     },
     {
       "Sid": "WriteJevReviewOnly",
       "Effect": "Allow",
       "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261022-01/jev/*"
+      "Resource": "arn:aws:s3:::fitzza-prod-foundation-databucket-wwng6wfc0hqy/pipeline/runs/collection-20261025-01/jev/*"
     },
     {
       "Sid": "ReadJevKeyOnly",

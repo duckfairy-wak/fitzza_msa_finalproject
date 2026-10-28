@@ -8,10 +8,12 @@ automountServiceAccountToken: false
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jev-color-review-prepared
+  name: jev-color-20261025-01
   namespace: fitzza
   annotations:
     fitzza.io/execution-policy: manual-approval-required
+  labels:
+    fitzza.io/run-id: collection-20261025-01
 spec:
   suspend: true
   backoffLimit: 0
@@ -35,9 +37,9 @@ spec:
           type: RuntimeDefault
       containers:
         - name: jev
-          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/crawler:jev-prepared-20261021-01
+          image: 414901227428.dkr.ecr.ap-northeast-2.amazonaws.com/fitzza/crawler:jev-manifest-20261027-01
           command: ["python", "-m", "src.jev_job"]
-          args: ["--bucket", "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "--run-id", "collection-20261022-01"]
+          args: ["--bucket", "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "--run-id", "collection-20261025-01", "--input-layout", "manifest"]
           env:
             - name: AWS_REGION
               value: ap-northeast-2

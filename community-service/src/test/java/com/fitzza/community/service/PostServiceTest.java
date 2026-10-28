@@ -32,7 +32,9 @@ import com.fitzza.community.dto.PostDetailResponse;
 import com.fitzza.community.dto.PostPageResponse;
 import com.fitzza.community.dto.PostSummaryResponse;
 import com.fitzza.community.dto.PostUpdateRequest;
+import com.fitzza.community.dto.SharedResponse;
 import com.fitzza.community.dto.VoteOptionRequest;
+import com.fitzza.community.dto.VoteOptionResponse;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
 import com.fitzza.community.repository.CommentRepository;
@@ -71,6 +73,7 @@ class PostServiceTest {
     private final UserDirectory userDirectory = mock(UserDirectory.class);
     private final VoteService voteService = mock(VoteService.class);
     private final SharedTargetGateway sharedTargetGateway = mock(SharedTargetGateway.class);
+    private final ProductImages productImages = mock(ProductImages.class);
     private final PostService postService = new PostService(
             postRepository,
             postLikeRepository,
@@ -78,7 +81,8 @@ class PostServiceTest {
             voteOptionRepository,
             userDirectory,
             voteService,
-            sharedTargetGateway);
+            sharedTargetGateway,
+            productImages);
 
     @Test
     void createStoresTrimmedNormalPostForTheHeaderUser() {
@@ -223,6 +227,83 @@ class PostServiceTest {
                 .extracting(PostSummaryResponse::thumbnailUrl)
                 .containsExactly(OPTION_IMAGE_URL, null, null);
         verify(voteOptionRepository).findFirstOptionImages(List.of(3L, 4L));
+    }
+
+    // 상품 이미지는 저장된 Presigned 주소가 만료되므로 목록을 보여줄 때 새 주소로 바꾼다. 피팅 결과 사진은 그대로 둔다.
+    @Test
+    void feedThumbnailsUseFreshProductImageUrls() {
+        Post vote = votePost(3L);
+        Post sharedProduct = post(6L, AUTHOR_ID);
+        sharedProduct.attachShared(SharedType.PRODUCT, 56L, new SharedSnapshot(56L, "Fitzza", "셔츠", 39000, "old-56"));
+        Post sharedFitting = post(7L, AUTHOR_ID);
+        sharedFitting.attachShared(SharedType.FITTING, 70L, new SharedSnapshot(null, null, null, null, "fitting-result"));
+        Post sharedCombo = post(8L, AUTHOR_ID);
+        sharedCombo.attachShared(SharedType.COMBO, 80L, new SharedSnapshot(null, null, null, 90000, "old-57"),
+                List.of(new SharedItem(57L, "바지", 50000, "old-57"), new SharedItem(58L, "셔츠", 40000, "old-58")));
+        when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(vote, sharedProduct, sharedFitting, sharedCombo), PageRequest.of(0, 20), 4));
+        when(voteOptionRepository.findFirstOptionImages(List.of(3L)))
+                .thenReturn(List.of(new PostImage(3L, "old-55", VoteItemType.PRODUCT, "55")));
+        when(productImages.latest(ArgumentMatchers.anyCollection()))
+                .thenReturn(Map.of(55L, "new-55", 56L, "new-56", 57L, "new-57"));
+
+        PostPageResponse feed = postService.getFeed(null, null, null, 0, 20);
+
+        assertThat(feed.content())
+                .extracting(PostSummaryResponse::thumbnailUrl)
+                .containsExactly("new-55", "new-56", "fitting-result", "new-57");
+    }
+
+    // 상품 서비스가 새 주소를 주지 못하면 저장된 주소를 그대로 보여준다.
+    @Test
+    void feedKeepsTheStoredImageWhenNoFreshUrlCameBack() {
+        Post sharedProduct = post(6L, AUTHOR_ID);
+        sharedProduct.attachShared(SharedType.PRODUCT, 56L, new SharedSnapshot(56L, "Fitzza", "셔츠", 39000, "old-56"));
+        when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sharedProduct), PageRequest.of(0, 20), 1));
+        when(productImages.latest(ArgumentMatchers.anyCollection())).thenReturn(Map.of());
+
+        PostPageResponse feed = postService.getFeed(null, null, null, 0, 20);
+
+        assertThat(feed.content()).extracting(PostSummaryResponse::thumbnailUrl).containsExactly("old-56");
+    }
+
+    @Test
+    void detailUsesFreshImagesForTheSharedSnapshotAndItsItems() {
+        Post post = post(POST_ID, AUTHOR_ID);
+        post.attachShared(SharedType.COMBO, 80L, new SharedSnapshot(null, null, null, 90000, "old-57"),
+                List.of(new SharedItem(57L, "바지", 50000, "old-57"), new SharedItem(58L, "셔츠", 40000, "old-58")));
+        when(postRepository.incrementViewCount(POST_ID)).thenReturn(1);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(productImages.latest(ArgumentMatchers.anyCollection())).thenReturn(Map.of(57L, "new-57", 58L, "new-58"));
+
+        PostDetailResponse detail = postService.getDetail(POST_ID, null);
+
+        assertThat(detail.shared().snapshot().imageUrl()).isEqualTo("new-57");
+        assertThat(detail.shared().items())
+                .extracting(SharedResponse.Item::imageUrl)
+                .containsExactly("new-57", "new-58");
+    }
+
+    @Test
+    void detailRefreshesProductOptionsButLeavesComboOptionsAlone() {
+        Post votePost = Post.createVote(AUTHOR_ID, "제목", "내용", PostCategory.COORDI_QUESTION, Instant.now());
+        ReflectionTestUtils.setField(votePost, "id", POST_ID);
+        VoteOption product = VoteOption.of(
+                POST_ID, 1, VoteOptionSource.WISHLIST, VoteItemType.PRODUCT, "55", "old-55", "셔츠", 39000);
+        VoteOption combo = VoteOption.of(
+                POST_ID, 2, VoteOptionSource.AI_RECOMMEND, VoteItemType.COMBO, "9", "combo-image", "코디", 90000);
+        when(postRepository.incrementViewCount(POST_ID)).thenReturn(1);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(votePost));
+        when(voteOptionRepository.findByPostIdOrderByDisplayOrderAsc(POST_ID)).thenReturn(List.of(product, combo));
+        when(productImages.latest(ArgumentMatchers.anyCollection())).thenReturn(Map.of(55L, "new-55", 9L, "wrong"));
+
+        PostDetailResponse detail = postService.getDetail(POST_ID, null);
+
+        assertThat(detail.voteOptions())
+                .extracting(VoteOptionResponse::imageUrl)
+                .containsExactly("new-55", "combo-image");
     }
 
     @Test

@@ -14,4 +14,6 @@ dependencies {
 
     // 저장소 테스트는 PostgreSQL 호환 모드의 H2로 실제 SQL을 실행한다.
     testRuntimeOnly 'com.h2database:h2'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
 }

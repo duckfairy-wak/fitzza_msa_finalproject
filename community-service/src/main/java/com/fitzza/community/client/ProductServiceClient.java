@@ -1,6 +1,9 @@
 package com.fitzza.community.client;
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
@@ -47,6 +50,30 @@ public class ProductServiceClient implements ProductCatalog, WorldcupResults {
                 .retrieve()
                 .body(WishlistCheck.class);
         return check != null && check.wishlisted();
+    }
+
+    @Override
+    public Map<Long, String> findImageUrls(Collection<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        List<ProductSummary> found = restClient
+                .get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/products")
+                        .queryParam("productIds", productIds.toArray())
+                        .build())
+                .retrieve()
+                .body(PRODUCT_LIST);
+        Map<Long, String> imageUrls = new LinkedHashMap<>();
+        if (found != null) {
+            for (ProductSummary product : found) {
+                if (product.productId() != null && product.imageUrl() != null && !product.imageUrl().isBlank()) {
+                    imageUrls.put(product.productId(), product.imageUrl());
+                }
+            }
+        }
+        return imageUrls;
     }
 
     @Override

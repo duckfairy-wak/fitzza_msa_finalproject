@@ -336,6 +336,10 @@ class VtonRepository:
             with self._lock:
                 with self._get_pg_connection() as conn:
                     with conn.cursor() as cur:
+                        cur.execute(
+                            f"DELETE FROM {schema}.fitting_products WHERE fitting_id = %s;",
+                            (fitting_id,),
+                        )
                         for p in products:
                             cur.execute(
                                 f"""
@@ -358,6 +362,10 @@ class VtonRepository:
                 conn = self._get_sqlite_connection()
                 try:
                     cur = conn.cursor()
+                    cur.execute(
+                        "DELETE FROM fitting_products WHERE fitting_id = ?;",
+                        (fitting_id,),
+                    )
                     for p in products:
                         cur.execute(
                             """
@@ -424,6 +432,13 @@ class VtonRepository:
                     conn.commit()
                 finally:
                     self._close_sqlite_if_transient(conn)
+
+    def update_fitting_failed(
+        self,
+        fitting_id: int,
+        error_message: str,
+    ) -> None:
+        self.mark_failed(fitting_id=fitting_id, error_message=error_message)
 
     def mark_failed(
         self,

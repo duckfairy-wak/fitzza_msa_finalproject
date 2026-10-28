@@ -109,10 +109,11 @@ curl -X POST http://localhost:8080/api/v1/recommendations \
 
 ## 서비스별 DB 계정
 
-user·community·review·notification-service는 서비스 전용 DB 계정(`<스키마>_app`, 예: `user_service_app`)으로 접속할 수 있습니다.
+운영의 Java 6개 서비스(user·product·order·community·review·notification)는 서비스 전용 DB 계정(`<스키마>_app`, 예: `user_service_app`)으로 접속합니다.
 각 계정은 자기 스키마의 소유자라서 그 안에서만 Flyway로 테이블을 만들고 바꿀 수 있고, 다른 서비스 스키마에는 접근할 수 없습니다.
 
-- 앱 설정: `USER_SERVICE_DB_USER`/`USER_SERVICE_DB_PASSWORD`처럼 서비스별 값이 있으면 그 계정을 쓰고, 없으면 공용 `POSTGRES_USER`/`POSTGRES_PASSWORD`를 씁니다.
+- 앱 설정: `USER_SERVICE_DB_USER`/`USER_SERVICE_DB_PASSWORD`처럼 서비스별 값을 필수로 사용합니다. Java 6개 서비스에는 공용 `POSTGRES_USER`/`POSTGRES_PASSWORD` fallback이 없습니다.
+- Kubernetes: `fitzza-db-secrets`에 6개 서비스의 `*_DB_USER`/`*_DB_PASSWORD` 12개 키를 등록합니다. 공개 가능한 형식은 `infra/k8s/base/db-secret.example.yaml`을 참고합니다.
 - 계정 준비: 관리자 계정(로컬 `POSTGRES_USER`, RDS 마스터 계정)으로 `infra/postgres/service-accounts.sql`을 실행합니다. 비밀번호는 `USER_SERVICE_DB_PASSWORD` 같은 환경 변수로만 받고, 값이 없는 서비스는 건너뜁니다. 계정 생성, 스키마 소유자 지정, 관리자 계정이 만든 기존 테이블의 소유자 이전을 한 번에 하며 다시 실행해도 됩니다. psql 15 이상이 필요합니다.
 
 ```bash
