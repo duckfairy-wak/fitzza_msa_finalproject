@@ -139,14 +139,18 @@ try {
     )
 
     $manifestRoot = Join-Path $renderRoot 'kube-prometheus-stack'
-    $crdRoot = Join-Path $manifestRoot 'crds'
-    if (-not (Test-Path -LiteralPath $crdRoot -PathType Container)) {
-        throw "Rendered CRD directory not found: $crdRoot"
+    $renderedCrdFiles = @(Get-ChildItem -LiteralPath $manifestRoot -Recurse -File -Filter '*.yaml' |
+        Where-Object { Select-String -LiteralPath $_.FullName -Pattern '^kind:\s*CustomResourceDefinition\s*$' -Quiet })
+    if ($renderedCrdFiles.Count -eq 0) {
+        throw "No rendered CustomResourceDefinition manifests found under: $manifestRoot"
     }
 
-    $renderedCrdResources = @(Invoke-Captured kubectl @(
-        'create', '--dry-run=client', '--filename', $crdRoot, '--output', 'name'
-    ))
+    $crdValidationArguments = @('create', '--dry-run=client')
+    foreach ($renderedCrdFile in $renderedCrdFiles) {
+        $crdValidationArguments += @('--filename', $renderedCrdFile.FullName)
+    }
+    $crdValidationArguments += @('--output', 'name')
+    $renderedCrdResources = @(Invoke-Captured kubectl $crdValidationArguments)
     $missingCrdNames = @()
     foreach ($renderedCrdResource in $renderedCrdResources) {
         $crdName = ($renderedCrdResource -split '/', 2)[-1]

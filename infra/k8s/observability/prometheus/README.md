@@ -77,9 +77,13 @@ helm template fitzza-monitoring prometheus-community/kube-prometheus-stack `
   --include-crds `
   --values infra/k8s/observability/prometheus/values.yaml `
   --output-dir .tmp/fitzza-monitoring-render
-kubectl create --dry-run=client `
-  --filename .tmp/fitzza-monitoring-render/kube-prometheus-stack/crds `
-  --output name
+$manifestRoot = '.tmp/fitzza-monitoring-render/kube-prometheus-stack'
+$crdFiles = @(Get-ChildItem -LiteralPath $manifestRoot -Recurse -File -Filter '*.yaml' |
+  Where-Object { Select-String -LiteralPath $_.FullName `
+    -Pattern '^kind:\s*CustomResourceDefinition\s*$' -Quiet })
+$crdFiles | ForEach-Object {
+  kubectl create --dry-run=client --filename $_.FullName --output name
+}
 kubectl get customresourcedefinition
 ```
 
