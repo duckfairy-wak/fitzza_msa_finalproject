@@ -11,6 +11,17 @@ from app.core.config import Settings
 logger = logging.getLogger(__name__)
 
 
+def _json_default(obj: Any) -> Any:
+    """Pydantic 모델, datetime 및 복합 객체를 위한 안전한 JSON 직렬화 헬퍼 함수."""
+    if hasattr(obj, "model_dump") and callable(obj.model_dump):
+        return obj.model_dump()
+    if hasattr(obj, "dict") and callable(obj.dict):
+        return obj.dict()
+    if hasattr(obj, "isoformat") and callable(obj.isoformat):
+        return obj.isoformat()
+    return str(obj)
+
+
 class RedisClient:
     """Redis 캐시 클라이언트.
 
@@ -143,11 +154,11 @@ class RedisClient:
         try:
             assert self._client is not None
             if isinstance(value, (dict, list, bool, int, float)) or value is None:
-                serialized = json.dumps(value, ensure_ascii=False)
+                serialized = json.dumps(value, ensure_ascii=False, default=_json_default)
             elif isinstance(value, str):
                 serialized = value
             else:
-                serialized = json.dumps(value, ensure_ascii=False, default=str)
+                serialized = json.dumps(value, ensure_ascii=False, default=_json_default)
 
             if ttl > 0:
                 res = bool(self._client.set(full_key, serialized, ex=ttl))

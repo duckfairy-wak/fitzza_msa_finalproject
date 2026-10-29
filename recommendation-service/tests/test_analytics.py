@@ -204,6 +204,7 @@ def test_analytics_api_endpoint(monkeypatch):
         "app.clients.vton_client.VtonServiceClient.get_token_usage_in_range",
         lambda *args, **kwargs: [],
     )
+    app.state.user_client = None
     client = TestClient(app)
     fake_repo = RecommendationRepository(db_path=":memory:")
     app.state.repository = fake_repo

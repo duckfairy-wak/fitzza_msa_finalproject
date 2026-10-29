@@ -119,10 +119,16 @@ class Settings:
         default_factory=lambda: float(os.getenv("REDIS_SOCKET_TIMEOUT", "2.0"))
     )
     storage_backend: str = field(
-        default_factory=lambda: os.getenv("STORAGE_BACKEND", "local")
+        default_factory=lambda: os.getenv(
+            "RECOMMENDATION_STORAGE_BACKEND",
+            os.getenv("STORAGE_BACKEND", os.getenv("VTON_STORAGE_BACKEND", "local")),
+        )
     )
     aws_s3_bucket_name: str = field(
-        default_factory=lambda: os.getenv("AWS_S3_BUCKET_NAME", "fitzza-prod-assets")
+        default_factory=lambda: os.getenv(
+            "PRODUCT_IMAGE_S3_BUCKET",
+            os.getenv("AWS_S3_BUCKET_NAME", "fitzza-prod-foundation-databucket-wwng6wfc0hqy"),
+        )
     )
     cloudfront_domain: str = field(
         default_factory=lambda: os.getenv("CLOUDFRONT_DOMAIN", "")

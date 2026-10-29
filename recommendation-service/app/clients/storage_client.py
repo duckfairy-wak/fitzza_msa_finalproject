@@ -37,16 +37,35 @@ class StorageClient:
         """S3 백엔드 활성화 여부."""
         return self.backend in {"s3", "aws"}
 
-    def _extract_s3_key(self, key_or_url: str) -> str:
-        """S3 키 또는 전체 URL(S3/CloudFront/LocalStack)에서 S3 객체 키를 추출합니다."""
+    def _parse_s3_location(self, key_or_url: str) -> tuple[str, str]:
+        """S3 키 또는 전체 URL(S3/CloudFront/LocalStack/Presigned)에서 (bucket, key)를 추출합니다."""
         clean = key_or_url.strip()
+        bucket = self.bucket_name
+
         if clean.startswith(("http://", "https://")):
             parsed = urllib.parse.urlparse(clean)
-            path = parsed.path.lstrip("/")
-            if path.startswith(f"{self.bucket_name}/"):
+            host = parsed.netloc.lower()
+            path = urllib.parse.unquote(parsed.path.lstrip("/"))
+
+            if ".s3." in host:
+                bucket = host.split(".s3.")[0]
+            elif host.endswith(".s3.amazonaws.com"):
+                bucket = host[:-len(".s3.amazonaws.com")]
+            elif host.startswith("s3.") or host.startswith("s3-") or host == "s3.amazonaws.com":
+                parts = path.split("/", 1)
+                bucket = parts[0]
+                path = parts[1] if len(parts) > 1 else ""
+            elif path.startswith(f"{self.bucket_name}/"):
                 path = path[len(self.bucket_name) + 1 :]
-            return path
-        return clean.lstrip("/")
+        else:
+            path = urllib.parse.unquote(clean.lstrip("/"))
+
+        return bucket, path
+
+    def _extract_s3_key(self, key_or_url: str) -> str:
+        """S3 키 또는 전체 URL(S3/CloudFront/LocalStack)에서 S3 객체 키를 추출합니다."""
+        _, key = self._parse_s3_location(key_or_url)
+        return key
 
     def _get_s3(self) -> Any:
         if self._s3_client is None:
@@ -101,19 +120,23 @@ class StorageClient:
         if not clean_input:
             return ""
 
-        # 외부 HTTP(S) URL(무신사 원본 이미지 등)인 경우 그대로 유지
+        # 외부 HTTP(S) URL인 경우: 우리 서비스가 관리하는 버킷/엔드포인트가 아니면 원본 유지
         if clean_input.startswith(("http://", "https://")):
             parsed = urllib.parse.urlparse(clean_input)
             netloc = (parsed.netloc or "").lower()
-            is_s3_host = (
+            is_our_bucket = (
                 self.bucket_name.lower() in netloc
-                or (self.endpoint_url and urllib.parse.urlparse(self.endpoint_url).netloc.lower() == netloc)
-                or netloc.endswith(".amazonaws.com")
+                or "fitzza" in netloc
+            )
+            is_endpoint = bool(
+                self.endpoint_url
+                and urllib.parse.urlparse(self.endpoint_url).netloc.lower() == netloc
             )
             is_cf_host = bool(
                 self.cloudfront_domain
                 and urllib.parse.urlparse(self.cloudfront_domain).netloc.lower() == netloc
             )
+            is_s3_host = is_our_bucket or is_endpoint
             if not (is_s3_host or is_cf_host):
                 return clean_input
 
@@ -125,12 +148,12 @@ class StorageClient:
         if self.cloudfront_domain:
             return self.get_public_url(clean_input)
 
-        clean_key = self._extract_s3_key(clean_input)
+        bucket, clean_key = self._parse_s3_location(clean_input)
         if not clean_key:
             return clean_input
 
         # 인메모리 캐시 조회 (서명 생성 오버헤드 최소화 및 브라우저 캐시 히트율 극대화)
-        cache_key = f"{clean_key}:{expires_in}"
+        cache_key = f"{bucket}:{clean_key}:{expires_in}"
         now = time.time()
         # 남은 유효 시간이 요청 기간 대비 안전 마진(최대 300초 또는 유효기간 절반) 이상일 때만 캐시 재사용
         min_margin = min(300, expires_in // 2) if expires_in > 60 else 10
@@ -145,7 +168,7 @@ class StorageClient:
             s3 = self._get_s3()
             url = s3.generate_presigned_url(
                 ClientMethod="get_object",
-                Params={"Bucket": self.bucket_name, "Key": clean_key},
+                Params={"Bucket": bucket, "Key": clean_key},
                 ExpiresIn=expires_in,
             )
             url_str = str(url)
@@ -158,7 +181,8 @@ class StorageClient:
             return url_str
         except Exception as exc:
             logger.warning(
-                "S3 Pre-signed URL 생성 실패 (key=%s): %s. 원본 값을 반환합니다.",
+                "S3 Pre-signed URL 생성 실패 (bucket=%s, key=%s): %s. 원본 값을 반환합니다.",
+                bucket,
                 clean_key,
                 exc,
             )

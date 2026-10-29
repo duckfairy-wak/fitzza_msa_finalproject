@@ -203,3 +203,75 @@ def test_recommendation_detail_service():
     internal_res = service.build_internal_combo_response(combo_record)
     assert internal_res.owned is True
     assert internal_res.items[0].imageUrl == "https://signed.example.com/pipeline/runs/01/images/products/101/0.jpg"
+
+
+def test_settings_bucket_and_storage_backend_fallbacks(monkeypatch):
+    # 1. 기본값 확인: 상품 버킷이 기본으로 설정됨
+    monkeypatch.delenv("STORAGE_BACKEND", raising=False)
+    monkeypatch.delenv("VTON_STORAGE_BACKEND", raising=False)
+    monkeypatch.delenv("PRODUCT_IMAGE_S3_BUCKET", raising=False)
+    monkeypatch.delenv("AWS_S3_BUCKET_NAME", raising=False)
+
+    s1 = Settings()
+    assert s1.storage_backend == "local"
+    assert s1.aws_s3_bucket_name == "fitzza-prod-foundation-databucket-wwng6wfc0hqy"
+
+    # 2. VTON_STORAGE_BACKEND만 있어도 s3로 인식
+    monkeypatch.setenv("VTON_STORAGE_BACKEND", "s3")
+    s2 = Settings()
+    assert s2.storage_backend == "s3"
+
+    # 3. PRODUCT_IMAGE_S3_BUCKET 우선순위 확인
+    monkeypatch.setenv("PRODUCT_IMAGE_S3_BUCKET", "custom-product-bucket")
+    monkeypatch.setenv("AWS_S3_BUCKET_NAME", "vton-bucket")
+    s3 = Settings()
+    assert s3.aws_s3_bucket_name == "custom-product-bucket"
+
+
+def test_get_presigned_url_dynamic_bucket_extraction():
+    settings = Settings(
+        storage_backend="s3",
+        aws_s3_bucket_name="default-bucket",
+    )
+    client = StorageClient(settings)
+    mock_boto = MagicMock()
+    mock_boto.generate_presigned_url.return_value = "https://signed.com/res"
+    client._s3_client = mock_boto
+
+    # 풀 S3 URL이 들어왔을 때 해당 URL의 버킷명을 동적으로 추출하여 서명
+    full_url = "https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/pipeline/run/001.webp"
+    res = client.get_presigned_url(full_url)
+    assert res == "https://signed.com/res"
+    mock_boto.generate_presigned_url.assert_called_once_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "Key": "pipeline/run/001.webp"},
+        ExpiresIn=3600,
+    )
+
+
+def test_get_presigned_url_unquotes_key_and_ignores_third_party():
+    settings = Settings(
+        storage_backend="s3",
+        aws_s3_bucket_name="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+    )
+    client = StorageClient(settings)
+    mock_boto = MagicMock()
+    mock_boto.generate_presigned_url.return_value = "https://signed.com/res"
+    client._s3_client = mock_boto
+
+    # 1. URL-encoded key is properly unquoted
+    encoded_url = "https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.amazonaws.com/pipeline/run/sample%2001.webp"
+    res1 = client.get_presigned_url(encoded_url)
+    assert res1 == "https://signed.com/res"
+    mock_boto.generate_presigned_url.assert_called_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "Key": "pipeline/run/sample 01.webp"},
+        ExpiresIn=3600,
+    )
+
+    # 2. Third-party non-fitzza S3 URL remains untouched
+    third_party_url = "https://external-vendor-assets.s3.amazonaws.com/images/item123.jpg"
+    res2 = client.get_presigned_url(third_party_url)
+    assert res2 == third_party_url
+
+

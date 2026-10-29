@@ -5,6 +5,9 @@
 구성을 먼저 확인했으며, 임계값·수신자·payer 권한이 확정되기 전에는 알람이나
 대시보드를 생성하지 않는다.
 
+Prometheus와 Grafana의 수집 책임, 보존 기간, 저장소, 용량·비용 승인 기준은
+[FITZZA-307 운영 정책](PROMETHEUS_GRAFANA_POLICY.md)을 따른다.
+
 ## 확인 범위
 
 - AWS 계정: linked account `414901227428`

@@ -398,3 +398,32 @@ def test_internal_combo_endpoint_caches_and_returns(
         assert res2.status_code == 200
         assert res2.json()["totalPrice"] == 120000
         assert mock_repo.get_combo.call_count == 1  # Repository was NOT called a 2nd time!
+
+
+def test_redis_client_serializes_pydantic_model():
+    from pydantic import BaseModel
+    import fakeredis
+
+    class SampleModel(BaseModel):
+        field_a: str = "hello"
+        field_b: int = 42
+
+    fake_r = fakeredis.FakeRedis(decode_responses=True)
+    client = RedisClient(Settings(), redis_instance=fake_r)
+
+    from datetime import datetime, timezone
+
+    payload = {
+        "status": "ok",
+        "nested_model": SampleModel(),
+        "created_at": datetime(2026, 10, 29, 12, 0, 0, tzinfo=timezone.utc),
+    }
+
+    assert client.set("test:pydantic", payload) is True
+    cached = client.get("test:pydantic")
+    assert cached is not None
+    assert cached["status"] == "ok"
+    assert cached["nested_model"]["field_a"] == "hello"
+    assert cached["nested_model"]["field_b"] == 42
+    assert cached["created_at"] == "2026-10-29T12:00:00+00:00"
+
