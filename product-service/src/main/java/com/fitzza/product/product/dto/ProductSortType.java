@@ -4,7 +4,8 @@ import org.springframework.data.domain.Sort;
 
 public enum ProductSortType {
     TIME_DESC(Sort.by(Sort.Direction.DESC, "productId")),
-    PRICE_ASC(Sort.by(Sort.Direction.ASC, "price").and(Sort.by(Sort.Direction.DESC, "productId")));
+    PRICE_ASC(Sort.by(Sort.Direction.ASC, "price").and(Sort.by(Sort.Direction.DESC, "productId"))),
+    PRICE_DESC(Sort.by(Sort.Direction.DESC, "price", "productId"));
 
     private final Sort sort;
 

@@ -16,7 +16,6 @@ import os
 from starlette.concurrency import run_in_threadpool
 from PIL import Image
 
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app.api.vton import router as vton_router
@@ -65,13 +64,7 @@ app = FastAPI(
     description="Fitzza AI 가상 피팅 서비스 (OpenAI 기반 다중 의류 가상 착용)",
     version="0.2.0",
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 app.state.ready = True
 _mount_router_routes(app, vton_router)
 setup_tracing("vton-service", app)

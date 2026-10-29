@@ -115,6 +115,28 @@ class ProductServiceIntegrationTest {
     }
 
     @Test
+    void productListSortsByDescendingPriceAndIdAcrossPages() throws Exception {
+        ProductEntity samePrice = persistProduct(
+                entityManager.find(BrandEntity.class, brandId()),
+                "다른 니트", "TOP", "KNIT", 50000, ProductStatus.ON_SALE);
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/products").param("sort", "PRICE_DESC").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sort").value("PRICE_DESC"))
+                .andExpect(jsonPath("$.content[0].productId").value(samePrice.getProductId()))
+                .andExpect(jsonPath("$.content[1].productId").value(knit.getProductId()))
+                .andExpect(jsonPath("$.hasNext").value(true));
+        mockMvc.perform(get("/api/products").param("sort", "PRICE_DESC")
+                        .param("size", "2").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].productId").value(shirt.getProductId()))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
     void productApisReturnCategoriesListDetailAndInternalData() throws Exception {
         persistCategory("TOP", "상의", null, 1);
         persistCategory("SHIRT", "셔츠", "TOP", 2);

@@ -35,7 +35,7 @@ public class ProductController {
     @Operation(summary = "상품 목록 조회",
             description = "카테고리 코드 길이에 따라 대분류(3)·중분류(6)·소분류(9)로 조회한다. "
                     + "코드가 없으면 전체 노출 상품을 반환한다. "
-                    + "sort는 TIME_DESC(상품 ID 내림차순) 또는 PRICE_ASC(낮은 가격, 같으면 상품 ID 내림차순)이며 "
+                    + "sort는 TIME_DESC(상품 ID 내림차순), PRICE_ASC(낮은 가격) 또는 PRICE_DESC(높은 가격)이며 가격이 같으면 상품 ID 내림차순이다. "
                     + "그 밖의 값은 TIME_DESC로 처리한다. "
                     + "X-User-Id가 있으면 각 항목에 wished를 포함한다.")
     @ApiResponses({
@@ -47,7 +47,7 @@ public class ProductController {
     public ProductListPageResponse getProducts(
             @Parameter(description = "카테고리 코드. 길이 3은 대분류, 6은 중분류, 9는 소분류", example = "001")
             @RequestParam(required = false) String category,
-            @Parameter(description = "정렬 기준. TIME_DESC 또는 PRICE_ASC. 잘못된 값은 TIME_DESC", example = "TIME_DESC")
+            @Parameter(description = "정렬 기준. TIME_DESC, PRICE_ASC 또는 PRICE_DESC. 잘못된 값은 TIME_DESC", example = "TIME_DESC")
             @RequestParam(required = false) String sort,
             @Parameter(description = "페이지 번호(0부터 시작)")
             @RequestParam(defaultValue = PagingConstants.DEFAULT_PAGE) @Min(0) int page,
