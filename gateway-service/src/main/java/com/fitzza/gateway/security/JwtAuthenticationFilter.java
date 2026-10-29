@@ -19,7 +19,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * 토큰을 검증해 사용자 ID를 X-User-Id 헤더로 넘긴다. 뒤쪽 서비스는 이 헤더만 믿는다.
+ * 토큰을 검증해 사용자 ID를 X-User-Id, 역할(USER·ADMIN)을 X-User-Role 헤더로 넘긴다. 뒤쪽 서비스는 이 헤더만 믿는다.
  *
  * <p>토큰이 없는 요청은 막지 않고 헤더 없이 넘긴다. 로그인이 필요한 API인지는 각 서비스가 판단하므로
  * 게이트웨이가 공개 API 목록을 따로 관리하지 않아도 된다.
@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono;
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     static final String USER_ID_HEADER = "X-User-Id";
+    static final String USER_ROLE_HEADER = "X-User-Role";
     static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
     static final String SERVICE_TOKEN_HEADER = "X-Service-Token";
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
@@ -56,7 +57,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         // FE는 /api/v1/auth/**, 스웨거는 /api/auth/** 를 쓴다.
         String path = request.getPath().value();
         if (path.startsWith(AUTH_PATH_PREFIX) || path.startsWith(AUTH_V1_PATH_PREFIX)) {
-            return chain.filter(withUserId(exchange, null));
+            return chain.filter(withUser(exchange, null));
         }
         // 토큰이 여러 개면 어느 것을 믿을지 정할 수 없으므로 거부한다.
         List<String> authorizations = request.getHeaders().getOrEmpty(HttpHeaders.AUTHORIZATION);
@@ -68,20 +69,20 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         boolean hasBearerToken = authorization != null
                 && authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length());
         if (!hasBearerToken) {
-            return chain.filter(withUserId(exchange, null));
+            return chain.filter(withUser(exchange, null));
         }
 
         String token = authorization.substring(BEARER_PREFIX.length()).trim();
-        long userId;
+        AccessTokenVerifier.VerifiedUser user;
         try {
-            userId = accessTokenVerifier.verify(token);
+            user = accessTokenVerifier.authenticate(token);
         } catch (ExpiredJwtException exception) {
             return reject(exchange, HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRED", "토큰이 만료되었습니다.");
         } catch (JwtException | IllegalArgumentException exception) {
             return reject(exchange, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "유효하지 않은 토큰입니다.");
         }
 
-        ServerWebExchange authenticated = withUserId(exchange, String.valueOf(userId));
+        ServerWebExchange authenticated = withUser(exchange, user);
         // 조회 오류는 여기서 상태로 바꿔 둔다. 뒤에서 잡으면 뒤쪽 서비스의 오류까지 인증 장애로 처리된다.
         return accessTokenBlacklist
                 .isRevoked(token)
@@ -108,16 +109,19 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return -1;
     }
 
-    // 밖에서 보낸 X-User-Id와 내부 호출 비밀 헤더는 항상 지운다. 남겨 두면 헤더만으로 다른 사용자나 내부 API를 호출할 수 있다.
-    private ServerWebExchange withUserId(ServerWebExchange exchange, String userId) {
+    // 밖에서 보낸 X-User-Id·X-User-Role과 내부 호출 비밀 헤더는 항상 지운다.
+    // 남겨 두면 헤더만으로 다른 사용자나 관리자 행세를 하거나 내부 API를 호출할 수 있다.
+    private ServerWebExchange withUser(ServerWebExchange exchange, AccessTokenVerifier.VerifiedUser user) {
         ServerHttpRequest request = exchange.getRequest()
                 .mutate()
                 .headers(headers -> {
                     headers.remove(USER_ID_HEADER);
+                    headers.remove(USER_ROLE_HEADER);
                     headers.remove(INTERNAL_TOKEN_HEADER);
                     headers.remove(SERVICE_TOKEN_HEADER);
-                    if (userId != null) {
-                        headers.set(USER_ID_HEADER, userId);
+                    if (user != null) {
+                        headers.set(USER_ID_HEADER, String.valueOf(user.userId()));
+                        headers.set(USER_ROLE_HEADER, user.role());
                     }
                 })
                 .build();

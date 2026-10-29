@@ -29,39 +29,41 @@ variables sourced with `envFrom` are captured only when a Pod starts. In particu
 restart and wait for both `vton-service` and `vton-worker`; verify only the presence of
 the `OPENAI_API_KEY` variable and never print its value.
 
-## Distributed tracing (FITZZA-284)
+## Distributed tracing (FITZZA-303)
 
 An opt-in EKS Jaeger pilot is available in
 [observability/jaeger](observability/jaeger/README.md). It provides a separate
-Deployment and ClusterIP Service using the Compose image, bounded trace count in
+Deployment and ClusterIP Service using a pinned Jaeger v2 image, bounded trace count in
 memory, resource requests/limits, and local port-forward UI access. It is excluded
 from the default overlays. Review capacity and accept restart-time data loss before
 applying it; follow that runbook to enable sampling and restart applications.
 
-Production tracing remains disabled. The pilot cluster runs on one `t4g.large` worker
-without spare rollout capacity, and no trace retention, storage, or UI access policy has
-been approved. Do not deploy a Jaeger or OpenTelemetry collector and do not add tracing
-variables to `fitzza-app-config` until those decisions and the collector's resource
-requests have been reviewed. Java and FastAPI services default to a sampling probability
-of `0.0`, so the current manifests do not export spans.
+The in-memory Jaeger pilot is approved for operator-managed deployment under FITZZA-303.
+It remains separate from the application delivery overlay so application CD cannot expose
+or replace the collector. The production overlay configures OTLP/HTTP at
+`http://jaeger:4318/v1/traces` with sampling `0.1`; therefore deploy and verify Jaeger
+before applying or restarting traced applications.
 
-To enable tracing later:
+To enable tracing:
 
-1. Deploy a collector with an OTLP/HTTP receiver reachable only inside the cluster. Define
-   its resource requests and limits, trace backend, retention period, and UI access policy.
+1. Deploy the operator-managed Jaeger collector with an OTLP/HTTP receiver reachable only
+   inside the cluster. The approved pilot uses bounded in-memory storage and port-forward UI
+   access; it does not provide durable trace retention.
 2. Confirm that the collector and all existing Pods fit within the node's actual
    allocatable CPU, memory, and Pod count. Obtain cost approval before adding storage or
    increasing worker capacity.
-3. Add both values to `fitzza-app-config`; the endpoint must include the OTLP HTTP traces
-   path rather than only the collector host:
+3. Confirm that the rendered production `fitzza-app-config` contains both values; the
+   endpoint must include the OTLP HTTP traces path rather than only the collector host:
 
    ```yaml
-   MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
+   MANAGEMENT_OTLP_TRACING_ENDPOINT: http://jaeger:4318/v1/traces
    MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
    ```
 
-4. Apply the ConfigMap and restart the traced Deployments. Values supplied by `envFrom`
-   are read only when each Pod starts. Config Server and Discovery Service are not traced.
+4. Apply the ConfigMap and restart the traced Deployments one at a time. Values supplied by
+   `envFrom` are read only when each Pod starts. Config Server and Discovery Service are not
+   traced. Include recommendation-service, vton-service, and vton-worker after confirming
+   the FITZZA-283 image is deployed.
 5. Verify application health, one end-to-end trace across Gateway and domain services,
    collector export errors, and actual resource use before keeping tracing enabled.
 

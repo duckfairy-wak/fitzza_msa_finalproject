@@ -1034,8 +1034,9 @@ class RecommendationRepository:
         self,
         reference_dt: datetime | None = None,
         vton_client: Any | None = None,
+        period: str = "daily",
     ) -> dict[str, Any]:
-        """일간/주간/월간/연간 토큰 사용량, 인기 키워드, 추천 상품 통계를 한국 시간(KST) 현재 날짜 기준으로 집계하여 반환합니다."""
+        """선택한 기간의 통계를 한국 시간(KST) 기준으로 집계합니다."""
         if reference_dt is None:
             now = datetime.now(KST)
         elif reference_dt.tzinfo is None:
@@ -1043,33 +1044,20 @@ class RecommendationRepository:
         else:
             now = reference_dt.astimezone(KST)
 
-        # 1. 일간 (오늘 00:00:00 ~ 오늘 23:59:59.999999 KST)
-        daily_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        daily_end = daily_start + timedelta(days=1) - timedelta(microseconds=1)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = today + timedelta(days=1) - timedelta(microseconds=1)
+        if period == "daily":
+            label, start = "일간", today
+        elif period == "weekly":
+            label, start = "주간", today - timedelta(days=today.weekday())
+        elif period == "monthly":
+            label, start = "월간", today.replace(day=1)
+        elif period == "yearly":
+            label, start = "연간", today.replace(month=1, day=1)
+        else:
+            raise ValueError(f"Unsupported analytics period: {period}")
 
-        # 2. 주간 (이번 주 월요일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
-        weekly_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        weekly_end = daily_end
-
-        # 3. 월간 (이번 달 1일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
-        monthly_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_end = daily_end
-
-        # 4. 연간 (올해 1월 1일 00:00:00 ~ 현재 날짜 23:59:59.999999 KST)
-        yearly_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-        yearly_end = daily_end
-
-        daily_data = self._aggregate_period_analytics("daily", "일간", daily_start, daily_end, vton_client=vton_client)
-        weekly_data = self._aggregate_period_analytics("weekly", "주간", weekly_start, weekly_end, vton_client=vton_client)
-        monthly_data = self._aggregate_period_analytics("monthly", "월간", monthly_start, monthly_end, vton_client=vton_client)
-        yearly_data = self._aggregate_period_analytics("yearly", "연간", yearly_start, yearly_end, vton_client=vton_client)
-
-        return {
-            "daily": daily_data,
-            "weekly": weekly_data,
-            "monthly": monthly_data,
-            "yearly": yearly_data,
-        }
+        return self._aggregate_period_analytics(period, label, start, end, vton_client=vton_client)
 
     def _get_requests_in_range(
         self,

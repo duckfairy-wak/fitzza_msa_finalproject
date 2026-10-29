@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Fitzza data-pipeline Step Functions and optional EventBridge schedule.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: fitzza
+    AllowedPattern: '^[a-z][a-z0-9-]{1,20}$'
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, staging, dev]
+  DefinitionBucket:
+    Type: String
+    Description: S3 bucket containing orchestration.asl.json.
+  DefinitionKey:
+    Type: String
+    Default: pipeline/orchestration.asl.json
+  DefinitionVersion:
+    Type: String
+    Default: ''
+  CrawlerRunnerLambdaArn:
+    Type: String
+  InitializeRunLambdaArn:
+    Type: String
+  ValidateImportLambdaArn:
+    Type: String
+  JevRunnerLambdaArn:
+    Type: String
+  ReviewRequestLambdaArn:
+    Type: String
+    Description: Shared handler with ORCHESTRATION_ACTION=review_requester; the state machine waits on its task token.
+  ApprovalReceiverLambdaArn:
+    Type: String
+    Default: ''
+    Description: Shared handler with ORCHESTRATION_ACTION=approval_receiver. Required only when EnableApprovalEvents is true.
+  FashionClipRunnerLambdaArn:
+    Type: String
+  StatusWriterLambdaArn:
+    Type: String
+  RunnerLambdaRoleArn:
+    Type: String
+    Description: IAM role ARN shared by the runner Lambda functions.
+  RunnerLambdaRoleName:
+    Type: String
+    Description: IAM role name corresponding to RunnerLambdaRoleArn.
+  EksClusterName:
+    Type: String
+    Default: fitzza-prod
+  RunnerNamespace:
+    Type: String
+    Default: fitzza
+  DataBucketName:
+    Type: String
+    Description: Private bucket containing the approved baseline manifest and pipeline reports.
+  ScheduleExpression:
+    Type: String
+    Default: 'cron(0 1 ? * TUE,THU *)'
+    Description: Incremental collection schedule in UTC. The default is Tuesday and Thursday 10:00 Asia/Seoul, inside the runners' MON-FRI 09:30-16:00 window.
+  DailyScheduleInput:
+    Type: String
+    Default: '{"run_mode":"incremental"}'
+  WeeklyScheduleExpression:
+    Type: String
+    Default: 'cron(0 2 ? * MON *)'
+    Description: Integrity check schedule in UTC. The default is Monday 11:00 Asia/Seoul, inside the runners' MON-FRI 09:30-16:00 window.
+  WeeklyScheduleInput:
+    Type: String
+    Default: '{"run_mode":"integrity"}'
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+  EnableReviewNotification:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Create the SNS topic used to ask reviewers for a color review.
+  ReviewNotificationEmail:
+    Type: String
+    Default: ''
+    Description: Optional reviewer address subscribed to the topic; the address must confirm the subscription.
+  EnableApprovalEvents:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Route approved bundle uploads to the receiver. The data bucket must also send events to EventBridge.
+
+Rules:
+  ApprovalEventsNeedReceiver:
+    RuleCondition: !Equals [!Ref EnableApprovalEvents, 'true']
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ApprovalReceiverLambdaArn, '']]
+        AssertDescription: EnableApprovalEvents requires ApprovalReceiverLambdaArn.
+
+Conditions:
+  HasDefinitionVersion: !Not [!Equals [!Ref DefinitionVersion, '']]
+  ReviewNotificationEnabled: !Equals [!Ref EnableReviewNotification, 'true']
+  HasReviewNotificationEmail: !And
+    - !Condition ReviewNotificationEnabled
+    - !Not [!Equals [!Ref ReviewNotificationEmail, '']]
+  ApprovalEventsEnabled: !And
+    - !Equals [!Ref EnableApprovalEvents, 'true']
+    - !Not [!Equals [!Ref ApprovalReceiverLambdaArn, '']]
+
+Resources:
+  PipelineJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-pipeline-job'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: pods.eks.amazonaws.com }
+            Action: [sts:AssumeRole, sts:TagSession]
+      Policies:
+        - PolicyName: read-baseline-write-reports
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/pipeline/*'
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/pipeline/runs/*'
+              # Uploading approved/bundle.tar.gz resumes a waiting run; only a human operator may do that.
+              - Sid: DenyApprovedBundleWrites
+                Effect: Deny
+                Action: s3:PutObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DataBucketName}/pipeline/runs/*/approved/*'
+
+  PipelineJobPodIdentity:
+    Type: AWS::EKS::PodIdentityAssociation
+    Properties:
+      ClusterName: !Ref EksClusterName
+      Namespace: !Ref RunnerNamespace
+      ServiceAccount: fitzza-pipeline
+      RoleArn: !GetAtt PipelineJobRole.Arn
+
+  RunnerLambdaEksDescribePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-runner-eks-describe'
+      Roles: [!Ref RunnerLambdaRoleName]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: eks:DescribeCluster
+            Resource: !Sub 'arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${EksClusterName}'
+
+  RunnerLambdaEksAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      ClusterName: !Ref EksClusterName
+      PrincipalArn: !Ref RunnerLambdaRoleArn
+      Type: STANDARD
+      # CloudFormation attaches access policies on the entry itself; there is no separate association resource.
+      AccessPolicies:
+        - PolicyArn: !Sub 'arn:${AWS::Partition}:eks::aws:cluster-access-policy/AmazonEKSEditPolicy'
+          AccessScope:
+            Type: namespace
+            Namespaces: [!Ref RunnerNamespace]
+
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-pipeline-sfn'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: states.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: invoke-pipeline-adapters
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !Ref CrawlerRunnerLambdaArn
+                  - !Ref InitializeRunLambdaArn
+                  - !Ref ValidateImportLambdaArn
+                  - !Ref JevRunnerLambdaArn
+                  - !Ref ReviewRequestLambdaArn
+                  - !Ref FashionClipRunnerLambdaArn
+                  - !Ref StatusWriterLambdaArn
+
+  PipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-${Environment}-data-pipeline'
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt StateMachineRole.Arn
+      DefinitionS3Location:
+        Bucket: !Ref DefinitionBucket
+        Key: !Ref DefinitionKey
+        Version: !If [HasDefinitionVersion, !Ref DefinitionVersion, !Ref AWS::NoValue]
+      DefinitionSubstitutions:
+        CrawlerRunnerLambdaArn: !Ref CrawlerRunnerLambdaArn
+        InitializeRunLambdaArn: !Ref InitializeRunLambdaArn
+        ValidateImportLambdaArn: !Ref ValidateImportLambdaArn
+        JevRunnerLambdaArn: !Ref JevRunnerLambdaArn
+        ReviewRequestLambdaArn: !Ref ReviewRequestLambdaArn
+        FashionClipRunnerLambdaArn: !Ref FashionClipRunnerLambdaArn
+        StatusWriterLambdaArn: !Ref StatusWriterLambdaArn
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-pipeline-schedule'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: start-pipeline-execution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref PipelineStateMachine
+
+  DailyPipelineSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-data-pipeline-daily'
+      Description: Starts incremental data collection (default Tuesday and Thursday 10:00 Asia/Seoul) when enabled.
+      ScheduleExpression: !Ref ScheduleExpression
+      State: !Ref ScheduleState
+      Targets:
+        - Id: pipeline-state-machine-daily
+          Arn: !Ref PipelineStateMachine
+          RoleArn: !GetAtt ScheduleRole.Arn
+          Input: !Ref DailyScheduleInput
+
+  WeeklyPipelineSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-data-pipeline-weekly'
+      Description: Starts integrity, image-access, and index-state checks (default Monday 11:00 Asia/Seoul) when enabled. It does not recrawl the full catalog.
+      ScheduleExpression: !Ref WeeklyScheduleExpression
+      State: !Ref ScheduleState
+      Targets:
+        - Id: pipeline-state-machine-weekly
+          Arn: !Ref PipelineStateMachine
+          RoleArn: !GetAtt ScheduleRole.Arn
+          Input: !Ref WeeklyScheduleInput
+
+  ReviewNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: ReviewNotificationEnabled
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-pipeline-review'
+      DisplayName: Fitzza review
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ReviewNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasReviewNotificationEmail
+    Properties:
+      TopicArn: !Ref ReviewNotificationTopic
+      Protocol: email
+      Endpoint: !Ref ReviewNotificationEmail
+
+  ApprovalUploadedRule:
+    Type: AWS::Events::Rule
+    Condition: ApprovalEventsEnabled
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline-approval-uploaded'
+      Description: Resumes the waiting run when an approved bundle is uploaded for it.
+      State: ENABLED
+      EventPattern:
+        source: [aws.s3]
+        detail-type: [Object Created]
+        detail:
+          bucket:
+            name: [!Ref DataBucketName]
+          object:
+            key: [{ wildcard: 'pipeline/runs/*/approved/bundle.tar.gz' }]
+      Targets:
+        - Id: approval-receiver
+          Arn: !Ref ApprovalReceiverLambdaArn
+
+  ApprovalReceiverInvokePermission:
+    Type: AWS::Lambda::Permission
+    Condition: ApprovalEventsEnabled
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApprovalReceiverLambdaArn
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ApprovalUploadedRule.Arn
+
+Outputs:
+  StateMachineArn:
+    Description: Data pipeline Step Functions state machine ARN.
+    Value: !Ref PipelineStateMachine
+  ScheduleRuleArn:
+    Description: EventBridge schedule ARN.
+    Value: !GetAtt DailyPipelineSchedule.Arn
+  ReviewNotificationTopicArn:
+    Condition: ReviewNotificationEnabled
+    Description: Set as REVIEW_TOPIC_ARN on the review requester Lambda.
+    Value: !Ref ReviewNotificationTopic

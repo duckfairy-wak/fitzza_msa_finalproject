@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono;
 class JwtAuthenticationFilterTest {
 
     private static final String USER_ID_HEADER = "X-User-Id";
+    private static final String USER_ROLE_HEADER = "X-User-Role";
 
     private final AccessTokenBlacklist blacklist = mock(AccessTokenBlacklist.class);
     private final JwtAuthenticationFilter filter =
@@ -53,6 +54,32 @@ class JwtAuthenticationFilterTest {
                 .header(USER_ID_HEADER, "999"));
 
         assertThat(forwarded.get().getHeaders().get(USER_ID_HEADER)).containsExactly("7");
+    }
+
+    @Test
+    void roleFromTheTokenIsForwardedAndClientRoleHeaderIsReplaced() {
+        send(MockServerHttpRequest.get("/api/v1/recommendations/analytics")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestTokens.validWithRole("4", "ADMIN"))
+                .header(USER_ROLE_HEADER, "USER"));
+
+        assertThat(forwarded.get().getHeaders().get(USER_ID_HEADER)).containsExactly("4");
+        assertThat(forwarded.get().getHeaders().get(USER_ROLE_HEADER)).containsExactly("ADMIN");
+    }
+
+    @Test
+    void regularUserCannotClaimTheAdminRoleWithAHeader() {
+        send(MockServerHttpRequest.get("/api/v1/recommendations/analytics")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestTokens.valid("7"))
+                .header(USER_ROLE_HEADER, "ADMIN"));
+
+        assertThat(forwarded.get().getHeaders().get(USER_ROLE_HEADER)).containsExactly("USER");
+    }
+
+    @Test
+    void roleHeaderWithoutTokenIsRemoved() {
+        send(MockServerHttpRequest.get("/api/v1/recommendations/analytics").header(USER_ROLE_HEADER, "ADMIN"));
+
+        assertThat(forwarded.get().getHeaders().containsKey(USER_ROLE_HEADER)).isFalse();
     }
 
     @Test

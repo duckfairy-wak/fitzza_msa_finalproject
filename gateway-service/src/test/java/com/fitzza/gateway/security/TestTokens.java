@@ -18,6 +18,17 @@ final class TestTokens {
         return signed(SECRET, subject, Instant.now().plusSeconds(600));
     }
 
+    static String validWithRole(String subject, String role) {
+        Instant expiration = Instant.now().plusSeconds(600);
+        return Jwts.builder()
+                .subject(subject)
+                .claim("role", role)
+                .issuedAt(Date.from(expiration.minusSeconds(3600)))
+                .expiration(Date.from(expiration))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256)
+                .compact();
+    }
+
     static String expired(String subject) {
         return signed(SECRET, subject, Instant.now().minusSeconds(600));
     }

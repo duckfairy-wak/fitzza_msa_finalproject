@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.core.database import KST, RecommendationRepository
 from app.main import app
-from app.schemas.analytics import AnalyticsResponse
+from app.schemas.analytics import PeriodAnalytics
 
 
 @pytest.fixture
@@ -15,7 +15,8 @@ def repo():
 def test_analytics_empty_db(repo):
     # Test with Tuesday 2026-10-27 15:00:00 KST (Oct 1, 2026 is Thursday -> Oct 27 is Tuesday of Week 5)
     ref_dt = datetime(2026, 10, 27, 15, 0, 0, tzinfo=KST)
-    data = repo.get_analytics_data(reference_dt=ref_dt)
+    data = {period: repo.get_analytics_data(reference_dt=ref_dt, period=period)
+                 for period in ("daily", "weekly", "monthly", "yearly")}
     assert "daily" in data
     assert "weekly" in data
     assert "monthly" in data
@@ -63,7 +64,8 @@ def test_analytics_calendar_weeks_and_partial_month(repo):
     # Reference date: 2026-10-07 (Wednesday) KST
     # 2026-10-01 is Thursday -> 1주: 10/1(목)~10/4(일), 2주: 10/5(월)~10/7(수, 현재 날짜)
     ref_dt = datetime(2026, 10, 7, 14, 0, 0, tzinfo=KST)
-    analytics = repo.get_analytics_data(reference_dt=ref_dt)
+    analytics = {period: repo.get_analytics_data(reference_dt=ref_dt, period=period)
+                 for period in ("daily", "weekly", "monthly", "yearly")}
 
     weekly = analytics["weekly"]
     assert weekly["startDate"] == "2026-10-05"
@@ -149,7 +151,8 @@ def test_analytics_data_aggregation_and_vton_tokens(repo):
         )
         conn.commit()
 
-    analytics = repo.get_analytics_data(reference_dt=ref_dt)
+    analytics = {period: repo.get_analytics_data(reference_dt=ref_dt, period=period)
+                 for period in ("daily", "weekly", "monthly", "yearly")}
 
     # Check daily (2026-10-06 KST)
     daily = analytics["daily"]
@@ -192,7 +195,15 @@ def test_analytics_data_aggregation_and_vton_tokens(repo):
     assert shirt["brand"] == "무신사 스탠다드"
 
 
-def test_analytics_api_endpoint():
+def test_analytics_api_endpoint(monkeypatch):
+    monkeypatch.setattr(
+        "app.clients.user_client.UserServiceClient.get_user_profile",
+        lambda self, user_id, request_id_header=None: {"role": "ADMIN" if user_id == 7 else "USER"},
+    )
+    monkeypatch.setattr(
+        "app.clients.vton_client.VtonServiceClient.get_token_usage_in_range",
+        lambda *args, **kwargs: [],
+    )
     client = TestClient(app)
     fake_repo = RecommendationRepository(db_path=":memory:")
     app.state.repository = fake_repo
@@ -221,31 +232,45 @@ def test_analytics_api_endpoint():
     assert forbidden_res.status_code == 403
     assert forbidden_res.json()["code"] == "FORBIDDEN"
 
-    # 3. Admin user (fitzzaadm, userId=4) -> 200 OK
+    # Admin role is authoritative regardless of the numeric user ID.
     res = client.get(
         "/api/recommendations/analytics",
-        headers={"X-User-Id": "4"},
+        headers={"X-User-Id": "7"},
     )
     assert res.status_code == 200
     body = res.json()
-    validated = AnalyticsResponse(**body)
-    assert validated.daily.label == "일간"
-    assert validated.weekly.label == "주간"
-    assert validated.monthly.label == "월간"
-    assert validated.yearly.label == "연간"
-
+    validated = PeriodAnalytics(**body)
+    assert validated.label == "일간"
     today_kst_str = datetime.now(KST).strftime("%Y-%m-%d")
-    assert validated.daily.startDate == today_kst_str
-    assert validated.daily.endDate == today_kst_str
-    assert validated.weekly.endDate == today_kst_str
-    assert validated.monthly.endDate == today_kst_str
+    assert validated.startDate == today_kst_str
+    assert validated.endDate == today_kst_str
 
     # 4. Gateway backward compatibility path /api/v1/recommendations/analytics with admin header
     compat_res = client.get(
         "/api/v1/recommendations/analytics",
-        headers={"X-User-Id": "4"},
+        headers={"X-User-Id": "7"},
     )
     assert compat_res.status_code == 200
+
+    for path in ("/api/recommendations/analytics", "/api/v1/recommendations/analytics"):
+        for period in ("daily", "weekly", "monthly", "yearly"):
+            period_res = client.get(
+                path,
+                params={"period": period},
+                headers={"X-User-Id": "7"},
+            )
+            assert period_res.status_code == 200
+            assert period_res.json() == fake_repo.get_analytics_data(period=period)
+            if period == "daily":
+                assert period_res.json() == body
+
+    for period in ("invalid", "DAILY", ""):
+        invalid_res = client.get(
+            "/api/recommendations/analytics",
+            params={"period": period},
+            headers={"X-User-Id": "7"},
+        )
+        assert invalid_res.status_code == 400
 
 
 def test_analytics_with_mocked_vton_client(repo):
@@ -263,7 +288,10 @@ def test_analytics_with_mocked_vton_client(repo):
                 }
             ]
 
-    data = repo.get_analytics_data(reference_dt=ref_dt, vton_client=MockVtonClient())
+    data = {
+        period: repo.get_analytics_data(reference_dt=ref_dt, vton_client=MockVtonClient(), period=period)
+        for period in ("daily", "weekly", "monthly", "yearly")
+    }
     daily_usage = {u["label"]: u for u in data["daily"]["usage"]}
     assert daily_usage["12시"]["input"] == 800
     assert daily_usage["12시"]["output"] == 1600
@@ -271,3 +299,21 @@ def test_analytics_with_mocked_vton_client(repo):
     weekly_usage = {u["label"]: u for u in data["weekly"]["usage"]}
     assert weekly_usage["화"]["input"] == 800
     assert weekly_usage["화"]["output"] == 1600
+
+
+@pytest.mark.parametrize("period", ["daily", "weekly", "monthly", "yearly"])
+def test_only_selected_period_is_aggregated(repo, monkeypatch, period):
+    from unittest.mock import Mock
+
+    aggregate = Mock(return_value={"label": period})
+    monkeypatch.setattr(repo, "_aggregate_period_analytics", aggregate)
+    assert repo.get_analytics_data(period=period) == {"label": period}
+    aggregate.assert_called_once()
+    assert aggregate.call_args.args[0] == period
+
+
+def test_repository_defaults_to_daily(repo):
+    reference = datetime(2026, 10, 27, 14, tzinfo=KST)
+    assert repo.get_analytics_data(reference_dt=reference) == repo.get_analytics_data(
+        reference_dt=reference, period="daily"
+    )

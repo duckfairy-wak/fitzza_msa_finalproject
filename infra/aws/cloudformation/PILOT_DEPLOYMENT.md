@@ -102,19 +102,17 @@ FITZZA-221의 [payer 관리자용 예산 설정 요청안·수동 점검표](../
   private 기본 NAT 경로와 S3 Gateway Endpoint 연결이 구성되어 있다.
   이는 정적 구성 확인이며 실제 AWS 연결·라우팅 성공을 증명하지 않는다.
 
-### FITZZA-284: 운영 분산 추적 결정
+### FITZZA-303: 운영 Jaeger 파일럿 활성화
 
-- 시범 클러스터에는 아직 Jaeger/OpenTelemetry collector를 배치하지 않는다. 위 13개 Pod
-  용량 계산에는 collector가 포함되지 않았고 단일 노드에는 애플리케이션 롤링 업데이트용
-  여유가 없다.
-- `MANAGEMENT_TRACING_SAMPLING_PROBABILITY`를 설정하지 않아 Java와 FastAPI 서비스의
-  기본값 `0.0`을 유지한다. 추적이 꺼진 동안 운영 ConfigMap에
-  `MANAGEMENT_OTLP_TRACING_ENDPOINT`를 추가하지 않는다.
-- 활성화 전에 collector CPU·메모리 requests, 영속 trace 저장소와 보존 기간, UI 접근 통제,
-  예상 비용을 확정하고 collector를 포함해 allocatable 용량을 다시 확인한다.
-- 승인되면 `/v1/traces`를 포함한 OTLP/HTTP endpoint와 초기 샘플링 `0.1`을 설정하고,
-  ConfigMap 적용 뒤 추적 대상 Deployment를 재기동한다. 활성화·검증·롤백 절차는
-  `infra/k8s/README.md`를 따른다.
+- 운영자 관리 Jaeger Pod 1개를 추가한다. requests는 CPU 100m/메모리 128Mi이고,
+  최대 1,000개 trace를 메모리에 저장한다. 재시작·재배포·노드 종료 시 trace는 삭제된다.
+- 적용 직전에 collector를 포함한 전체 Pod requests와 노드 allocatable을 비교한다.
+  용량이 부족하면 노드를 자동 확장하지 않고 배포를 중단한다.
+- Jaeger를 먼저 Ready로 만든 뒤 운영 ConfigMap의 OTLP/HTTP `/v1/traces` endpoint와
+  샘플링 `0.1`을 적용하고 추적 대상 Deployment를 한 개씩 재기동한다.
+- UI는 LoadBalancer나 Ingress로 공개하지 않고 Kubernetes `pods/portforward` 권한을
+  가진 운영자만 `service/jaeger:16686`으로 확인한다.
+- 활성화·검증·롤백 절차는 `infra/k8s/observability/jaeger/README.md`를 따른다.
 
 ### 운영 시간 실행 순서
 

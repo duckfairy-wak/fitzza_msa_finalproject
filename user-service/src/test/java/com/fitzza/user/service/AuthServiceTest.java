@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fitzza.user.domain.User;
+import com.fitzza.user.domain.UserRole;
 import com.fitzza.user.domain.UserStatus;
 import com.fitzza.user.dto.LoginRequest;
 import com.fitzza.user.dto.RefreshTokenRequest;
@@ -67,12 +68,12 @@ class AuthServiceTest {
         User user = storedUser(UserStatus.ACTIVE);
         when(userRepository.findByEmail("fit@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password1", "ENCODED")).thenReturn(true);
-        when(jwtTokenProvider.createAccessToken(7L)).thenReturn("access");
+        when(jwtTokenProvider.createAccessToken(7L, UserRole.USER)).thenReturn("access");
         when(refreshTokenStore.issue(7L)).thenReturn("refresh");
 
         LoginResult response = authService.login(new LoginRequest(" Fit@Example.com", "password1"));
 
-        assertThat(response).isEqualTo(new LoginResult("access", "refresh", 7L, "fitzza"));
+        assertThat(response).isEqualTo(new LoginResult("access", "refresh", 7L, "fitzza", UserRole.USER));
     }
 
     @Test
@@ -84,11 +85,40 @@ class AuthServiceTest {
         verify(refreshTokenStore, never()).issue(anyLong());
     }
 
+    // 관리자는 토큰과 응답에 ADMIN 역할이 실린다. 게이트웨이가 토큰의 역할을 X-User-Role로 넘긴다.
+    @Test
+    void loginCarriesTheAdminRoleIntoTheTokenAndResponse() {
+        User admin = storedUser(UserStatus.ACTIVE);
+        ReflectionTestUtils.setField(admin, "role", UserRole.ADMIN);
+        when(userRepository.findByEmail("fit@example.com")).thenReturn(Optional.of(admin));
+        when(passwordEncoder.matches("password1", "ENCODED")).thenReturn(true);
+        when(jwtTokenProvider.createAccessToken(7L, UserRole.ADMIN)).thenReturn("admin-access");
+        when(refreshTokenStore.issue(7L)).thenReturn("refresh");
+
+        LoginResult response = authService.login(new LoginRequest("fit@example.com", "password1"));
+
+        assertThat(response).isEqualTo(new LoginResult("admin-access", "refresh", 7L, "fitzza", UserRole.ADMIN));
+    }
+
+    // 재발급할 때 역할을 DB에서 다시 읽으므로, 역할이 바뀌면 다음 재발급부터 반영된다.
+    @Test
+    void reissueUsesTheCurrentRoleFromTheDatabase() {
+        User admin = storedUser(UserStatus.ACTIVE);
+        ReflectionTestUtils.setField(admin, "role", UserRole.ADMIN);
+        when(refreshTokenStore.consume("old-refresh")).thenReturn(Optional.of(7L));
+        when(userRepository.findById(7L)).thenReturn(Optional.of(admin));
+        when(jwtTokenProvider.createAccessToken(7L, UserRole.ADMIN)).thenReturn("admin-access");
+        when(refreshTokenStore.issue(7L)).thenReturn("new-refresh");
+
+        assertThat(authService.reissue(new RefreshTokenRequest("old-refresh")))
+                .isEqualTo(new TokenResult("admin-access", "new-refresh"));
+    }
+
     @Test
     void reissueSwapsTheUsedRefreshTokenForANewPair() {
         when(refreshTokenStore.consume("old-refresh")).thenReturn(Optional.of(7L));
         when(userRepository.findById(7L)).thenReturn(Optional.of(storedUser(UserStatus.ACTIVE)));
-        when(jwtTokenProvider.createAccessToken(7L)).thenReturn("new-access");
+        when(jwtTokenProvider.createAccessToken(7L, UserRole.USER)).thenReturn("new-access");
         when(refreshTokenStore.issue(7L)).thenReturn("new-refresh");
 
         TokenResult response = authService.reissue(new RefreshTokenRequest("old-refresh"));

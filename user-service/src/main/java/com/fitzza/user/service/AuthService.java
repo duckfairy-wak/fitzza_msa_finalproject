@@ -61,10 +61,11 @@ public class AuthService {
         }
 
         return new LoginResult(
-                jwtTokenProvider.createAccessToken(user.getId()),
+                jwtTokenProvider.createAccessToken(user.getId(), user.getRole()),
                 refreshTokenStore.issue(user.getId()),
                 user.getId(),
-                user.getNickname());
+                user.getNickname(),
+                user.getRole());
     }
 
     // 쓴 Refresh Token은 바로 폐기하고 새것을 준다. 탈취된 토큰이 한 번 쓰이면 원래 주인의 재발급이 실패해 드러난다.
@@ -73,13 +74,14 @@ public class AuthService {
         Long userId = refreshTokenStore
                 .consume(request.refreshToken())
                 .orElseThrow(() -> new UserApiException(ErrorCode.INVALID_REFRESH_TOKEN));
-        // 로그인 이후 정지되거나 탈퇴한 계정에는 새 토큰을 주지 않는다.
-        userRepository
+        // 로그인 이후 정지되거나 탈퇴한 계정에는 새 토큰을 주지 않는다. 역할은 재발급 때 DB 값을 다시 읽는다.
+        User user = userRepository
                 .findById(userId)
                 .filter(User::isActive)
                 .orElseThrow(() -> new UserApiException(ErrorCode.INVALID_REFRESH_TOKEN));
 
-        return new TokenResult(jwtTokenProvider.createAccessToken(userId), refreshTokenStore.issue(userId));
+        return new TokenResult(
+                jwtTokenProvider.createAccessToken(userId, user.getRole()), refreshTokenStore.issue(userId));
     }
 
     // 이미 지워졌거나 모르는 토큰이어도 결과는 같다(다시 요청해도 성공).

@@ -20,4 +20,10 @@ qdrant-client==1.19.1
 
 # Redis Cache
 redis>=5.0.0
-fakeredis>=2.20.0
+fakeredis>=2.20.0
+
+# 분산 트레이싱(Jaeger) — app/core/tracing.py
+opentelemetry-sdk==1.45.1
+opentelemetry-exporter-otlp-proto-http==1.45.1
+opentelemetry-instrumentation-fastapi==0.66b1
+opentelemetry-instrumentation-httpx==0.66b1

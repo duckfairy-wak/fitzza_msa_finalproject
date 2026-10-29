@@ -85,10 +85,50 @@ def test_vton_uses_dedicated_pod_identity_and_least_privilege_queue_role():
     assert apps.count("serviceAccountName: fitzza-vton") == 2
 
 
-def test_production_tracing_stays_disabled_without_an_approved_collector():
+def test_base_tracing_stays_disabled_without_a_production_overlay():
     config = (ROOT / "infra/k8s/base/configmap.yaml").read_text(encoding="utf-8")
     assert "MANAGEMENT_OTLP_TRACING_ENDPOINT" not in config
     assert "MANAGEMENT_TRACING_SAMPLING_PROBABILITY" not in config
+
+
+@pytest.mark.skipif(shutil.which("kubectl") is None, reason="kubectl unavailable")
+def test_production_overlay_enables_approved_jaeger_sampling():
+    yaml = pytest.importorskip("yaml")
+    result = subprocess.run(
+        ["kubectl", "kustomize", str(ROOT / "infra/k8s/overlays/prod")],
+        check=True, capture_output=True, text=True, timeout=30,
+    )
+    documents = list(yaml.safe_load_all(result.stdout))
+    config = next(
+        document for document in documents
+        if document["kind"] == "ConfigMap"
+        and document["metadata"]["name"] == "fitzza-app-config"
+    )
+    assert config["data"]["MANAGEMENT_OTLP_TRACING_ENDPOINT"] == (
+        "http://jaeger:4318/v1/traces"
+    )
+    assert config["data"]["MANAGEMENT_TRACING_SAMPLING_PROBABILITY"] == "0.1"
+
+
+@pytest.mark.skipif(shutil.which("kubectl") is None, reason="kubectl unavailable")
+def test_jaeger_pilot_is_internal_and_resource_bounded():
+    yaml = pytest.importorskip("yaml")
+    result = subprocess.run(
+        ["kubectl", "kustomize", str(ROOT / "infra/k8s/observability/jaeger")],
+        check=True, capture_output=True, text=True, timeout=30,
+    )
+    documents = list(yaml.safe_load_all(result.stdout))
+    deployment = next(document for document in documents if document["kind"] == "Deployment")
+    service = next(document for document in documents if document["kind"] == "Service")
+    config = next(document for document in documents if document["kind"] == "ConfigMap")
+    container = deployment["spec"]["template"]["spec"]["containers"][0]
+    assert deployment["metadata"]["namespace"] == "fitzza"
+    assert container["image"] == "cr.jaegertracing.io/jaegertracing/jaeger:2.22.0"
+    assert container["resources"]["requests"] == {"cpu": "100m", "memory": "128Mi"}
+    assert container["resources"]["limits"] == {"cpu": "500m", "memory": "512Mi"}
+    assert "max_traces: 1000" in config["data"]["config.yaml"]
+    assert service["spec"]["type"] == "ClusterIP"
+    assert {port["port"] for port in service["spec"]["ports"]} == {4317, 4318, 16686}
 
 
 @pytest.mark.skipif(shutil.which("kubectl") is None, reason="kubectl unavailable")

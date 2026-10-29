@@ -219,6 +219,147 @@ runs/<run-id>/fashion-clip/report.json
 
 The layout above is historical. The deployed cloud contract uses `pipeline/runs/<run-id>/` and requires human color approval plus a separate matching dataset-quality approval; a Jev `_SUCCESS.json` alone is not sufficient. Jev credentials belong in SSM SecureString and must never be written to S3, Kubernetes manifests, or logs.
 
+## Orchestration run contract (FITZZA-219)
+
+Every automated run uses one immutable `run_id` and the input manifest SHA-256 as
+its idempotency key. The machine-readable contract is
+`run-contract.schema.json`; `run-contract.example.json` shows the expected shape.
+The state machine must refuse to start a stage when its predecessor's success
+marker is absent, and it must write a stage status document under
+`pipeline/runs/<run-id>/status/`. Reusing a `run_id` with a different manifest
+digest is invalid. A human approval remains required after Jev and before
+FashionCLIP/Qdrant indexing.
+
+The first state-machine definition is `orchestration.asl.json`. It invokes
+small Lambda adapters so provider-specific EKS Job details stay outside the
+workflow. Deploy-time substitutions must provide
+`InitializeRunLambdaArn`, `CrawlerRunnerLambdaArn`, `ValidateImportLambdaArn`,
+`JevRunnerLambdaArn`, `ReviewRequestLambdaArn`, `FashionClipRunnerLambdaArn`,
+and `StatusWriterLambdaArn`. No credentials or secrets are stored in the
+definition.
+
+The deployable wrapper is `infra/aws/cloudformation/orchestration.yaml`. Upload
+the ASL file to a versioned private S3 bucket, deploy this stack with the seven
+adapter Lambda ARNs, and keep `ScheduleState=DISABLED` until the adapters and
+run contract are deployed. The incremental rule defaults to Tuesday and
+Thursday 10:00 Asia/Seoul (`cron(0 1 ? * TUE,THU *)`; EventBridge rule cron is
+UTC) with `{"run_mode":"incremental"}`. It reads the approved current baseline manifest
+and incremental checkpoint, so the crawler must submit only new or changed product
+IDs; it must not rebuild the existing 3,000-product set. The integrity rule
+defaults to Monday 11:00 Asia/Seoul (`cron(0 2 ? * MON *)`) with
+`{"run_mode":"integrity"}` and is routed directly to the
+validation adapter: it checks stored product data, image accessibility, and index
+state without recrawling the catalog. A `full` run is manual-only and requires
+`manual_approved: true`; use it only after a data-quality incident, site structure
+change, or planned bulk refresh. Manual executions can start the state machine
+directly with the same contract JSON. The template grants the state machine only
+Lambda invocation and grants EventBridge only `states:StartExecution`.
+
+The orchestration stack also grants the shared runner Lambda role
+`eks:DescribeCluster` and associates the AWS-managed `AmazonEKSEditPolicy` only
+to the configured `fitzza` namespace. The Lambda must have network access to
+the EKS API endpoint; if the cluster endpoint is private, deploy the runner
+functions into the foundation VPC subnets and security group. Public endpoint
+CIDRs must include the runner's egress path.
+
+`infra/aws/orchestration/job_spec.py` renders the Crawler and FashionCLIP Job
+specifications used by the runner adapters. Each Job receives the run contract,
+has CPU/memory requests and limits, and uses a deterministic name to prevent
+duplicate execution. Jobs are placed like the other pipeline Jobs
+(`kubernetes.io/arch: arm64`); set `PIPELINE_NODE_SELECTOR_JSON` on a runner to
+target a dedicated pipeline node once one exists.
+
+`infra/aws/orchestration/job_runner.py` provides the idempotent runner logic:
+it reuses an existing Job for the same run and surfaces failure without creating
+a duplicate. A Lambda invocation cannot outlive a pipeline Job, so the runner
+waits at most `PIPELINE_JOB_WAIT_SECONDS` (default 600; keep the Lambda timeout
+above it) and returns `job_status` `RUNNING` or `PENDING`. The state machine then
+waits five minutes and calls the runner again until `SUCCEEDED`. The Job's
+`activeDeadlineSeconds` (6 hours) bounds the total run.
+
+The node runs only on weekdays 09:00-18:00 Asia/Seoul, so runners create a new
+Job only inside `PIPELINE_RUN_WINDOW` (default `MON-FRI 09:30-16:00`, Asia/Seoul).
+Outside it they fail with `JobNotStartedError`, which the state machine does not
+retry; an already created Job is still observed. Holidays on which the node stays
+off are not known to the runner. Both default schedules fall inside this window;
+keep them there, or widen the window together with a dedicated node.
+
+### Stages without a runtime yet
+
+Validate/Import and Jev have no adapter runtime. Until they do, deploy their
+Lambda ARNs with the shared handler and `ORCHESTRATION_ACTION=not_enabled`,
+`PIPELINE_STAGE_NAME=validate_import` or `jev`. Such an adapter raises
+`StageNotEnabledError` without touching S3, RDS or Jev, the state machine records
+the run as failed and does not retry, and nothing after that stage runs. The
+weekly `integrity` route also goes through the Validate/Import ARN, so it stops
+the same way.
+
+A real adapter replacing a placeholder must keep this contract:
+
+- Input: the run contract produced by `InitializeRun` (plus `stage`, `job_name`
+  and `job_status` from the previous runner). Reject a contract whose `run_id`,
+  `s3.prefix` or `input_manifest_sha256` does not match.
+- Output: the same contract, returned only after the stage's
+  `stages.<name>.success_marker` object has been written.
+- Idempotency: a rerun of the same `run_id` must reuse finished work and must
+  not duplicate rows, objects or Jev calls.
+- Jev: it ends at `jev/review-bundle.tar.gz` and never creates an approval
+  marker; human review stays a separate step.
+
+### Human color review (FITZZA-305)
+
+After Jev the run stops at `WaitForHumanReview`, which invokes the shared handler
+with `ORCHESTRATION_ACTION=review_requester` and waits on a Step Functions task
+token:
+
+- The token is stored at `orchestration/review/<run-id>/task-token.json`, outside
+  the `pipeline/` prefix that pipeline Job roles can read, and the Job role is
+  denied writes under `pipeline/runs/*/approved/`, so a Job cannot approve its own
+  run. `request.json` next to the token records the bundle keys and the deadline.
+- When `REVIEW_TOPIC_ARN` is set, the review instructions (download, `color_review`
+  and `review_gate`, quality approval, upload command) are published to that SNS
+  topic. When it is unset nothing is sent.
+- The run waits at most three days (`TimeoutSeconds` 259200, kept equal to
+  `REVIEW_TIMEOUT_SECONDS`) and is then recorded as failed. Waiting adds no state
+  transitions.
+
+The approval receiver (`ORCHESTRATION_ACTION=approval_receiver`, with
+`PIPELINE_BUCKET` set) handles EventBridge `Object Created` events for
+`pipeline/runs/<run-id>/approved/bundle.tar.gz`. It streams the bundle once and
+requires `config/_APPROVED.json` with `human_color_review_approved: true` and
+`config/_QUALITY_APPROVED.json` with `approved: true`, the same `files` and a
+40-character `model_revision`. It then resumes the run with the bundle SHA-256
+under `$.review`; a bundle that fails these checks fails the run with
+`ApprovalRejected`, and a corrected bundle needs a new run. `embed_job` still
+re-verifies the full fingerprint. The decision is written once to
+`orchestration/review/<run-id>/decision.json`; other objects, other buckets and
+runs without a pending request are ignored.
+
+Both are off by default in the stack. `EnableReviewNotification=true` creates
+the SNS topic, plus an email subscription when `ReviewNotificationEmail` is set
+(the address must confirm it). `EnableApprovalEvents=true` with
+`ApprovalReceiverLambdaArn` creates the EventBridge rule and the invoke
+permission; the data bucket must also have EventBridge notifications turned on,
+which this stack does not change. The Lambda roles are not part of the stack and
+need:
+
+- review requester: `s3:PutObject` on `orchestration/review/*`, and `sns:Publish`
+  on the topic when notifications are on;
+- approval receiver: `s3:GetObject` on `pipeline/runs/*/approved/bundle.tar.gz`
+  and `orchestration/review/*`, `s3:PutObject` on
+  `orchestration/review/*/decision.json`, `s3:ListBucket` limited to the
+  `orchestration/review/` prefix (so a missing request reads as 404, not 403),
+  and `states:SendTaskSuccess` and `states:SendTaskFailure` on the state machine.
+
+Everything above is defined but switched off. What still has to be decided,
+implemented and deployed before the pipeline can run on a schedule, with costs
+and rollback, is in [AUTOMATION_READINESS.md](AUTOMATION_READINESS.md) (Korean).
+
+The Job service account `fitzza-pipeline` is defined in
+`infra/data-pipeline/pipeline-service-account.yaml`. Like the other pipeline
+manifests in this directory it is applied manually; it is not part of the CD
+kustomization, so merging this code does not create it in the cluster.
+
 ## Local Qdrant
 
 Qdrant runs in Docker; the crawler validation and Jev scripts run as Python batch jobs.

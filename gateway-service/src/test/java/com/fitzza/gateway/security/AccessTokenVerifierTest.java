@@ -118,4 +118,19 @@ class AccessTokenVerifierTest {
     void refusesToStartWithAShortSecret() {
         assertThatThrownBy(() -> new AccessTokenVerifier("too-short")).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void readsTheAdminRoleFromTheToken() {
+        assertThat(verifier.authenticate(TestTokens.validWithRole("7", "ADMIN")))
+                .isEqualTo(new AccessTokenVerifier.VerifiedUser(7L, "ADMIN"));
+    }
+
+    // 역할이 없는 예전 토큰과 모르는 값은 일반 사용자로 본다. 대소문자가 다른 값도 관리자로 인정하지 않는다.
+    @Test
+    void treatsMissingOrUnknownRolesAsRegularUsers() {
+        assertThat(verifier.authenticate(TestTokens.valid("7")).role()).isEqualTo("USER");
+        assertThat(verifier.authenticate(TestTokens.validWithRole("7", "USER")).role()).isEqualTo("USER");
+        assertThat(verifier.authenticate(TestTokens.validWithRole("7", "admin")).role()).isEqualTo("USER");
+        assertThat(verifier.authenticate(TestTokens.validWithRole("7", "SUPER")).role()).isEqualTo("USER");
+    }
 }

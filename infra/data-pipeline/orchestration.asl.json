@@ -1,0 +1,109 @@
+{
+  "Comment": "Fitzza data pipeline orchestration. Lambda adapters start and observe the EKS Jobs.",
+  "StartAt": "InitializeRun",
+  "States": {
+    "InitializeRun": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${InitializeRunLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 10, "MaxAttempts": 2, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PipelineFailed" }],
+      "Next": "RouteRun"
+    },
+    "RouteRun": {
+      "Type": "Choice",
+      "Choices": [{ "Variable": "$.run_mode", "StringEquals": "integrity", "Next": "RunIntegrityChecks" }],
+      "Default": "RunCrawler"
+    },
+    "RunIntegrityChecks": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${ValidateImportLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["StageNotEnabledError"], "MaxAttempts": 0 }, { "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 20, "MaxAttempts": 2, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "RecordSuccess"
+    },
+    "RunCrawler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${CrawlerRunnerLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["JobNotStartedError"], "MaxAttempts": 0 }, { "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 30, "MaxAttempts": 2, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "CheckCrawlerJob"
+    },
+    "CheckCrawlerJob": {
+      "Type": "Choice",
+      "Choices": [{ "Variable": "$.job_status", "StringEquals": "SUCCEEDED", "Next": "ValidateAndImport" }],
+      "Default": "WaitForCrawlerJob"
+    },
+    "WaitForCrawlerJob": { "Type": "Wait", "Seconds": 300, "Next": "RunCrawler" },
+    "ValidateAndImport": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${ValidateImportLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["StageNotEnabledError"], "MaxAttempts": 0 }, { "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 20, "MaxAttempts": 2, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "RunJev"
+    },
+    "RunJev": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${JevRunnerLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["StageNotEnabledError"], "MaxAttempts": 0 }, { "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 60, "MaxAttempts": 3, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "WaitForHumanReview"
+    },
+    "WaitForHumanReview": {
+      "Comment": "Notify reviewers and wait for an uploaded approved bundle; see human_review.py.",
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": { "FunctionName": "${ReviewRequestLambdaArn}", "Payload": { "contract.$": "$", "task_token.$": "$$.Task.Token" } },
+      "TimeoutSeconds": 259200,
+      "ResultPath": "$.review",
+      "Retry": [{ "ErrorEquals": ["Lambda.ServiceException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"], "IntervalSeconds": 10, "MaxAttempts": 3, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "RunFashionClip"
+    },
+    "RunFashionClip": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": { "FunctionName": "${FashionClipRunnerLambdaArn}", "Payload.$": "$" },
+      "OutputPath": "$.Payload",
+      "Retry": [{ "ErrorEquals": ["JobNotStartedError"], "MaxAttempts": 0 }, { "ErrorEquals": ["States.Timeout", "States.TaskFailed", "Lambda.ServiceException", "Lambda.SdkClientException"], "IntervalSeconds": 30, "MaxAttempts": 2, "BackoffRate": 2 }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.failure", "Next": "RecordFailure" }],
+      "Next": "CheckFashionClipJob"
+    },
+    "CheckFashionClipJob": {
+      "Type": "Choice",
+      "Choices": [{ "Variable": "$.job_status", "StringEquals": "SUCCEEDED", "Next": "RecordSuccess" }],
+      "Default": "WaitForFashionClipJob"
+    },
+    "WaitForFashionClipJob": { "Type": "Wait", "Seconds": 300, "Next": "RunFashionClip" },
+    "RecordSuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${StatusWriterLambdaArn}",
+        "Payload": { "status": "SUCCEEDED", "schema_version.$": "$.schema_version", "run_mode.$": "$.run_mode", "run_id.$": "$.run_id", "input_manifest_sha256.$": "$.input_manifest_sha256", "s3.$": "$.s3" }
+      },
+      "OutputPath": "$.Payload",
+      "End": true
+    },
+    "RecordFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${StatusWriterLambdaArn}",
+        "Payload": { "status": "FAILED", "schema_version.$": "$.schema_version", "run_mode.$": "$.run_mode", "run_id.$": "$.run_id", "input_manifest_sha256.$": "$.input_manifest_sha256", "s3.$": "$.s3", "failure.$": "$.failure" }
+      },
+      "OutputPath": "$.Payload",
+      "Next": "PipelineFailed"
+    },
+    "PipelineFailed": { "Type": "Fail", "Error": "FitzzaDataPipelineFailed", "Cause": "A pipeline stage failed after its configured retries." }
+  }
+}

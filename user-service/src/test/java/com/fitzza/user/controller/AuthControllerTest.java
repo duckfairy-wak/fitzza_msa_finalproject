@@ -13,14 +13,15 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import jakarta.servlet.http.Cookie;
 
+import com.fitzza.user.domain.UserRole;
 import com.fitzza.user.dto.LoginRequest;
-import com.fitzza.user.service.LoginResult;
 import com.fitzza.user.dto.RefreshTokenRequest;
-import com.fitzza.user.service.TokenResult;
 import com.fitzza.user.exception.ErrorCode;
 import com.fitzza.user.exception.GlobalExceptionHandler;
 import com.fitzza.user.exception.UserApiException;
 import com.fitzza.user.service.AuthService;
+import com.fitzza.user.service.LoginResult;
+import com.fitzza.user.service.TokenResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -48,7 +49,7 @@ class AuthControllerTest {
     @Test
     void loginReturnsRefreshCookieAndAccessTokenWithUserInfo() throws Exception {
         when(authService.login(any(LoginRequest.class)))
-                .thenReturn(new LoginResult("access", "refresh", 7L, "fitzza"));
+                .thenReturn(new LoginResult("access", "refresh", 7L, "fitzza", UserRole.USER));
 
         mockMvc.perform(post("/api/auth/signin")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,7 +66,8 @@ class AuthControllerTest {
                 .andExpect(header().string("Set-Cookie", containsString("Max-Age=2592000")))
                 .andExpect(header().string("Set-Cookie", not(containsString("Secure"))))
                 .andExpect(jsonPath("$.userId").value(7))
-                .andExpect(jsonPath("$.nickname").value("fitzza"));
+                .andExpect(jsonPath("$.nickname").value("fitzza"))
+                .andExpect(jsonPath("$.role").value("USER"));
     }
 
     /**
@@ -193,7 +195,7 @@ class AuthControllerTest {
                 new AuthController(authService, new com.fitzza.user.security.RefreshTokenCookie(true, 60)))
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
         when(authService.login(any(LoginRequest.class)))
-                .thenReturn(new LoginResult("access", "refresh", 7L, "fitzza"));
+                .thenReturn(new LoginResult("access", "refresh", 7L, "fitzza", UserRole.USER));
         secureMvc.perform(post("/api/auth/signin").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"fit@example.com\",\"password\":\"password1\"}"))
                 .andExpect(status().isOk())

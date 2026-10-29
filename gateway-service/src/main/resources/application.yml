@@ -33,7 +33,9 @@ spring:
             - RewritePath=/api/v1/(?<segment>.*), /api/$\{segment}
         - id: recommendation-service
           uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8092}
-          predicates: [Path=/api/v1/recommendations/**]
+          predicates: ["Path=/api/v1/recommendations/**,/api/v1/analytics"]
+          filters:
+            - RewritePath=^/api/v1/analytics$, /api/v1/recommendations/analytics
         - id: user-service
           uri: lb://user-service
           predicates: ["Path=/api/users/**,/api/v1/users/**"]

@@ -13,6 +13,7 @@ import com.fitzza.user.domain.Gender;
 import com.fitzza.user.domain.User;
 import com.fitzza.user.domain.UserBody;
 import com.fitzza.user.domain.UserBodyUpdate;
+import com.fitzza.user.domain.UserRole;
 import com.fitzza.user.dto.MyProfileResponse;
 import com.fitzza.user.dto.NicknameResponse;
 import com.fitzza.user.dto.UserBodyResponse;
@@ -58,6 +59,7 @@ class ProfileServiceTest {
 
         assertThat(profile.email()).isEqualTo("fit@example.com");
         assertThat(profile.nickname()).isEqualTo("fitzza");
+        assertThat(profile.role()).isEqualTo(UserRole.USER);
         assertThat(profile.gender()).isEqualTo(Gender.F);
         assertThat(profile.height()).isEqualTo(172.5f);
         assertThat(profile.shoeSize()).isEqualTo(245);

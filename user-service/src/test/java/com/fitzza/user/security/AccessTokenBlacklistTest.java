@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.fitzza.user.domain.UserRole;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,7 +30,7 @@ class AccessTokenBlacklistTest {
     @Test
     void revokeStoresOnlyTheHashUntilTheTokenWouldHaveExpired() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        String token = jwtTokenProvider.createAccessToken(7L);
+        String token = jwtTokenProvider.createAccessToken(7L, UserRole.USER);
 
         blacklist.revoke(token);
 
@@ -44,7 +45,7 @@ class AccessTokenBlacklistTest {
     @Test
     void revokeIgnoresATokenThisServiceDidNotIssue() {
         String forged = new JwtTokenProvider("another-secret-that-is-also-at-least-32-bytes", EXPIRATION_SECONDS)
-                .createAccessToken(7L);
+                .createAccessToken(7L, UserRole.USER);
 
         blacklist.revoke(forged);
         blacklist.revoke("not-a-token");

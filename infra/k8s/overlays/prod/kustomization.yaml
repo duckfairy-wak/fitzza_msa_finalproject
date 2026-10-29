@@ -8,6 +8,16 @@ labels:
       environment: prod
 patches:
   - target:
+      kind: ConfigMap
+      name: fitzza-app-config
+    patch: |-
+      - op: add
+        path: /data/MANAGEMENT_OTLP_TRACING_ENDPOINT
+        value: http://jaeger:4318/v1/traces
+      - op: add
+        path: /data/MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+        value: "0.1"
+  - target:
       kind: Deployment
       labelSelector: fitzza.io/workload=application
     patch: |-

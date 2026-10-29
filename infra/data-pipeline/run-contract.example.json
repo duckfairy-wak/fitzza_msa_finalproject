@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "run_mode": "incremental",
+  "run_id": "collection-20261027-01",
+  "input_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "s3": {
+    "bucket": "fitzza-prod-foundation-databucket-example",
+    "prefix": "pipeline/runs/collection-20261027-01"
+  },
+  "stages": {
+    "crawler": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/crawler.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/crawler/report.json"
+    },
+    "validate": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/validate.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/validate/report.json"
+    },
+    "import": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/import.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/import/report.json"
+    },
+    "jev": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/jev.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/jev/_SUCCESS.json"
+    },
+    "fashion_clip": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/fashion-clip.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/fashion-clip/report.json"
+    },
+    "integrity": {
+      "status_key": "pipeline/runs/collection-20261027-01/status/integrity.json",
+      "success_marker": "pipeline/runs/collection-20261027-01/integrity/report.json"
+    }
+  },
+  "baseline": {
+    "manifest_key": "pipeline/current/manifest.json",
+    "manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "product_count": 3000
+  },
+  "checkpoint": {
+    "key": "pipeline/state/incremental.json",
+    "last_successful_run_id": "collection-20261026-030000",
+    "baseline_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

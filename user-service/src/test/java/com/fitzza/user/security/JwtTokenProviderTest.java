@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fitzza.user.domain.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -29,10 +30,11 @@ class JwtTokenProviderTest {
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, EXPIRATION_SECONDS);
         Instant before = Instant.now();
 
-        String token = provider.createAccessToken(42L);
+        String token = provider.createAccessToken(42L, UserRole.USER);
 
         Claims claims = parse(token);
         assertThat(claims.getSubject()).isEqualTo("42");
+        assertThat(claims.get(JwtTokenProvider.ROLE_CLAIM, String.class)).isEqualTo("USER");
         assertThat(claims.getExpiration().toInstant())
                 .isBetween(before.plusSeconds(EXPIRATION_SECONDS - 2), before.plusSeconds(EXPIRATION_SECONDS + 2));
     }
@@ -67,7 +69,7 @@ class JwtTokenProviderTest {
     void remainingValidityOfAFreshTokenIsItsConfiguredLifetime() {
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, EXPIRATION_SECONDS);
 
-        assertThat(provider.remainingValidity(provider.createAccessToken(42L)))
+        assertThat(provider.remainingValidity(provider.createAccessToken(42L, UserRole.USER)))
                 .hasValueSatisfying(remaining -> assertThat(remaining)
                         .isGreaterThan(Duration.ofSeconds(EXPIRATION_SECONDS - 5))
                         .isLessThanOrEqualTo(Duration.ofSeconds(EXPIRATION_SECONDS)));
@@ -83,7 +85,7 @@ class JwtTokenProviderTest {
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
         String forged = new JwtTokenProvider("another-secret-that-is-also-at-least-32-bytes", EXPIRATION_SECONDS)
-                .createAccessToken(42L);
+                .createAccessToken(42L, UserRole.USER);
 
         assertThat(provider.remainingValidity(expired)).isEmpty();
         assertThat(provider.remainingValidity(forged)).isEmpty();

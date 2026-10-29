@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fitzza.local/schemas/data-pipeline/run-contract.schema.json",
+  "title": "Fitzza data pipeline run contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_mode", "run_id", "input_manifest_sha256", "s3", "stages"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_mode": { "enum": ["incremental", "integrity", "full", "retry"] },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$"
+    },
+    "input_manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "s3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket", "prefix"],
+      "properties": {
+        "bucket": { "type": "string", "minLength": 3 },
+        "prefix": {
+          "type": "string",
+          "pattern": "^pipeline/runs/[a-z0-9][a-z0-9-]{2,63}$"
+        }
+      }
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["crawler", "validate", "import", "jev", "fashion_clip", "integrity"],
+      "properties": {
+        "crawler": { "$ref": "#/$defs/stage" },
+        "validate": { "$ref": "#/$defs/stage" },
+        "import": { "$ref": "#/$defs/stage" },
+        "jev": { "$ref": "#/$defs/stage" },
+        "fashion_clip": { "$ref": "#/$defs/stage" },
+        "integrity": { "$ref": "#/$defs/stage" }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_key", "manifest_sha256", "product_count"],
+      "properties": {
+        "manifest_key": { "type": "string", "minLength": 1 },
+        "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "product_count": { "type": "integer", "minimum": 1, "maximum": 3000 }
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "baseline_manifest_sha256"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "last_successful_run_id": { "type": ["string", "null"] },
+        "baseline_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status_key", "success_marker"],
+      "properties": {
+        "status_key": {
+          "type": "string",
+          "pattern": "^pipeline/runs/[a-z0-9][a-z0-9-]{2,63}/status/[a-z0-9-]+\\.json$"
+        },
+        "success_marker": {
+          "type": "string",
+          "pattern": "^pipeline/runs/[a-z0-9][a-z0-9-]{2,63}/[a-z0-9-]+/(_SUCCESS\\.json|report\\.json)$"
+        }
+      }
+    }
+  }
+}

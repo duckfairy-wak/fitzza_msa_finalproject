@@ -45,6 +45,11 @@ public class User {
     @Column(name = "status", nullable = false, length = 20)
     private UserStatus status;
 
+    // 가입하면 USER다. 관리자 지정은 API 없이 운영에서만 한다.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private UserRole role;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -65,6 +70,7 @@ public class User {
         this.password = encodedPassword;
         this.nickname = nickname;
         this.status = UserStatus.ACTIVE;
+        this.role = UserRole.USER;
     }
 
     /**
@@ -140,5 +146,12 @@ public class User {
      */
     public String getNickname() {
         return nickname;
+    }
+
+    /**
+     * 사용자 역할을 반환한다. 역할이 비어 있는 예전 데이터는 일반 사용자로 본다.
+     */
+    public UserRole getRole() {
+        return role == null ? UserRole.USER : role;
     }
 }

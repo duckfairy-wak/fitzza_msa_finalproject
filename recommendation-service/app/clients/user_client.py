@@ -11,6 +11,10 @@ SERVICE_TOKEN_HEADER = "X-Service-Token"
 REQUEST_ID_HEADER = "X-Request-Id"
 
 
+class UserServiceUnavailableError(Exception):
+    pass
+
+
 class UserServiceClient:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -21,6 +25,31 @@ class UserServiceClient:
             self.settings.user_service_url.strip()
             and self.settings.recommendation_service_token.strip()
         )
+
+    def get_user_profile(
+        self,
+        user_id: int,
+        request_id_header: str | None = None,
+    ) -> dict[str, Any]:
+        if not self.settings.user_service_url.strip():
+            raise UserServiceUnavailableError()
+
+        headers = {"X-User-Id": str(user_id)}
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+        url = f"{self.settings.user_service_url.rstrip('/')}/api/users/me"
+        try:
+            with httpx.Client(timeout=self.settings.http_timeout_seconds) as client:
+                response = client.get(url, headers=headers)
+                if response.status_code in (401, 403, 404):
+                    return {}
+                response.raise_for_status()
+                data = response.json()
+                if not isinstance(data, dict):
+                    raise ValueError("Invalid user profile response")
+                return data
+        except (httpx.HTTPError, ValueError) as exc:
+            raise UserServiceUnavailableError() from exc
 
     def get_user_body(
         self,

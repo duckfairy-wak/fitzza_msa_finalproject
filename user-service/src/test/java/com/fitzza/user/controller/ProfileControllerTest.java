@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fitzza.user.domain.Gender;
 import com.fitzza.user.domain.UserBodyUpdate;
+import com.fitzza.user.domain.UserRole;
 import com.fitzza.user.dto.MyProfileResponse;
 import com.fitzza.user.dto.UserBodyResponse;
 import com.fitzza.user.exception.ErrorCode;
@@ -45,12 +46,13 @@ class ProfileControllerTest {
     void myProfileUsesUserIdFromGatewayHeader() throws Exception {
         when(profileService.getMyProfile(7L))
                 .thenReturn(new MyProfileResponse(
-                        "fit@example.com", "fitzza", Gender.F, 172.5f, 64f, 245, "OVERSIZED", List.of("CASUAL", "MINIMAL")));
+                        "fit@example.com", "fitzza", UserRole.USER, Gender.F, 172.5f, 64f, 245, "OVERSIZED", List.of("CASUAL", "MINIMAL")));
 
         mockMvc.perform(get("/api/users/me").header(USER_ID_HEADER, "7"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("fit@example.com"))
                 .andExpect(jsonPath("$.nickname").value("fitzza"))
+                .andExpect(jsonPath("$.role").value("USER"))
                 .andExpect(jsonPath("$.gender").value("F"))
                 .andExpect(jsonPath("$.height").value(172.5))
                 .andExpect(jsonPath("$.shoeSize").value(245))

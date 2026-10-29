@@ -148,6 +148,23 @@ class UserAuthenticationGatewayTest {
     }
 
     @Test
+    void analyticsAliasPreservesQueryAndRequiresLogin() {
+        String token = Jwts.builder().subject("42").issuedAt(new Date())
+                .expiration(Date.from(Instant.now().plusSeconds(900)))
+                .signWith(Keys.hmacShaKeyFor("test-only-jwt-secret-with-32-bytes-or-more"
+                        .getBytes(StandardCharsets.UTF_8)), Jwts.SIG.HS256).compact();
+
+        client().get().uri("/api/v1/analytics?period=daily").header("X-User-Id", "999")
+                .exchange().expectStatus().isUnauthorized();
+        for (String path : new String[] {"/api/v1/analytics", "/api/v1/recommendations/analytics"}) {
+            client().get().uri(path + "?period=daily")
+                    .headers(headers -> headers.setBearerAuth(token))
+                    .exchange().expectStatus().isOk()
+                    .expectBody(String.class).isEqualTo("/api/v1/recommendations/analytics?period=daily:42");
+        }
+    }
+
+    @Test
     void recommendationsRequireLoginAndReceiveTheVerifiedUser() {
         String token = Jwts.builder().subject("42").issuedAt(new Date())
                 .expiration(Date.from(Instant.now().plusSeconds(900)))

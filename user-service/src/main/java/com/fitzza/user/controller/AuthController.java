@@ -61,7 +61,7 @@ public class AuthController {
         LoginResult result = authService.login(request);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.issue(result.refreshToken()))
-                .body(new LoginResponse(result.accessToken(), result.userId(), result.nickname()));
+                .body(new LoginResponse(result.accessToken(), result.userId(), result.nickname(), result.role()));
     }
 
     @Operation(summary = "토큰 재발급", description = "refreshToken 쿠키를 읽어 토큰을 재발급하며 JSON 요청 본문은 필요하지 않다. "
