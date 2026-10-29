@@ -84,8 +84,11 @@ logs/
 *.sqlite3
 *.dump
 *.backup
-vton-service/data/fittings/
-vton-service/data/photos/
+vton-service/data/
 
 
 .run/
+/summary.json
+/k6-report.html
+/performance/results/
+

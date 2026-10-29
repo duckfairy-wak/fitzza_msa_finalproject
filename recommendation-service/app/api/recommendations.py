@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
@@ -22,11 +23,13 @@ logger = logging.getLogger(__name__)
 from app.clients.notification_client import NotificationServiceClient
 from app.clients.product_client import ProductServiceClient
 from app.clients.redis_client import RedisClient
+from app.clients.storage_client import get_storage_client
 from app.clients.user_client import UserServiceClient, UserServiceUnavailableError
 from app.clients.vton_client import VtonServiceClient
 from app.core.config import Settings, get_settings
-from app.core.database import RecommendationRepository
+from app.core.database import KST, RecommendationRepository
 from app.services.cache_service import CacheService
+from app.services.recommendation_detail_service import get_recommendation_detail_service
 
 from app.schemas.recommendation import (
     InternalComboProductItem,
@@ -367,7 +370,9 @@ def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
         category=item.get("category"),
         subcategory=item.get("subcategory"),
         price=price,
-        imageUrl=item.get("image_url") or item.get("imageUrl"),
+        imageUrl=get_storage_client().get_presigned_url(
+            item.get("image_url") or item.get("imageUrl")
+        ) or None,
         color=item.get("color") or _extract_color_text(item),
         recommendedSize=recommended_size,
         availableSizes=_extract_sizes_list(item),
@@ -664,12 +669,39 @@ def list_recommendations(
 def get_recommendation_analytics(
     request: Request,
     period: Literal["daily", "weekly", "monthly", "yearly"] = Query(default="daily"),
+    ref_date: str | None = Query(
+        default=None,
+        alias="refDate",
+        description="집계 기준일자 (YYYY-MM-DD 형식, 미지정 시 현재 KST 일시 기준)",
+    ),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> PeriodAnalytics:
     _require_admin(request, x_user_id=x_user_id)
     repository = _get_repository(request)
     vton_client = _get_vton_client(request)
-    data = repository.get_analytics_data(period=period, vton_client=vton_client)
+
+    reference_dt = None
+    if ref_date:
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", ref_date):
+            raise RecommendationApiError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="INVALID_DATE_FORMAT",
+                message="유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식을 사용해야 합니다.",
+            )
+        try:
+            reference_dt = datetime.strptime(ref_date, "%Y-%m-%d").replace(tzinfo=KST)
+        except ValueError:
+            raise RecommendationApiError(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code="INVALID_DATE_FORMAT",
+                message="유효하지 않은 날짜 형식입니다. YYYY-MM-DD 형식을 사용해야 합니다.",
+            )
+
+    data = repository.get_analytics_data(
+        reference_dt=reference_dt,
+        vton_client=vton_client,
+        period=period,
+    )
     return PeriodAnalytics(**data)
 
 
@@ -756,16 +788,8 @@ def get_recommendation_detail(
             message="본인의 추천 결과만 조회할 수 있습니다.",
         )
 
-    return RecommendationDetailResponse(
-        requestId=record["requestId"],
-        queryText=str(record.get("queryText") or ""),
-        status=record["status"],
-        searchType=record["searchType"],
-        tpoSummary=record["tpoSummary"],
-        items=[RecommendedProductItem(**item) for item in record["items"]],
-        combos=[RecommendedComboItem(**combo) for combo in record["combos"]],
-        message=record["message"],
-    )
+    detail_service = get_recommendation_detail_service()
+    return detail_service.build_detail_response(record)
 
 
 MAX_SEARCH_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15MB
@@ -858,6 +882,7 @@ async def search_products_by_image(
             message="이미지 유사 상품 검색 처리 중 서버 오류가 발생했습니다.",
         ) from exc
 
+    storage_client = get_storage_client()
     items = [
         VisualSearchResultItem(
             productId=item.get("product_id") or 0,
@@ -866,7 +891,7 @@ async def search_products_by_image(
             category=item.get("category"),
             subcategory=item.get("subcategory"),
             price=item.get("price") or 0,
-            imageUrl=item.get("image_url"),
+            imageUrl=storage_client.get_presigned_url(item.get("image_url")) or None,
             color=(
                 item.get("color_raw")
                 or (item.get("color_normalized")[0] if item.get("color_normalized") else None)
@@ -926,12 +951,8 @@ def get_combo_internal(
             feedbackSummary=None,
         )
 
-    return InternalComboResponse(
-        owned=True,
-        items=[InternalComboProductItem(**item) for item in combo["items"]],
-        totalPrice=combo["totalPrice"],
-        feedbackSummary=combo["feedbackSummary"],
-    )
+    detail_service = get_recommendation_detail_service()
+    return detail_service.build_internal_combo_response(combo)
 
 
 @internal_router.post(

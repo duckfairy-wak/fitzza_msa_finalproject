@@ -37,6 +37,7 @@ def setup_test_environment(tmp_path: Path):
     settings = Settings(
         db_path=":memory:",
         storage_dir=str(test_storage),
+        storage_backend="local",
         community_service_token="community-secret-token-32bytes-long-padding!",
         vton_service_token="vton-secret-token-32bytes-long-padding-ok!",
         product_service_url="http://localhost:8082",
@@ -71,6 +72,17 @@ def test_post_vton_enforces_product_limit() -> None:
         headers={"X-User-Id": "1"},
     )
     assert resp.status_code == 400  # RequestValidationError 핸들러로 400 반환
+    assert resp.json()["code"] == "INVALID_REQUEST"
+
+
+def test_post_vton_enforces_min_product_limit() -> None:
+    client = TestClient(app)
+    resp = client.post(
+        "/api/vton",
+        json={"productIds": [101]},
+        headers={"X-User-Id": "1"},
+    )
+    assert resp.status_code == 400
     assert resp.json()["code"] == "INVALID_REQUEST"
 
 
@@ -297,6 +309,7 @@ def test_get_fitting_image_serving(tmp_path: Path) -> None:
     settings = Settings(
         db_path=":memory:",
         storage_dir=str(test_storage),
+        storage_backend="local",
     )
     reset_settings_for_tests(settings)
     repo = VtonRepository(db_path=":memory:")
@@ -305,20 +318,25 @@ def test_get_fitting_image_serving(tmp_path: Path) -> None:
     fitting_id = repo.create_fitting(user_id=7, photo_id=1, product_ids=[101])
     repo.mark_completed(fitting_id, f"/api/vton/{fitting_id}/image")
 
-    # 인증 누락 -> 401
     client = TestClient(app)
-    assert client.get(f"/api/vton/{fitting_id}/image").status_code == 401
     # 타 사용자 -> 403
     assert client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "999"}).status_code == 403
 
-    # 아직 파일이 디스크에 없음 -> 404
+    # 아직 파일이 디스크에 없음 -> 404 (인증 헤더 없이도 파일 미존재 검증)
+    assert client.get(f"/api/vton/{fitting_id}/image").status_code == 404
     resp_missing = client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "7"})
     assert resp_missing.status_code == 404
 
-    # 이미지 파일 저장 후 본인 요청 -> 200 image/png
+    # 이미지 파일 저장 후 브라우저 <img> 요청(인증 헤더 없음) -> 200 image/png
     img_bytes = _create_sample_png()
     (test_storage / f"{fitting_id}.png").write_bytes(img_bytes)
 
+    resp_no_auth = client.get(f"/api/vton/{fitting_id}/image")
+    assert resp_no_auth.status_code == 200
+    assert resp_no_auth.headers["content-type"] == "image/png"
+    assert resp_no_auth.content == img_bytes
+
+    # 본인 헤더 요청 시에도 -> 200 image/png
     resp_ok = client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "7"})
     assert resp_ok.status_code == 200
     assert resp_ok.headers["content-type"] == "image/png"
@@ -389,6 +407,7 @@ def test_delete_fitting_and_defend_access(tmp_path: Path) -> None:
     settings = Settings(
         db_path=":memory:",
         storage_dir=str(test_storage),
+        storage_backend="local",
     )
     reset_settings_for_tests(settings)
     repo = VtonRepository(db_path=":memory:")
@@ -568,10 +587,40 @@ def test_post_vton_multipart_validations() -> None:
     )
     assert resp_no_pids.status_code == 400
 
+    # 2-1. productIds 1개(최소 2개 미만) 전달 시 400 Bad Request
+    resp_fewer_pids = client.post(
+        "/api/vton",
+        data={"productIds": "[101]"},
+        files={"userImage": ("photo.png", img_bytes, "image/png")},
+        headers={"X-User-Id": "7"},
+    )
+    assert resp_fewer_pids.status_code == 400
+    assert "2개 이상" in resp_fewer_pids.json()["message"]
+
+    # 2-2. items가 깨진 JSON일 때 400 Bad Request
+    resp_bad_json_items = client.post(
+        "/api/vton",
+        data={"items": "invalid_json{"},
+        files={"userImage": ("photo.png", img_bytes, "image/png")},
+        headers={"X-User-Id": "7"},
+    )
+    assert resp_bad_json_items.status_code == 400
+    assert "유효한 JSON 배열" in resp_bad_json_items.json()["message"]
+
+    # 2-3. items에 1개 상품만 전달 시 Pydantic RequestValidationError(400 INVALID_REQUEST)
+    resp_single_json_items = client.post(
+        "/api/vton",
+        data={"items": '[{"productId": 101}]'},
+        files={"userImage": ("photo.png", img_bytes, "image/png")},
+        headers={"X-User-Id": "7"},
+    )
+    assert resp_single_json_items.status_code == 400
+    assert resp_single_json_items.json()["code"] == "INVALID_REQUEST"
+
     # 3. 손상된/유효하지 않은 이미지 데이터 시 400 Bad Request
     resp_corrupt = client.post(
         "/api/vton",
-        data={"productIds": "[101]"},
+        data={"productIds": "[101, 201]"},
         files={"userImage": ("corrupt.png", b"not-a-real-png", "image/png")},
         headers={"X-User-Id": "7"},
     )
@@ -582,7 +631,7 @@ def test_post_vton_multipart_validations() -> None:
     with patch("app.api.vton.MAX_PHOTO_SIZE_BYTES", 100):
         resp_too_large = client.post(
             "/api/vton",
-            data={"productIds": "[101]"},
+            data={"productIds": "[101, 201]"},
             files={"userImage": ("large.png", img_bytes, "image/png")},
             headers={"X-User-Id": "7"},
         )
@@ -701,7 +750,7 @@ def test_post_vton_with_photo_id_ownership_validation(tmp_path: Path) -> None:
     # 1. 타인(사용자 99)이 해당 photoId로 피팅 요청 시 404 차단
     resp_other = client.post(
         "/api/vton",
-        json={"photoId": photo_id, "productIds": [101]},
+        json={"photoId": photo_id, "productIds": [101, 201]},
         headers={"X-User-Id": "99"},
     )
     assert resp_other.status_code == 404
@@ -709,7 +758,7 @@ def test_post_vton_with_photo_id_ownership_validation(tmp_path: Path) -> None:
     # 2. 존재하지 않는 photoId 요청 시 404 차단
     resp_none = client.post(
         "/api/vton",
-        json={"photoId": 88888, "productIds": [101]},
+        json={"photoId": 88888, "productIds": [101, 201]},
         headers={"X-User-Id": "7"},
     )
     assert resp_none.status_code == 404
@@ -718,7 +767,7 @@ def test_post_vton_with_photo_id_ownership_validation(tmp_path: Path) -> None:
     with patch("app.api.vton._run_background_vton"):
         resp_ok = client.post(
             "/api/vton",
-            json={"photoId": photo_id, "productIds": [101]},
+            json={"photoId": photo_id, "productIds": [101, 201]},
             headers={"X-User-Id": "7"},
         )
         assert resp_ok.status_code == 202
@@ -746,9 +795,11 @@ def test_get_fitting_user_image_flow(tmp_path: Path) -> None:
     detail_data = resp_detail.json()
     assert "userImageUrl" not in detail_data
 
-    # 3. 인증 헤더 누락 시 401 Unauthorized
+    # 3. 로컬 스토리지 모드에서는 브라우저 <img> 요청 시 인증 헤더 없이도 200 OK 스트리밍
     resp_no_auth = client.get(f"/api/vton/{fitting_id}/user-image")
-    assert resp_no_auth.status_code == 401
+    assert resp_no_auth.status_code == 200
+    assert resp_no_auth.headers["content-type"] == "image/png"
+    assert resp_no_auth.content == sample_bytes
 
     # 4. 타인(사용자 99) 조회 시 403 Forbidden (IDOR 방어)
     resp_other = client.get(f"/api/vton/{fitting_id}/user-image", headers={"X-User-Id": "99"})
@@ -781,6 +832,7 @@ def test_background_vton_uses_custom_user_photo_bytes(tmp_path: Path) -> None:
         db_path=":memory:",
         storage_dir=str(test_storage),
         photos_dir=str(test_photos),
+        storage_backend="local",
     )
     reset_settings_for_tests(settings)
     repo = VtonRepository(db_path=":memory:")
@@ -793,14 +845,24 @@ def test_background_vton_uses_custom_user_photo_bytes(tmp_path: Path) -> None:
     photo_record = repo.save_user_photo(user_id=7, file_path=str(user_photo_file))
     photo_id = photo_record["photoId"]
 
-    mock_prod_client.resolve_product_item.return_value = {
-        "productId": 101,
-        "productName": "상의",
-        "price": 20000,
-        "imageUrl": "https://cdn.example.com/top.png",
-        "categoryName": "상의",
-        "imageBytes": _create_sample_png(),
-    }
+    mock_prod_client.resolve_product_item.side_effect = [
+        {
+            "productId": 101,
+            "productName": "상의",
+            "price": 20000,
+            "imageUrl": "https://cdn.example.com/top.png",
+            "categoryName": "상의",
+            "imageBytes": _create_sample_png(),
+        },
+        {
+            "productId": 201,
+            "productName": "하의",
+            "price": 30000,
+            "imageUrl": "https://cdn.example.com/bottom.png",
+            "categoryName": "하의",
+            "imageBytes": _create_sample_png(),
+        },
+    ]
 
     set_dependencies_for_tests(
         repo=repo,
@@ -808,14 +870,14 @@ def test_background_vton_uses_custom_user_photo_bytes(tmp_path: Path) -> None:
         notification_client=mock_notif_client,
     )
 
-    fitting_id = repo.create_fitting(user_id=7, photo_id=photo_id, product_ids=[101])
+    fitting_id = repo.create_fitting(user_id=7, photo_id=photo_id, product_ids=[101, 201])
 
     with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()) as mock_generate:
         _run_background_vton(
             fitting_id=fitting_id,
             user_id=7,
             photo_id=photo_id,
-            product_ids=[101],
+            product_ids=[101, 201],
             result_image_url="/api/vton/1/image",
         )
 
@@ -828,7 +890,7 @@ def test_background_vton_uses_custom_user_photo_bytes(tmp_path: Path) -> None:
         mock_notif_client.send_fitting_done.assert_called_once()
 
 
-def test_background_vton_fallback_bottom_when_missing(tmp_path: Path) -> None:
+def test_background_vton_fallback_shoes_when_missing(tmp_path: Path) -> None:
     test_storage = tmp_path / "fittings"
     test_storage.mkdir(parents=True, exist_ok=True)
     settings = Settings(
@@ -840,11 +902,66 @@ def test_background_vton_fallback_bottom_when_missing(tmp_path: Path) -> None:
     mock_prod_client = MagicMock(spec=ProductServiceClient)
     mock_notif_client = MagicMock(spec=NotificationServiceClient)
 
-    # 오직 상의(101)만 요청한 경우
+    # 상의(101)와 하의(201)를 요청한 경우 (신발 누락)
+    mock_prod_client.resolve_product_item.side_effect = [
+        {
+            "productId": 101,
+            "productName": "기본 상의",
+            "price": 25000,
+            "imageUrl": "https://cdn.example.com/top.png",
+            "categoryName": "상의",
+            "imageBytes": _create_sample_png(),
+        },
+        {
+            "productId": 201,
+            "productName": "기본 하의",
+            "price": 35000,
+            "imageUrl": "https://cdn.example.com/bottom.png",
+            "categoryName": "하의",
+            "imageBytes": _create_sample_png(),
+        },
+    ]
+
+    set_dependencies_for_tests(
+        repo=repo,
+        product_client=mock_prod_client,
+        notification_client=mock_notif_client,
+    )
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101, 201])
+
+    with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()) as mock_generate:
+        _run_background_vton(
+            fitting_id=fitting_id,
+            user_id=7,
+            photo_id=None,
+            product_ids=[101, 201],
+            result_image_url="/api/vton/1/image",
+        )
+
+        assert mock_generate.called
+        kwargs = mock_generate.call_args.kwargs
+        categories = kwargs["categories"]
+        # AI 생성에는 상의 + 하의 + 필수 3종 중 누락된 신발 폴백 = 총 3개 전달
+        assert "상의" in categories
+        assert "하의" in categories
+        assert "신발" in categories
+
+        # DB에는 사용자가 실제 요청한 2개 상품만 저장됨
+        detail = repo.get_fitting_detail(fitting_id)
+        assert detail is not None
+        assert len(detail["products"]) == 2
+
+
+def test_background_vton_fails_when_fewer_than_2_categories() -> None:
+    repo = VtonRepository(db_path=":memory:")
+    mock_prod_client = MagicMock(spec=ProductServiceClient)
+    mock_notif_client = MagicMock(spec=NotificationServiceClient)
+
     mock_prod_client.resolve_product_item.return_value = {
         "productId": 101,
-        "productName": "기본 상의",
-        "price": 25000,
+        "productName": "상의",
+        "price": 20000,
         "imageUrl": "https://cdn.example.com/top.png",
         "categoryName": "상의",
         "imageBytes": _create_sample_png(),
@@ -858,27 +975,20 @@ def test_background_vton_fallback_bottom_when_missing(tmp_path: Path) -> None:
 
     fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
 
-    with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()) as mock_generate:
-        _run_background_vton(
+    with patch("app.api.vton.generate_tryon_image") as mock_generate:
+        success = _run_background_vton(
             fitting_id=fitting_id,
             user_id=7,
             photo_id=None,
             product_ids=[101],
             result_image_url="/api/vton/1/image",
         )
-
-        assert mock_generate.called
-        kwargs = mock_generate.call_args.kwargs
-        categories = kwargs["categories"]
-        # AI 생성에는 상의 1개 + 기본 하의 폴백 1개 = 총 2개 전달
-        assert "상의" in categories
-        assert "하의" in categories
-
-        # DB에는 사용자가 실제 요청한 상의(101)만 저장되고, 폴백 하의(0번 가짜 상품)는 저장되지 않아야 함
+        assert success is False
+        mock_generate.assert_not_called()
         detail = repo.get_fitting_detail(fitting_id)
         assert detail is not None
-        assert len(detail["products"]) == 1
-        assert detail["products"][0]["productId"] == 101
+        assert detail["status"] == "FAILED"
+        assert "최소 2개" in detail["errorMessage"]
 
 
 def test_background_vton_fails_when_user_photo_file_missing() -> None:
@@ -890,14 +1000,24 @@ def test_background_vton_fails_when_user_photo_file_missing() -> None:
     photo_record = repo.save_user_photo(user_id=7, file_path="/non/existent/path/photo.png")
     photo_id = photo_record["photoId"]
 
-    mock_prod_client.resolve_product_item.return_value = {
-        "productId": 101,
-        "productName": "상의",
-        "price": 20000,
-        "imageUrl": "https://cdn.example.com/top.png",
-        "categoryName": "상의",
-        "imageBytes": _create_sample_png(),
-    }
+    mock_prod_client.resolve_product_item.side_effect = [
+        {
+            "productId": 101,
+            "productName": "상의",
+            "price": 20000,
+            "imageUrl": "https://cdn.example.com/top.png",
+            "categoryName": "상의",
+            "imageBytes": _create_sample_png(),
+        },
+        {
+            "productId": 201,
+            "productName": "하의",
+            "price": 30000,
+            "imageUrl": "https://cdn.example.com/bottom.png",
+            "categoryName": "하의",
+            "imageBytes": _create_sample_png(),
+        },
+    ]
 
     set_dependencies_for_tests(
         repo=repo,
@@ -905,14 +1025,14 @@ def test_background_vton_fails_when_user_photo_file_missing() -> None:
         notification_client=mock_notif_client,
     )
 
-    fitting_id = repo.create_fitting(user_id=7, photo_id=photo_id, product_ids=[101])
+    fitting_id = repo.create_fitting(user_id=7, photo_id=photo_id, product_ids=[101, 201])
 
     with patch("app.api.vton.generate_tryon_image") as mock_generate:
         _run_background_vton(
             fitting_id=fitting_id,
             user_id=7,
             photo_id=photo_id,
-            product_ids=[101],
+            product_ids=[101, 201],
             result_image_url="/api/vton/1/image",
         )
 
@@ -1028,6 +1148,24 @@ def test_resolve_product_item_prefers_normal_price() -> None:
         assert item["price"] == 26100  # price 폴백 확인
 
 
+def test_resolve_product_item_raises_when_not_found_in_qdrant() -> None:
+    from app.services.vton_generator import VtonValidationError
+
+    client = ProductServiceClient()
+    with patch.object(client, "get_product", return_value=None):
+        with pytest.raises(VtonValidationError, match="존재하지 않거나 지원하지 않는 상품입니다"):
+            client.resolve_product_item(product_id=9999999)
+
+
+def test_resolve_product_item_raises_when_category_unsupported() -> None:
+    from app.services.vton_generator import VtonValidationError
+
+    client = ProductServiceClient()
+    with patch.object(client, "get_product", return_value={"categoryL1Name": "가방"}):
+        with pytest.raises(VtonValidationError, match="지원하지 않거나 유효하지 않은 상품 카테고리"):
+            client.resolve_product_item(product_id=123)
+
+
 
 def test_post_vton_with_request_id_json_and_get_detail() -> None:
     client = TestClient(app)
@@ -1038,7 +1176,7 @@ def test_post_vton_with_request_id_json_and_get_detail() -> None:
         resp = client.post(
             "/api/vton",
             json={
-                "items": [{"productId": 101}],
+                "items": [{"productId": 101}, {"productId": 201}],
                 "requestId": 6,
             },
             headers={"X-User-Id": "7"},
@@ -1069,7 +1207,7 @@ def test_post_vton_with_request_id_multipart_and_get_detail() -> None:
     fake_png = _create_sample_png()
     files = {"userImage": ("face.png", fake_png, "image/png")}
     data = {
-        "items": json.dumps([{"productId": 101}]),
+        "items": json.dumps([{"productId": 101}, {"productId": 201}]),
         "requestId": "15",
     }
 
@@ -1098,7 +1236,7 @@ def test_post_vton_with_invalid_multipart_request_id_returns_400() -> None:
     fake_png = _create_sample_png()
     files = {"userImage": ("face.png", fake_png, "image/png")}
     data = {
-        "items": json.dumps([{"productId": 101}]),
+        "items": json.dumps([{"productId": 101}, {"productId": 201}]),
         "requestId": "invalid_number",
     }
 
@@ -1177,6 +1315,108 @@ def test_fitting_image_endpoint_idor_security_and_s3_redirect(tmp_path: Path) ->
     assert resp_ok.status_code == 307
     assert resp_ok.headers["location"] == presigned_target
     assert resp_ok.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+
+    set_dependencies_for_tests(None, None, None, None)
+
+
+def test_fitting_image_endpoint_local_storage_serves_without_auth(tmp_path: Path, monkeypatch: Any) -> None:
+    repo = VtonRepository(db_path=":memory:")
+    mock_storage = MagicMock()
+    mock_storage.is_s3 = False
+
+    # 임시 storage_dir 설정 및 가짜 PNG 파일 생성
+    fake_png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+    storage_dir = tmp_path / "fittings"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "storage_dir", str(storage_dir))
+
+    set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
+    client = TestClient(app)
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
+    repo.mark_completed(fitting_id, result_image_url=f"/api/vton/{fitting_id}/image")
+
+    image_file = storage_dir / f"{fitting_id}.png"
+    image_file.write_bytes(fake_png_bytes)
+
+    # 1. 브라우저 <img> 태그처럼 X-User-Id 헤더가 없는 GET 요청 시 200 OK로 이미지 반환
+    resp_no_auth = client.get(f"/api/vton/{fitting_id}/image")
+    assert resp_no_auth.status_code == 200
+    assert resp_no_auth.headers["content-type"] == "image/png"
+    assert resp_no_auth.content == fake_png_bytes
+
+    # 2. X-User-Id 헤더가 있는 요청 시에도 정상 200 OK
+    resp_with_auth = client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "7"})
+    assert resp_with_auth.status_code == 200
+    assert resp_with_auth.content == fake_png_bytes
+
+    set_dependencies_for_tests(None, None, None, None)
+
+
+def test_vton_warnings_and_required_optional_policy() -> None:
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    mock_prod_client = MagicMock(spec=ProductServiceClient)
+    mock_notif_client = MagicMock(spec=NotificationServiceClient)
+
+    # 1. 상의만 요청 (하의, 신발 누락) + 아우터는 이미지 다운로드 실패(imageBytes=None)
+    mock_prod_client.resolve_product_item.side_effect = [
+        {
+            "productId": 101,
+            "productName": "기본 티셔츠",
+            "price": 20000,
+            "imageUrl": "https://cdn.example.com/top.png",
+            "categoryName": "상의",
+            "imageBytes": _create_sample_png(),
+        },
+        {
+            "productId": 201,
+            "productName": "겨울 패딩",
+            "price": 99000,
+            "imageUrl": "https://cdn.example.com/broken_outer.png",
+            "categoryName": "아우터",
+            "imageBytes": None,  # 다운로드 실패
+        },
+    ]
+
+    set_dependencies_for_tests(
+        repo=repo,
+        product_client=mock_prod_client,
+        notification_client=mock_notif_client,
+    )
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101, 201])
+
+    with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()) as mock_gen:
+        completed = _run_background_vton(
+            fitting_id=fitting_id,
+            user_id=7,
+            photo_id=None,
+            product_ids=[101, 201],
+            result_image_url=f"/api/vton/{fitting_id}/image",
+        )
+        assert completed is True
+
+        # AI 생성 호출 인자 검증:
+        # 1. 아우터는 제외되어야 함
+        # 2. 필수 누락 카테고리인 [하의, 신발]은 기본 샘플 에셋으로 추가되어야 함
+        gen_categories = mock_gen.call_args.kwargs["categories"]
+        assert "상의" in gen_categories
+        assert "하의" in gen_categories
+        assert "신발" in gen_categories
+        assert "아우터" not in gen_categories  # 제외됨!
+
+    # 3. GET /api/vton/{fittingId} 응답에서 warnings 확인
+    resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "COMPLETED"
+    warnings = data.get("warnings") or []
+    assert any("아우터" in w and "제외" in w for w in warnings)
+    assert any("하의" in w and "기본 에셋으로 보완" in w for w in warnings)
+    assert any("신발" in w and "기본 에셋으로 보완" in w for w in warnings)
 
     set_dependencies_for_tests(None, None, None, None)
 

@@ -9,6 +9,7 @@ from qdrant_client.http import models
 
 from pydantic import ValidationError
 
+from app.clients.storage_client import get_storage_client
 from app.core.config import get_settings
 from app.schemas.recommendation import (
     PersonalizedPageResponse,
@@ -41,8 +42,17 @@ class PersonalizedFeedService:
         vector_engine: Optional[PersonalizedVectorEngine] = None,
         history_collector: Optional[UserHistoryCollector] = None,
         qdrant_url: Optional[str] = None,
+        storage_client: Optional[Any] = None,
+        product_client: Optional[Any] = None,
     ) -> None:
         settings = get_settings()
+        self.storage_client = storage_client or get_storage_client()
+        if product_client is not None:
+            self.product_client = product_client
+        else:
+            from app.clients.product_client import ProductServiceClient
+
+            self.product_client = ProductServiceClient(settings=settings)
         self.collection_name = (
             collection_name or settings.qdrant_collection_name or "musinsa_products"
         )
@@ -142,7 +152,12 @@ class PersonalizedFeedService:
                 productName=str(payload.get("product_name") or ""),
                 brandName=payload.get("brand_name"),
                 price=int(payload.get("price") or 0),
-                thumbnailUrl=payload.get("image_url"),
+                thumbnailUrl=(
+                    self.storage_client.get_presigned_url(
+                        payload.get("image_key") or payload.get("image_url")
+                    )
+                    or None
+                ),
                 status="ON_SALE",
                 category=payload.get("category"),
                 wished=(pid in wished_ids),
@@ -204,12 +219,14 @@ class PersonalizedFeedService:
         wishlist_set = set(history.wishlist_product_ids)
 
         # 4. 5대 카테고리 비동기 동시 병렬 검색 (asyncio.gather)
+        # 품절/숨김 상품 필터링을 고려하여 카테고리당 충분한 후보군(예: 30개) 조회
+        candidate_limit = max(self.ITEMS_PER_CATEGORY * 2, 30)
         tasks = [
             asyncio.to_thread(
                 self.search_category_candidates,
                 taste_vector=taste_vector,
                 category=cat,
-                limit=self.ITEMS_PER_CATEGORY,
+                limit=candidate_limit,
                 exclude_pids=exclude_pids,
                 wishlist_set=wishlist_set,
             )
@@ -217,15 +234,45 @@ class PersonalizedFeedService:
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        category_buckets: dict[str, list[PersonalizedProductItem]] = {}
+        raw_category_buckets: dict[str, list[PersonalizedProductItem]] = {}
+        all_candidate_pids: list[int] = []
         for cat, res in zip(self.CATEGORIES, results):
             if isinstance(res, list):
-                category_buckets[cat] = res
+                raw_category_buckets[cat] = res
+                all_candidate_pids.extend([item.productId for item in res])
             else:
                 logger.error("카테고리 %s 비동기 검색 실패: %s", cat, res)
-                category_buckets[cat] = []
+                raw_category_buckets[cat] = []
 
-        # 5. 인터리빙 결합
+        # 5. product-service에서 상품 실제 판매 상태(status) 비동기 일괄 조회 및 ON_SALE 필터링
+        statuses = await self.product_client.get_product_statuses_async(all_candidate_pids)
+        category_buckets: dict[str, list[PersonalizedProductItem]] = {}
+
+        if statuses is None:
+            # Fallback 1: product-service 미설정 또는 장애 시 가용성 우선으로 기본 ON_SALE 간주
+            logger.warning(
+                "product-service 상품 상태 조회 실패 또는 미설정 -> 가용성 우선 Fallback 적용 (기본 ON_SALE 간주)"
+            )
+            for cat, items in raw_category_buckets.items():
+                fallback_items = []
+                for it in items[: self.ITEMS_PER_CATEGORY]:
+                    it.status = "ON_SALE"
+                    fallback_items.append(it)
+                category_buckets[cat] = fallback_items
+        else:
+            # 정상 조회 시: status == 'ON_SALE' 상품만 필터링하여 카테고리별 상위 16개 선택
+            for cat, items in raw_category_buckets.items():
+                on_sale_items = []
+                for it in items:
+                    current_status = statuses.get(it.productId)
+                    if current_status == "ON_SALE":
+                        it.status = "ON_SALE"
+                        on_sale_items.append(it)
+                        if len(on_sale_items) >= self.ITEMS_PER_CATEGORY:
+                            break
+                category_buckets[cat] = on_sale_items
+
+        # 6. 인터리빙 결합
         interleaved_feed = self.interleave_categories(
             category_buckets=category_buckets,
             order=self.CATEGORIES,

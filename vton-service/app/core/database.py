@@ -121,6 +121,7 @@ class VtonRepository:
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS request_id BIGINT;
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER NOT NULL DEFAULT 0;
                             ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS completion_tokens INTEGER NOT NULL DEFAULT 0;
+                            ALTER TABLE {schema}.fittings ADD COLUMN IF NOT EXISTS warnings TEXT;
 
                             CREATE INDEX IF NOT EXISTS idx_fittings_user_created
                                 ON {schema}.fittings (user_id, fitting_id DESC);
@@ -185,6 +186,7 @@ class VtonRepository:
                             prompt_tokens INTEGER NOT NULL DEFAULT 0,
                             completion_tokens INTEGER NOT NULL DEFAULT 0,
                             is_deleted INTEGER NOT NULL DEFAULT 0,
+                            warnings TEXT,
                             created_at TEXT NOT NULL,
                             updated_at TEXT NOT NULL
                         );
@@ -201,6 +203,8 @@ class VtonRepository:
                         cur.execute("ALTER TABLE fittings ADD COLUMN prompt_tokens INTEGER NOT NULL DEFAULT 0;")
                     if "completion_tokens" not in columns:
                         cur.execute("ALTER TABLE fittings ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0;")
+                    if "warnings" not in columns:
+                        cur.execute("ALTER TABLE fittings ADD COLUMN warnings TEXT;")
 
                     cur.execute(
                         """
@@ -392,8 +396,10 @@ class VtonRepository:
         result_image_url: str,
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
+        warnings: list[str] | None = None,
     ) -> None:
         now = self._now_iso()
+        warnings_json = json.dumps(warnings, ensure_ascii=False) if warnings else None
         if self._use_postgres:
             schema = self.postgres_schema
             with self._lock:
@@ -406,10 +412,11 @@ class VtonRepository:
                                 result_image_url = %s,
                                 prompt_tokens = %s,
                                 completion_tokens = %s,
+                                warnings = %s,
                                 updated_at = %s
                             WHERE fitting_id = %s;
                             """,
-                            (result_image_url, prompt_tokens, completion_tokens, now, fitting_id),
+                            (result_image_url, prompt_tokens, completion_tokens, warnings_json, now, fitting_id),
                         )
                         conn.commit()
         else:
@@ -424,10 +431,11 @@ class VtonRepository:
                             result_image_url = ?,
                             prompt_tokens = ?,
                             completion_tokens = ?,
+                            warnings = ?,
                             updated_at = ?
                         WHERE fitting_id = ?;
                         """,
-                        (result_image_url, prompt_tokens, completion_tokens, now, fitting_id),
+                        (result_image_url, prompt_tokens, completion_tokens, warnings_json, now, fitting_id),
                     )
                     conn.commit()
                 finally:
@@ -541,7 +549,7 @@ class VtonRepository:
                         query = f"""
                             SELECT fitting_id, user_id, photo_id, request_id, status,
                                    result_image_url, error_message, prompt_tokens, completion_tokens,
-                                   is_deleted, created_at, updated_at
+                                   is_deleted, warnings, created_at, updated_at
                             FROM {schema}.fittings
                             WHERE fitting_id = %s
                         """
@@ -570,7 +578,7 @@ class VtonRepository:
                     query = """
                         SELECT fitting_id, user_id, photo_id, request_id, status,
                                result_image_url, error_message, prompt_tokens, completion_tokens,
-                               is_deleted, created_at, updated_at
+                               is_deleted, warnings, created_at, updated_at
                         FROM fittings
                         WHERE fitting_id = ?
                     """
@@ -606,6 +614,16 @@ class VtonRepository:
             for r in product_rows
         ]
 
+        raw_warnings = fitting_row.get("warnings")
+        parsed_warnings: list[str] = []
+        if raw_warnings:
+            try:
+                parsed = json.loads(raw_warnings)
+                if isinstance(parsed, list):
+                    parsed_warnings = [str(x) for x in parsed]
+            except Exception:
+                pass
+
         return {
             "fittingId": int(fitting_row["fitting_id"]),
             "userId": int(fitting_row["user_id"]),
@@ -614,6 +632,7 @@ class VtonRepository:
             "status": fitting_row["status"],
             "resultImageUrl": fitting_row["result_image_url"],
             "errorMessage": fitting_row["error_message"],
+            "warnings": parsed_warnings,
             "promptTokens": int(fitting_row.get("prompt_tokens") or 0),
             "completionTokens": int(fitting_row.get("completion_tokens") or 0),
             "isDeleted": bool(fitting_row.get("is_deleted", False)),

@@ -36,7 +36,7 @@ public class ProductInternalController {
 
     @Operation(summary = "상품 요약 일괄 조회", description = "상품 ID 목록에 해당하는 요약 정보를 요청 순서대로 반환한다. 존재하지 않는 ID는 제외한다.")
     @ApiResponse(responseCode = "200", description = "조회 성공")
-    @ServiceApi(callers = ServiceCallers.COMMUNITY)
+    @ServiceApi(callers = {ServiceCallers.COMMUNITY, ServiceCallers.RECOMMENDATION})
     @GetMapping
     public List<ProductSummaryResponse> getProductSummaries(
             @Parameter(description = "상품 ID 목록(쉼표 구분 또는 반복 파라미터)", example = "1,2,3")

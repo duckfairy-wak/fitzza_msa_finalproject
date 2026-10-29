@@ -258,3 +258,105 @@ async def test_get_personalized_feed_page_corrupted_cache_fallback():
     assert page.content[0].productId == 999
 
 
+@pytest.mark.anyio
+async def test_product_client_get_product_statuses_async():
+    """product-service 상품 상태 일괄 비동기 조회 및 청킹 검증"""
+    import httpx
+    from app.clients.product_client import ProductServiceClient
+    from app.core.config import Settings
+
+    settings = Settings(
+        product_service_url="http://mock-product:8081",
+        recommendation_service_token="test-recommendation-token-with-sufficient-bytes-12345",
+    )
+    client = ProductServiceClient(settings=settings)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = [
+        {"productId": 101, "status": "ON_SALE"},
+        {"productId": 102, "status": "SOLD_OUT"},
+        {"productId": 103, "status": "HIDDEN"},
+    ]
+
+    with patch("httpx.AsyncClient.get", AsyncMock(return_value=mock_resp)):
+        statuses = await client.get_product_statuses_async([101, 102, 103])
+
+    assert statuses == {101: "ON_SALE", 102: "SOLD_OUT", 103: "HIDDEN"}
+
+
+@pytest.mark.anyio
+async def test_personalized_feed_filters_out_non_on_sale_products():
+    """SOLD_OUT 및 HIDDEN 상품이 추천 피드에서 제외되고 ON_SALE 상품만 남는지 검증"""
+    mock_prod_client = MagicMock()
+    # 100: ON_SALE, 101: SOLD_OUT, 102: HIDDEN
+    mock_prod_client.get_product_statuses_async = AsyncMock(
+        return_value={
+            100: "ON_SALE",
+            101: "SOLD_OUT",
+            102: "HIDDEN",
+        }
+    )
+
+    mock_collector = MagicMock()
+    mock_collector.collect_user_history_async = AsyncMock(return_value=UserActionHistory(user_id=1))
+    mock_engine = MagicMock()
+    mock_engine.compute_user_taste_vector.return_value = [0.1] * 512
+
+    service = PersonalizedFeedService(
+        qdrant_client=MagicMock(),
+        vector_engine=mock_engine,
+        history_collector=mock_collector,
+        product_client=mock_prod_client,
+    )
+
+    # 각 카테고리별로 100, 101, 102 세 개 상품 반환
+    def fake_search(taste_vector, category, limit, exclude_pids, wishlist_set):
+        return [
+            _make_dummy_item(100, category),
+            _make_dummy_item(101, category),
+            _make_dummy_item(102, category),
+        ]
+
+    with patch.object(service, "search_category_candidates", side_effect=fake_search):
+        feed, _ = await service.generate_personalized_feed_items(user_id=1)
+
+    # 101(SOLD_OUT), 102(HIDDEN)은 제외되고 오직 100(ON_SALE)만 남아야 함 (5개 카테고리 * 1개 = 5개)
+    assert len(feed) == 5
+    for item in feed:
+        assert item.productId == 100
+        assert item.status == "ON_SALE"
+
+
+@pytest.mark.anyio
+async def test_personalized_feed_fallback_on_product_service_down():
+    """product-service 통신 실패 시 가용성 우선 Fallback(기본 ON_SALE 간주) 검증"""
+    mock_prod_client = MagicMock()
+    # product-service 다운 시 None 반환
+    mock_prod_client.get_product_statuses_async = AsyncMock(return_value=None)
+
+    mock_collector = MagicMock()
+    mock_collector.collect_user_history_async = AsyncMock(return_value=UserActionHistory(user_id=1))
+    mock_engine = MagicMock()
+    mock_engine.compute_user_taste_vector.return_value = [0.1] * 512
+
+    service = PersonalizedFeedService(
+        qdrant_client=MagicMock(),
+        vector_engine=mock_engine,
+        history_collector=mock_collector,
+        product_client=mock_prod_client,
+    )
+
+    def fake_search(taste_vector, category, limit, exclude_pids, wishlist_set):
+        return [_make_dummy_item(200 + i, category) for i in range(2)]
+
+    with patch.object(service, "search_category_candidates", side_effect=fake_search):
+        feed, _ = await service.generate_personalized_feed_items(user_id=1)
+
+    # 서비스가 중단되지 않고 10개 상품 모두 ON_SALE로 유지되어 반환
+    assert len(feed) == 10
+    for item in feed:
+        assert item.status == "ON_SALE"
+
+
+

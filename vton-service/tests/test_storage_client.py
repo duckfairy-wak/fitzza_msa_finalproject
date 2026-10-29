@@ -344,11 +344,20 @@ def test_api_s3_upload_and_serving(tmp_path: Path) -> None:
 
     # 1. Request fitting with userImage via multipart form
     png_data = _create_sample_png()
-    with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()):
+    with patch("app.api.vton.generate_tryon_image", return_value=_create_sample_png()), patch.object(
+        prod_client,
+        "get_product",
+        side_effect=lambda pid, **kw: {
+            "productName": "테스트 상의" if pid == 101 else "테스트 하의",
+            "price": 30000,
+            "thumbnailUrl": f"pipeline/test/{pid}.jpg",
+            "categoryL1Name": "상의" if pid == 101 else "하의",
+        },
+    ):
         response = client.post(
             "/api/vton",
             headers={"X-User-Id": "100"},
-            data={"productIds": "[101]"},
+            data={"productIds": "[101, 201]"},
             files={"userImage": ("face.png", png_data, "image/png")},
         )
         assert response.status_code == 202
@@ -402,3 +411,198 @@ def test_api_s3_upload_and_serving(tmp_path: Path) -> None:
     # Cleanup dependencies
     set_dependencies_for_tests(None, None, None, None)
     reset_settings_for_tests(None)
+
+
+def test_get_presigned_url_external_musinsa_bypass() -> None:
+    s_s3 = Settings(storage_backend="s3", aws_s3_bucket_name="fitzza-prod")
+    client = StorageClient(s_s3)
+    mock_s3 = MagicMock()
+    client._s3_client = mock_s3
+
+    musinsa_url = "https://image.msscdn.net/images/goods_img/20231012/123/123_1_500.jpg"
+    res = client.get_presigned_url(musinsa_url)
+    assert res == musinsa_url
+    mock_s3.generate_presigned_url.assert_not_called()
+
+
+def test_get_presigned_url_in_memory_cache() -> None:
+    s_s3 = Settings(storage_backend="s3", aws_s3_bucket_name="fitzza-prod")
+    client = StorageClient(s_s3)
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url.return_value = "https://fitzza-prod.s3.amazonaws.com/test.png?sig=123"
+    client._s3_client = mock_s3
+
+    s3_key = "pipeline/runs/run-01/images/products/101/001.jpg"
+    res1 = client.get_presigned_url(s3_key)
+    assert res1 == "https://fitzza-prod.s3.amazonaws.com/test.png?sig=123"
+    assert mock_s3.generate_presigned_url.call_count == 1
+
+    # Second call should use cache
+    res2 = client.get_presigned_url(s3_key)
+    assert res2 == res1
+    assert mock_s3.generate_presigned_url.call_count == 1
+
+
+def test_product_client_fetch_product_image_from_s3() -> None:
+    settings = Settings(storage_backend="s3", aws_s3_bucket_name="fitzza-prod")
+    storage = StorageClient(settings)
+    sample_png = _create_sample_png()
+
+    mock_s3 = MagicMock()
+    mock_body = MagicMock()
+    mock_body.read.return_value = sample_png
+    mock_s3.get_object.return_value = {"Body": mock_body}
+    storage._s3_client = mock_s3
+
+    prod_client = ProductServiceClient(settings=settings, storage_client=storage)
+
+    # 1. S3 Object Key
+    s3_key = "pipeline/runs/run-01/images/products/101/001.jpg"
+    bytes_out = prod_client.fetch_product_image_bytes(s3_key)
+    assert bytes_out is not None
+    assert len(bytes_out) > 0
+    mock_s3.get_object.assert_called_with(Bucket="fitzza-prod", Key=s3_key)
+
+    # 2. S3 URL
+    s3_url = f"https://fitzza-prod.s3.ap-northeast-2.amazonaws.com/{s3_key}"
+    bytes_out2 = prod_client.fetch_product_image_bytes(s3_url)
+    assert bytes_out2 is not None
+
+    # 3. S3 Presigned URL with query params & databucket
+    presigned_url = (
+        f"https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/{s3_key}"
+        "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAR...&X-Amz-Date=20261028"
+    )
+    bytes_out3 = prod_client.fetch_product_image_bytes(presigned_url)
+    assert bytes_out3 is not None
+    mock_s3.get_object.assert_called_with(
+        Bucket="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+        Key=s3_key,
+    )
+
+
+def test_product_client_qdrant_direct_lookup() -> None:
+    settings = Settings(
+        product_service_url="http://offline-product-service:8082",
+        qdrant_url="http://mock-qdrant:6333",
+        qdrant_collection_name="musinsa_products",
+        storage_backend="local",
+    )
+    prod_client = ProductServiceClient(settings=settings)
+
+    mock_qdrant_response = MagicMock()
+    mock_qdrant_response.status_code = 200
+    mock_qdrant_response.json.return_value = {
+        "result": {
+            "points": [
+                {
+                    "id": "point-1",
+                    "payload": {
+                        "product_id": 4479884,
+                        "product_name": "스니커즈",
+                        "category": "신발",
+                        "price": 77000,
+                        "image_key": "pipeline/runs/collection-20261025-01/images/products/4479884/001.jpg",
+                    },
+                }
+            ]
+        }
+    }
+
+    with patch("httpx.Client.get") as mock_get, patch(
+        "httpx.Client.post", return_value=mock_qdrant_response
+    ) as mock_post:
+        item = prod_client.resolve_product_item(product_id=4479884, fallback_category="상의")
+        assert item["productId"] == 4479884
+        assert item["productName"] == "스니커즈"
+        assert item["price"] == 77000
+        assert item["categoryName"] == "신발"  # Qdrant category used instead of fallback_category!
+        assert mock_post.called
+        assert not mock_get.called
+
+
+def test_supported_categories_priority() -> None:
+    from app.services.vton_generator import SUPPORTED_CATEGORIES
+
+    assert SUPPORTED_CATEGORIES == ("상의", "하의", "신발", "아우터", "모자")
+
+
+def test_product_client_qdrant_error_differentiation() -> None:
+    """Qdrant 5xx 또는 네트워크 장애 시 ProductLookupUnavailableError를 발생시키고, 404/Empty 시 None을 반환하는지 검증."""
+    import httpx
+    from app.clients.product_client import ProductLookupUnavailableError
+
+    settings = Settings(
+        qdrant_url="http://localhost:6333",
+        qdrant_collection_name="musinsa_products",
+    )
+    prod_client = ProductServiceClient(settings=settings)
+
+    # 1. 500 일시 서버 장애 -> ProductLookupUnavailableError 발생 (SQS 재시도 대상)
+    mock_500_resp = MagicMock()
+    mock_500_resp.status_code = 500
+    with patch("httpx.Client.post", return_value=mock_500_resp):
+        with pytest.raises(ProductLookupUnavailableError):
+            prod_client.get_product(product_id=9999)
+
+    # 2. Timeout 네트워크 장애 -> ProductLookupUnavailableError 발생 (SQS 재시도 대상)
+    with patch("httpx.Client.post", side_effect=httpx.ConnectTimeout("Connection timeout")):
+        with pytest.raises(ProductLookupUnavailableError):
+            prod_client.get_product(product_id=9999)
+
+    # 3. 404 또는 points 없음 -> 정상적으로 None 반환 (VtonValidationError로 처리되어 Ack/삭제)
+    mock_404_resp = MagicMock()
+    mock_404_resp.status_code = 404
+    with patch("httpx.Client.post", return_value=mock_404_resp):
+        result = prod_client.get_product(product_id=9999)
+        assert result is None
+
+    mock_empty_resp = MagicMock()
+    mock_empty_resp.status_code = 200
+    mock_empty_resp.json.return_value = {"result": {"points": []}}
+    with patch("httpx.Client.post", return_value=mock_empty_resp):
+        result = prod_client.get_product(product_id=9999)
+        assert result is None
+
+
+def test_validate_override_image_url_security() -> None:
+    """override_image_url의 SSRF, 사설 IP, 비인가 도메인, file:// 스킴 차단 검증."""
+    settings = Settings(
+        aws_s3_bucket_name="fitzza-prod-assets-vton",
+        cloudfront_domain="https://cdn.fitzza.com",
+    )
+    prod_client = ProductServiceClient(settings=settings)
+
+    # 1. 허용 케이스 (정상 무신사 CDN, 자체 버킷 S3 URL, 자체 CloudFront URL)
+    assert prod_client._validate_override_image_url("https://image.msscdn.net/images/goods_img/green.jpg") is True
+    assert prod_client._validate_override_image_url("https://fitzza-prod-assets-vton.s3.ap-northeast-2.amazonaws.com/pipeline/run/001.jpg") is True
+    assert prod_client._validate_override_image_url("https://s3.ap-northeast-2.amazonaws.com/fitzza-prod-assets-vton/pipeline/run/001.jpg") is True
+    assert prod_client._validate_override_image_url("https://cdn.fitzza.com/pipeline/run/001.jpg") is True
+
+    # 2. 로컬 파일 및 비인가 스킴 차단
+    assert prod_client._validate_override_image_url("file:///etc/passwd") is False
+    assert prod_client._validate_override_image_url("/var/data/fittings/1.png") is False
+    assert prod_client._validate_override_image_url("data:image/png;base64,xxxx") is False
+
+    # 3. AWS 메타데이터 및 루프백 SSRF 차단
+    assert prod_client._validate_override_image_url("http://169.254.169.254/latest/meta-data/") is False
+    assert prod_client._validate_override_image_url("http://localhost:8080/internal") is False
+    assert prod_client._validate_override_image_url("http://127.0.0.1:6333/dashboard") is False
+
+    # 4. 사설 IP 대역 차단
+    assert prod_client._validate_override_image_url("http://10.0.0.1/admin") is False
+    assert prod_client._validate_override_image_url("http://172.16.1.5/keys") is False
+    assert prod_client._validate_override_image_url("http://192.168.1.1/secret") is False
+
+    # 5. 타사 임의 S3 버킷 및 비인가 도메인 차단
+    assert prod_client._validate_override_image_url("https://malicious-bucket.s3.amazonaws.com/evil.png") is False
+    assert prod_client._validate_override_image_url("https://evil-attacker.com/image.png") is False
+    # 공격자 도메인의 S3 서브도메인 우회 시도 차단
+    assert prod_client._validate_override_image_url("https://fitzza-prod-assets-vton.s3.attacker.com/x.png") is False
+    assert prod_client._validate_override_image_url("https://s3.attacker.com/fitzza-prod-assets-vton/x.png") is False
+    assert prod_client._validate_override_image_url("https://fitzza-prod-assets-vton.other.s3.amazonaws.com/x.png") is False
+    # 공식 무신사 S3 허용 목록 확인
+    assert prod_client._validate_override_image_url("https://musinsa-images.s3.ap-northeast-2.amazonaws.com/goods/123.jpg") is True
+
+
+

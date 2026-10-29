@@ -181,7 +181,10 @@ vton-service/            FastAPI 가상 피팅 작업 API
 recommendation-service/  FastAPI 추천 API
 infra/                   PostgreSQL 초기화
 scripts/                 운영 보조 스크립트
+performance/             k6 시나리오(구매 여정 스모크 등). 본격 부하는 인프라 합의 후
 ```
+
+구매 API 스모크는 [performance/README.md](performance/README.md)의 `purchase_flow.js`를 따른다. 기본은 VU 1회이며 운영 ALB에 큰 부하는 올리지 않는다.
 
 크롤러에서 Jev 색상 정규화로 전달하는 데이터 계약은 [infra/data-pipeline/README.md](infra/data-pipeline/README.md)를 따릅니다.
 

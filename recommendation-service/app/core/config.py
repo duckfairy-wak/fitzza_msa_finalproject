@@ -118,6 +118,30 @@ class Settings:
     redis_socket_timeout: float = field(
         default_factory=lambda: float(os.getenv("REDIS_SOCKET_TIMEOUT", "2.0"))
     )
+    storage_backend: str = field(
+        default_factory=lambda: os.getenv("STORAGE_BACKEND", "local")
+    )
+    aws_s3_bucket_name: str = field(
+        default_factory=lambda: os.getenv("AWS_S3_BUCKET_NAME", "fitzza-prod-assets")
+    )
+    cloudfront_domain: str = field(
+        default_factory=lambda: os.getenv("CLOUDFRONT_DOMAIN", "")
+    )
+    aws_region: str = field(
+        default_factory=lambda: os.getenv("AWS_REGION", "ap-northeast-2")
+    )
+    aws_endpoint_url: str = field(
+        default_factory=lambda: os.getenv("AWS_ENDPOINT_URL", "")
+    )
+    aws_profile: str = field(
+        default_factory=lambda: os.getenv("AWS_PROFILE", "")
+    )
+    aws_access_key_id: str = field(
+        default_factory=lambda: os.getenv("AWS_ACCESS_KEY_ID", "")
+    )
+    aws_secret_access_key: str = field(
+        default_factory=lambda: os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    )
     def get_postgres_dsn(self) -> str | None:
         if self.database_url.strip():
             return self.database_url.strip()

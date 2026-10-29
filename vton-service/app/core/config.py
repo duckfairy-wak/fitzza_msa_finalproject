@@ -99,7 +99,7 @@ class Settings:
         default_factory=lambda: os.getenv("VTON_PUBLIC_BASE_URL", "")
     )
     storage_backend: str = field(
-        default_factory=lambda: os.getenv("VTON_STORAGE_BACKEND", "local")
+        default_factory=lambda: os.getenv("VTON_STORAGE_BACKEND", os.getenv("STORAGE_BACKEND", "local"))
     )
     aws_s3_bucket_name: str = field(
         default_factory=lambda: os.getenv("AWS_S3_BUCKET_NAME", "fitzza-prod-assets-vton")
@@ -110,6 +110,9 @@ class Settings:
     aws_region: str = field(
         default_factory=lambda: os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
     )
+    aws_profile: str = field(
+        default_factory=lambda: os.getenv("AWS_PROFILE", "")
+    )
     aws_access_key_id: str = field(
         default_factory=lambda: os.getenv("AWS_ACCESS_KEY_ID", "")
     )
@@ -118,6 +121,12 @@ class Settings:
     )
     cloudfront_domain: str = field(
         default_factory=lambda: os.getenv("CLOUDFRONT_DOMAIN", "")
+    )
+    qdrant_url: str = field(
+        default_factory=lambda: os.getenv("QDRANT_URL", "http://localhost:6333")
+    )
+    qdrant_collection_name: str = field(
+        default_factory=lambda: os.getenv("QDRANT_COLLECTION_NAME", "musinsa_products")
     )
     queue_backend: str = field(
         default_factory=lambda: os.getenv("VTON_QUEUE_BACKEND", os.getenv("QUEUE_BACKEND", "memory")).strip().lower()

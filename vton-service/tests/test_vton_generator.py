@@ -93,9 +93,15 @@ def test_bundled_avatar_and_sample_clothing_assets_load_as_valid_pngs() -> None:
     avatar_png = load_avatar_png()
     assert avatar_png.startswith(b"\x89PNG\r\n\x1a\n")
 
-    for category in SUPPORTED_CATEGORIES:
+    from app.services.vton_generator import ESSENTIAL_CATEGORIES, VtonValidationError
+
+    for category in ESSENTIAL_CATEGORIES:
         sample_png = load_sample_clothing_png(category)
         assert sample_png.startswith(b"\x89PNG\r\n\x1a\n")
+
+    for opt_category in ("아우터", "모자"):
+        with pytest.raises(VtonValidationError):
+            load_sample_clothing_png(opt_category)
 
 
 def test_generate_tryon_image_calls_openai_images_edit_and_decodes_png() -> None:

@@ -151,7 +151,7 @@ def test_api_produces_to_sqs_when_backend_is_sqs(tmp_path, mock_boto_sqs):
                 res = client.post(
                     "/api/vton",
                     headers={"X-User-Id": "10", "X-Request-Id": "trace-sqs-test"},
-                    json={"productIds": [101]},
+                    json={"productIds": [101, 201]},
                 )
                 assert res.status_code == 202
                 data = res.json()
@@ -163,7 +163,7 @@ def test_api_produces_to_sqs_when_backend_is_sqs(tmp_path, mock_boto_sqs):
                 call_body = json.loads(mock_boto_sqs.send_message.call_args.kwargs["MessageBody"])
                 assert call_body["fitting_id"] == fitting_id
                 assert call_body["user_id"] == 10
-                assert call_body["product_ids"] == [101]
+                assert call_body["product_ids"] == [101, 201]
                 assert call_body["request_id_header"] == "trace-sqs-test"
 
                 # In-memory background task was NOT invoked
@@ -334,7 +334,7 @@ def test_api_marks_fitting_failed_and_returns_502_when_sqs_send_fails(tmp_path, 
             res = client.post(
                 "/api/vton",
                 headers={"X-User-Id": "10"},
-                json={"productIds": [101]},
+                json={"productIds": [101, 201]},
             )
             assert res.status_code == 502
             items, total = repo.get_user_fittings(user_id=10, limit=10, offset=0)

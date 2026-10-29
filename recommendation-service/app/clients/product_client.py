@@ -272,3 +272,59 @@ class ProductServiceClient:
             )
             return []
 
+    async def get_product_statuses_async(
+        self,
+        product_ids: list[int],
+        request_id_header: str | None = None,
+    ) -> dict[int, str] | None:
+        """
+        product-service 내부 API(GET /products?productIds=...)를 호출하여
+        상품 ID별 판매 상태(ON_SALE, SOLD_OUT, HIDDEN)를 비동기 일괄 조회합니다.
+        product-service가 미설정되었거나 서버 장애/통신 오류 발생 시 None을 반환합니다 (Fallback 판단용).
+        """
+        distinct_ids = sorted({int(pid) for pid in product_ids if pid and int(pid) > 0})
+        if not distinct_ids:
+            return {}
+        if not self.is_configured:
+            return None
+
+        base_url = self.settings.product_service_url.rstrip("/")
+        url = f"{base_url}/products"
+        chunk_size = 100
+        headers = {
+            SERVICE_TOKEN_HEADER: self.settings.recommendation_service_token,
+        }
+        if request_id_header:
+            headers[REQUEST_ID_HEADER] = request_id_header
+
+        statuses: dict[int, str] = {}
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.http_timeout_seconds) as client:
+                for i in range(0, len(distinct_ids), chunk_size):
+                    chunk = distinct_ids[i : i + chunk_size]
+                    params = {"productIds": ",".join(str(pid) for pid in chunk)}
+                    resp = await client.get(url, params=params, headers=headers)
+                    if resp.status_code == 404:
+                        continue
+                    resp.raise_for_status()
+                    payload = resp.json()
+                    if isinstance(payload, list):
+                        for item in payload:
+                            if isinstance(item, dict) and item.get("productId") is not None:
+                                try:
+                                    pid = int(item["productId"])
+                                    status_val = str(item.get("status") or "")
+                                    statuses[pid] = status_val
+                                except (ValueError, TypeError):
+                                    continue
+            return statuses
+        except Exception as exc:
+            logger.warning(
+                "product-service 상품 상태 비동기 조회 실패 (productIds=%s): %s: %s",
+                distinct_ids,
+                type(exc).__name__,
+                exc,
+            )
+            return None
+
+

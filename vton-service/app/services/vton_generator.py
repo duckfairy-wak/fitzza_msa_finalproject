@@ -23,8 +23,10 @@ load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 DEFAULT_MODEL = "gpt-image-2.5-sunburst"
 
-# 지원하는 5대 표준 카테고리 (product-service의 categoryL1Name과 동일)
-SUPPORTED_CATEGORIES = ("상의", "하의", "아우터", "신발", "모자")
+# 지원하는 5대 표준 카테고리 (코디 필수 조합인 상의, 하의, 신발을 우선 순위로 배치)
+SUPPORTED_CATEGORIES = ("상의", "하의", "신발", "아우터", "모자")
+# 기본 샘플 에셋이 준비된 필수 3대 코디 카테고리 (아우터, 모자는 실패 시 제외 처리)
+ESSENTIAL_CATEGORIES = ("상의", "하의", "신발")
 
 
 class VtonError(Exception):
@@ -205,11 +207,11 @@ def load_avatar_png(custom_path: str | Path | None = None) -> bytes:
 
 
 def resolve_sample_clothing_path(category: str) -> Path:
-    """지원되는 카테고리의 기본 샘플 의류 이미지 경로를 반환합니다."""
+    """지원되는 필수 카테고리의 기본 샘플 의류 이미지 경로를 반환합니다."""
     category_name = category.strip()
-    if category_name not in SUPPORTED_CATEGORIES:
+    if category_name not in ESSENTIAL_CATEGORIES:
         raise VtonValidationError(
-            f"지원하지 않는 카테고리입니다: '{category}'. 허용: {list(SUPPORTED_CATEGORIES)}"
+            f"기본 샘플 의류는 필수 카테고리만 지원합니다: '{category}'. 지원 카테고리: {list(ESSENTIAL_CATEGORIES)}"
         )
     return APP_DIR / "data" / f"{category_name}.png"
 

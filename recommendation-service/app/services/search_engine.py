@@ -11,6 +11,8 @@ from transformers import CLIPModel, CLIPProcessor
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
+from app.clients.storage_client import get_storage_client
+
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -77,8 +79,10 @@ class FashionSearchEngine:
             collection_name: Optional[str] = None,
             model_name: str = "patrickjohncyh/fashion-clip",
             cache_service: Optional[Any] = None,
+            storage_client: Optional[Any] = None,
     ):
         self.cache_service = cache_service
+        self.storage_client = storage_client or get_storage_client()
         self.qdrant_url = (
                 qdrant_url
                 or os.getenv("QDRANT_URL", "http://localhost:6333")
@@ -494,7 +498,9 @@ class FashionSearchEngine:
                     "price": payload.get("price") or 0,
                     "color_raw": payload.get("color_raw"),
                     "color_normalized": product_colors,
-                    "image_url": payload.get("image_url"),
+                    "image_url": self.storage_client.get_presigned_url(
+                        payload.get("image_key") or payload.get("image_url")
+                    ),
                     "product_url": payload.get("product_url"),
                 }
             )
@@ -676,7 +682,9 @@ class FashionSearchEngine:
                     ) or [],
                     "features": payload.get("features") or {},
                     "sizes": payload.get("sizes") or [],
-                    "image_url": payload.get("image_url"),
+                    "image_url": self.storage_client.get_presigned_url(
+                        payload.get("image_key") or payload.get("image_url")
+                    ),
                     "product_url": payload.get("product_url"),
                     "vector": hit.vector,
                 }

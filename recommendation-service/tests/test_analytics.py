@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 
@@ -233,17 +233,44 @@ def test_analytics_api_endpoint(monkeypatch):
     assert forbidden_res.json()["code"] == "FORBIDDEN"
 
     # Admin role is authoritative regardless of the numeric user ID.
+    before_kst = datetime.now(KST).strftime("%Y-%m-%d")
     res = client.get(
         "/api/recommendations/analytics",
         headers={"X-User-Id": "7"},
     )
+    after_kst = datetime.now(KST).strftime("%Y-%m-%d")
     assert res.status_code == 200
     body = res.json()
     validated = PeriodAnalytics(**body)
     assert validated.label == "일간"
-    today_kst_str = datetime.now(KST).strftime("%Y-%m-%d")
-    assert validated.startDate == today_kst_str
-    assert validated.endDate == today_kst_str
+
+    assert validated.startDate in (before_kst, after_kst)
+    assert validated.endDate == validated.startDate
+
+    # 3-1. Admin user with explicit refDate anchor -> 200 OK
+    res_anchored = client.get(
+        "/api/recommendations/analytics?refDate=2026-10-27",
+        headers={"X-User-Id": "7"},
+    )
+    assert res_anchored.status_code == 200
+    validated_anchored = PeriodAnalytics(**res_anchored.json())
+    assert validated_anchored.startDate == "2026-10-27"
+    assert validated_anchored.endDate == "2026-10-27"
+
+    # 3-2. Invalid refDate format -> 400 BAD_REQUEST
+    res_bad_date = client.get(
+        "/api/recommendations/analytics?refDate=invalid-date",
+        headers={"X-User-Id": "7"},
+    )
+    assert res_bad_date.status_code == 400
+    assert res_bad_date.json()["code"] == "INVALID_DATE_FORMAT"
+
+    res_bad_format = client.get(
+        "/api/recommendations/analytics?refDate=2026-1-5",
+        headers={"X-User-Id": "7"},
+    )
+    assert res_bad_format.status_code == 400
+    assert res_bad_format.json()["code"] == "INVALID_DATE_FORMAT"
 
     # 4. Gateway backward compatibility path /api/v1/recommendations/analytics with admin header
     compat_res = client.get(

@@ -31,16 +31,16 @@ class FittingCreateRequest(BaseModel):
     )
     productIds: list[int] | None = Field(
         default=None,
-        min_length=1,
+        min_length=2,
         max_length=5,
-        description="피팅할 상품 ID 목록 (최소 1개, 최대 5개)",
+        description="피팅할 상품 ID 목록 (최소 2개, 최대 5개)",
         json_schema_extra={"example": [101, 201]},
     )
     items: list[FittingItemInput] | None = Field(
         default=None,
-        min_length=1,
+        min_length=2,
         max_length=5,
-        description="피팅할 상품 및 추천 색상별 이미지 목록 (productIds 대신 사용 권장)",
+        description="피팅할 상품 및 추천 색상별 이미지 목록 (productIds 대신 사용 권장, 최소 2개, 최대 5개)",
         json_schema_extra={
             "example": [
                 {"productId": 101, "imageUrl": "https://image.msscdn.net/images/goods_img/green.jpg"},
@@ -139,6 +139,11 @@ class FittingDetailResponse(BaseModel):
     errorMessage: str | None = Field(
         default=None,
         description="피팅 실패 시 상세 에러 메시지",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="피팅 처리 중 발생한 안내/경고 메시지 (예: 특정 카테고리 기본 이미지 대체 또는 제외 안내)",
+        json_schema_extra={"example": ["요청하신 [신발] 카테고리 상품 정보를 불러올 수 없어 기본 에셋으로 대체 피팅되었습니다."]},
     )
     products: list[FittingProductResponse] = Field(
         default_factory=list,

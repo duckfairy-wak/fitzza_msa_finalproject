@@ -15,6 +15,7 @@ from app.clients.sqs_client import SqsClient
 from app.clients.storage_client import StorageClient
 from app.core.config import get_settings
 from app.core.database import VtonRepository
+from app.schemas.tryon import FittingDetailResponse
 from app.services.vton_generator import (
     SUPPORTED_CATEGORIES,
     TryonResult,
@@ -117,6 +118,44 @@ def resolve_user_image_url(fitting_id: int, request: Request | None = None) -> s
     return f"/api/vton/{fitting_id}/user-image"
 
 
+def build_fitting_detail_response(detail: dict[str, Any]) -> FittingDetailResponse:
+    """피팅 상세 딕셔너리를 받아 S3/CDN Pre-signed URL 및 상품 목록을 조합한 응답 DTO를 생성합니다."""
+    storage = get_storage_client()
+    fitting_id = detail["fittingId"]
+    raw_res_url = detail.get("resultImageUrl")
+
+    if detail.get("status") == "COMPLETED" and raw_res_url:
+        target_key = (
+            f"fittings/{fitting_id}.png"
+            if storage.is_s3 and raw_res_url.startswith("/api/vton/")
+            else raw_res_url
+        )
+        result_img_url = storage.get_presigned_url(target_key)
+    else:
+        result_img_url = None
+
+    resolved_products = [
+        {
+            **p,
+            "imageUrl": storage.get_presigned_url(p.get("imageUrl")) if p.get("imageUrl") else p.get("imageUrl", ""),
+        }
+        for p in detail.get("products", [])
+    ]
+
+    return FittingDetailResponse(
+        fittingId=detail["fittingId"],
+        userId=detail["userId"],
+        requestId=detail.get("requestId"),
+        status=detail["status"],
+        resultImageUrl=result_img_url,
+        errorMessage=detail["errorMessage"],
+        warnings=detail.get("warnings") or [],
+        products=resolved_products,
+        createdAt=detail["createdAt"],
+        updatedAt=detail["updatedAt"],
+    )
+
+
 def run_background_vton(
     fitting_id: int,
     user_id: int,
@@ -140,45 +179,83 @@ def run_background_vton(
     logger.info("비동기 가상 피팅 시작 (fittingId=%s, userId=%s)", fitting_id, user_id)
 
     try:
-        # 1. 상품 정보 및 이미지 수집 (기본 5대 카테고리 매핑)
-        used_categories: set[str] = set()
+        # 1. 상품 정보 및 실제 카테고리 수집 (배열 순서 기반 강제 할당 제거)
+        warnings: list[str] = []
         resolved_products: list[dict[str, Any]] = []
+        category_to_product: dict[str, dict[str, Any]] = {}
 
         for pid in product_ids:
-            fallback_category = next(
-                (c for c in SUPPORTED_CATEGORIES if c not in used_categories),
-                "상의",
-            )
             override_url = (item_image_urls or {}).get(pid) or (item_image_urls or {}).get(str(pid))
             item = prod_client.resolve_product_item(
                 pid,
-                fallback_category=fallback_category,
+                fallback_category=None,
                 request_id_header=request_id_header,
                 override_image_url=override_url,
             )
-            cat = item.get("categoryName") or "상의"
-            if cat in used_categories:
+            cat = (item.get("categoryName") or "").strip()
+            if not cat or cat not in SUPPORTED_CATEGORIES:
+                raise VtonValidationError(
+                    f"지원하지 않거나 데이터가 동기화되지 않은 상품입니다 (productId={pid}, category={cat})"
+                )
+
+            if cat in category_to_product:
                 raise VtonValidationError(
                     f"같은 카테고리({cat})의 상품은 하나만 피팅할 수 있습니다."
                 )
-            used_categories.add(cat)
+            category_to_product[cat] = item
             resolved_products.append(item)
+
+        if len(category_to_product) < 2:
+            raise VtonValidationError("가상 피팅을 위해 최소 2개 이상의 서로 다른 카테고리 상품이 필요합니다.")
 
         # 상품 DB 영속화 (사용자가 요청한 실제 상품들만 DB에 저장)
         repo.save_fitting_products(fitting_id, resolved_products)
 
-        categories = [p["categoryName"] for p in resolved_products]
-        clothing_images = [p["imageBytes"] for p in resolved_products]
+        # 2. 피팅 합성용 카테고리 및 이미지 번들 구성
+        # 정책:
+        # - 필수 3종 ("상의", "하의", "신발"): 상품 누락 또는 이미지 다운로드 실패 시 기본 에셋으로 대체 + warning
+        # - 선택 품목 ("아우터", "모자"): 이미지 다운로드 실패 시 피팅 합성에서 제외 + warning
+        final_categories: list[str] = []
+        clothing_images: list[bytes] = []
 
-        # 1-1. 필수 카테고리(하의) 누락 시 기본 베이직 하의 샘플 이미지 자동 보완 (AI 생성 입력에만 추가)
-        if "하의" not in used_categories:
-            try:
-                sample_bottom_bytes = load_sample_clothing_png("하의")
-                categories.append("하의")
-                clothing_images.append(sample_bottom_bytes)
-                logger.info("하의 누락 감지 -> 기본 베이직 하의 이미지 자동 폴백 적용 (fittingId=%s)", fitting_id)
-            except Exception as e:
-                logger.warning("기본 하의 샘플 로드 실패: %s", e)
+        # 2-1. 사용자가 요청한 상품별 이미지 처리
+        for item in resolved_products:
+            cat = item["categoryName"]
+            img_bytes = item.get("imageBytes")
+
+            if img_bytes:
+                final_categories.append(cat)
+                clothing_images.append(img_bytes)
+            else:
+                # 이미지 다운로드 실패
+                if cat in ("상의", "하의", "신발"):
+                    try:
+                        sample_bytes = load_sample_clothing_png(cat)
+                        final_categories.append(cat)
+                        clothing_images.append(sample_bytes)
+                        msg = f"요청하신 [{cat}] 카테고리 상품 이미지를 불러올 수 없어 기본 에셋으로 대체 피팅되었습니다."
+                        warnings.append(msg)
+                        logger.info("필수 카테고리(%s) 이미지 실패 -> 기본 에셋 대체 (fittingId=%s)", cat, fitting_id)
+                    except Exception as exc:
+                        logger.warning("기본 에셋(%s) 로드 실패: %s", cat, exc)
+                else:
+                    # 선택 품목(아우터, 모자): 제외
+                    msg = f"요청하신 [{cat}] 카테고리 상품 이미지를 불러올 수 없어 피팅에서 제외되었습니다."
+                    warnings.append(msg)
+                    logger.info("선택 카테고리(%s) 이미지 실패 -> 피팅 합성에서 제외 (fittingId=%s)", cat, fitting_id)
+
+        # 2-2. 필수 3종 중 아예 요청에 누락된 카테고리 보완
+        for required_cat in ("상의", "하의", "신발"):
+            if required_cat not in category_to_product:
+                try:
+                    sample_bytes = load_sample_clothing_png(required_cat)
+                    final_categories.append(required_cat)
+                    clothing_images.append(sample_bytes)
+                    msg = f"요청에 [{required_cat}] 카테고리가 포함되지 않아 기본 에셋으로 보완 피팅되었습니다."
+                    warnings.append(msg)
+                    logger.info("필수 카테고리(%s) 누락 감지 -> 기본 에셋 추가 (fittingId=%s)", required_cat, fitting_id)
+                except Exception as exc:
+                    logger.warning("기본 필수 에셋(%s) 보완 로드 실패: %s", required_cat, exc)
 
         # 1-2. 사용자 얼굴 이미지 로드 (직접 전달받은 바이트가 없고 photo_id가 있는 경우에만 스토리지 다운로드)
         if user_face_bytes is None and photo_id is not None:
@@ -213,7 +290,7 @@ def run_background_vton(
 
         # 2. OpenAI 이미지 편집 피팅 실행 (아바타 몸 + 사용자 얼굴 + 의류)
         tryon_res = tryon_fn(
-            categories=categories,
+            categories=final_categories,
             clothing_images=clothing_images,
             avatar_bytes=None,  # 기본 아바타 몸(avatar.png) 사용
             user_face_bytes=user_face_bytes,
@@ -252,6 +329,7 @@ def run_background_vton(
             result_image_url=final_image_url,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            warnings=warnings,
         )
 
         # 5. notification-service 피팅 완료 FCM 알림 전송

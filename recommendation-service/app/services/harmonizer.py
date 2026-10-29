@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
+from app.clients.storage_client import get_storage_client
+
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -298,8 +300,12 @@ class OutfitHarmonizer:
         ]
 
         for item in items:
-            image_url = item.get("image_url")
-            if not image_url:
+            raw_image_url = item.get("image_url")
+            if not raw_image_url:
+                continue
+
+            image_url = get_storage_client().get_presigned_url(raw_image_url)
+            if not image_url or not image_url.startswith(("http://", "https://")):
                 continue
 
             content.append(

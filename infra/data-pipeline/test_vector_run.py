@@ -177,6 +177,9 @@ class VectorRunTests(unittest.TestCase):
         self.assertEqual((payload["product_id"], payload["color_normalized"], payload["normalized_color"]),
                          (101, ["black"], "black"))
         self.assertEqual(payload["sizes"], [{"size": "M", "sequence": 1, "measurements": {"top_length": 70.0}}])
+        self.assertEqual(payload["image_key"], f"{RUN}/images/products/101/002.png")
+        self.assertEqual(payload["image_url"], f"{RUN}/images/products/101/002.png")
+        self.assertEqual(payload["image_source_url"], "https://image.msscdn.net/a/101_bk2.jpg")
         again = self.embed("w2")
         self.assertEqual(FakeModel.calls, 3)
         self.assertEqual(again["input_embedding_count"], 3)

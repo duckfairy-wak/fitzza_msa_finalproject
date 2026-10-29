@@ -117,8 +117,9 @@ def make_payload(product: dict, raw_color: str, normalized: str, image_url: str,
         "normalized_color": normalized,
         "features": product.get("features") or {},
         "sizes": normalize_sizes(category, (product.get("size") or {}).get("measurements")),
-        "image_url": image_url,
+        "image_url": image_key or image_url,
         "image_key": image_key,
+        "image_source_url": image_url,
         "product_url": product.get("source_url") or "",
     }
 

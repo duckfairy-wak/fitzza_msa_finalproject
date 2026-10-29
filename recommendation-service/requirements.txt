@@ -22,6 +22,9 @@ qdrant-client==1.19.1
 redis>=5.0.0
 fakeredis>=2.20.0
 
+# AWS S3 Storage
+boto3>=1.34.0
+
 # 분산 트레이싱(Jaeger) — app/core/tracing.py
 opentelemetry-sdk==1.45.1
 opentelemetry-exporter-otlp-proto-http==1.45.1
