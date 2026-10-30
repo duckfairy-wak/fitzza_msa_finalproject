@@ -581,13 +581,19 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: DenyInsecureTransport
+          - Sid: DenyInsecureTransportJobQueue
             Effect: Deny
             Principal: '*'
             Action: sqs:*
-            Resource:
-              - !GetAtt VtonJobQueue.Arn
-              - !GetAtt VtonJobDeadLetterQueue.Arn
+            Resource: !GetAtt VtonJobQueue.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyInsecureTransportDeadLetterQueue
+            Effect: Deny
+            Principal: '*'
+            Action: sqs:*
+            Resource: !GetAtt VtonJobDeadLetterQueue.Arn
             Condition:
               Bool:
                 aws:SecureTransport: 'false'
@@ -1120,6 +1126,69 @@ Resources:
       ClusterName: !Ref EksCluster
       ResolveConflicts: OVERWRITE
 
+  GrafanaCloudWatchRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: let in-cluster Grafana query CloudWatch metrics with rotating Pod Identity credentials instead of static keys
+        must:
+          - trust only the fitzza-monitoring Grafana service account on this EKS cluster
+          - keep permissions read-only and metrics-only
+          - query only ap-northeast-2 plus us-east-1 for CloudFront and global WAF metrics
+        mutable: change-with-constraints
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-grafana-cloudwatch-read'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: pods.eks.amazonaws.com }
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Condition:
+              StringEquals:
+                aws:RequestTag/eks-cluster-arn: !GetAtt EksCluster.Arn
+                aws:RequestTag/kubernetes-service-account: fitzza-monitoring-grafana
+                aws:RequestTag/kubernetes-namespace: fitzza-monitoring
+      Policies:
+        - PolicyName: cloudwatch-metrics-read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: QueryCloudWatchMetrics
+                Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:ListMetrics
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion:
+                      - ap-northeast-2
+                      - us-east-1
+      Tags:
+        - { Key: Project, Value: !Ref ProjectName }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: !Ref Owner }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  GrafanaCloudWatchPodIdentityAssociation:
+    Type: AWS::EKS::PodIdentityAssociation
+    DependsOn: PodIdentityAgentAddon
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: bind only the monitoring Grafana pod to its CloudWatch metrics reader role
+        must:
+          - namespace stays fitzza-monitoring
+          - service account matches the declarative Helm values
+        mutable: change-with-constraints
+    Properties:
+      ClusterName: !Ref EksCluster
+      Namespace: fitzza-monitoring
+      RoleArn: !GetAtt GrafanaCloudWatchRole.Arn
+      ServiceAccount: fitzza-monitoring-grafana
+
   VtonRuntimeRole:
     Type: AWS::IAM::Role
     Metadata:
@@ -1546,6 +1615,9 @@ Outputs:
   VtonRuntimeRoleArn:
     Description: EKS Pod Identity role for the dedicated fitzza-vton service account
     Value: !GetAtt VtonRuntimeRole.Arn
+  GrafanaCloudWatchRoleArn:
+    Description: EKS Pod Identity role for Grafana CloudWatch metrics queries
+    Value: !GetAtt GrafanaCloudWatchRole.Arn
   ProductImageDistributionId:
     Description: CloudFront distribution ID for mirrored product images
     Value: !Ref ProductImageDistribution

@@ -17,6 +17,7 @@ from app.api.recommendations import (
     internal_router,
     public_router,
 )
+from app.core.metrics import setup_metrics
 from app.core.tracing import setup_tracing
 from app.schemas.common import HealthResponse
 
@@ -51,6 +52,8 @@ app = FastAPI(
 )
 app.state.ready = True
 setup_tracing("recommendation-service", app)
+# Prometheus 메트릭은 API 포트가 아니라 관리 포트(9092, MANAGEMENT_SERVER_PORT)에서만 제공한다.
+setup_metrics(app, "recommendation-service", default_port=9092)
 
 
 def _mount_router_routes(

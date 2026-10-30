@@ -3,9 +3,12 @@
 Deployment mode makes no network calls. With --execute-approved-run it:
 1. reads report.json and every embeddings/part-*.jsonl of the vector run and rejects the run
    before touching Qdrant if any vector, payload or model revision is invalid,
-2. creates fitzza_products_<version> (512, Cosine) with payload indexes, or resumes it with --resume,
-3. upserts in batches with wait=true and exponential backoff, recording failed batches,
-4. validates counts, payloads, filters and search, then writes import-report-<collection>.json.
+2. with --exclude-unsellable-colors, re-reads the approved bundle the run embedded (SHA-256 must
+   match report.json) and drops points whose color is not a sellable option, using the same rule
+   as the embedding plan; vectors are reused, so a run embedded before that rule needs no re-embedding,
+3. creates fitzza_products_<version> (512, Cosine) with payload indexes, or resumes it with --resume,
+4. upserts in batches with wait=true and exponential backoff, recording failed batches,
+5. validates counts, payloads, filters and search, then writes import-report-<collection>.json.
 It never changes an alias or touches any other collection.
 """
 
@@ -13,14 +16,17 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import hashlib
 import json
 import os
+from pathlib import Path
 import random
 import re
 import sys
 import time
 
-from vector_points import PAYLOAD_INDEXES, VECTOR_SIZE, invalid_vector_reason, part_name, payload_problems
+from vector_points import (PAYLOAD_INDEXES, VECTOR_SIZE, color_key, invalid_vector_reason, part_name,
+                           payload_problems, sellable_color_keys)
 
 COLLECTION_PATTERN = r"fitzza_products_[a-z0-9_]{1,48}"
 
@@ -52,6 +58,38 @@ def load_records(s3, bucket: str, prefix: str, report: dict) -> tuple[list[dict]
                 problems[f"payload:{problem}"] += 1
             records.append(record)
     return records, dict(problems)
+
+
+def approved_sellable_keys(s3, bucket: str, report: dict) -> dict[int, set[str]]:
+    """product_id -> sellable color keys, read from the exact approved bundle the run embedded."""
+    from entrypoint import unpack_bundle
+
+    work = Path(os.environ.get("WORK_DIR", "/work"))
+    archive, bundle = work / "approved-for-import.tar.gz", work / "approved-for-import"
+    s3.download_file(bucket, f"pipeline/runs/{report['run_id']}/approved/bundle.tar.gz", str(archive))
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != report["approved_bundle_sha256"]:
+        raise ValueError("Approved bundle differs from the one this vector run embedded")
+    unpack_bundle(archive, bundle)
+    keys = {}
+    for path in sorted((bundle / "data").rglob("*.json")):
+        product = json.loads(path.read_text(encoding="utf-8"))
+        keys[int(product["product_id"])] = sellable_color_keys(product)
+    return keys
+
+
+def exclude_unsellable(records: list[dict], keys: dict[int, set[str]]) -> tuple[list[dict], list[dict]]:
+    kept, excluded = [], []
+    for record in records:
+        product_id = int(record["product_id"])
+        if product_id not in keys:
+            raise ValueError(f"Product {product_id} is not in the approved bundle")
+        raw = record["payload"]["color_raw"]
+        if color_key(raw) in keys[product_id]:
+            kept.append(record)
+        else:
+            excluded.append({"point_id": record["point_id"], "product_id": product_id, "color_raw": raw,
+                             "image_key": record.get("image_key")})
+    return kept, excluded
 
 
 def upsert_with_retry(client, models, collection: str, batch: list[dict], attempts: int = 5) -> None:
@@ -130,13 +168,25 @@ def run(args) -> dict:
               "approved_bundle_sha256": report["approved_bundle_sha256"],
               "input_embedding_count": len(records), "embedded_count_in_report": report["input_embedding_count"],
               "record_problems": problems, "upsert_attempt_count": 0, "upsert_success_count": 0,
-              "failed_batch_count": 0, "failed_point_ids": [],
-              "color_distribution": dict(Counter(r["payload"]["normalized_color"] for r in records)),
-              "category_distribution": dict(Counter(r["payload"]["category"] for r in records)),
-              "product_count": len({r["product_id"] for r in records})}
+              "failed_batch_count": 0, "failed_point_ids": []}
     if problems or len(records) != report["input_embedding_count"]:
         result.update(status="rejected_before_qdrant", passed=False)
         return result
+    excluded = []
+    if getattr(args, "exclude_unsellable_colors", False):
+        loaded_products = {r["product_id"] for r in records}
+        records, excluded = exclude_unsellable(records, approved_sellable_keys(s3, args.bucket, report))
+        result["sellable_filter"] = {
+            "excluded_point_count": len(excluded),
+            "products_with_excluded_points": len({item["product_id"] for item in excluded}),
+            "products_without_points_after_filter": sorted(loaded_products - {r["product_id"] for r in records}),
+            "excluded_points": excluded}
+    result.update(import_point_count=len(records),
+                  color_distribution=dict(Counter(r["payload"]["normalized_color"] for r in records)),
+                  category_distribution=dict(Counter(r["payload"]["category"] for r in records)),
+                  product_count=len({r["product_id"] for r in records}))
+    print(json.dumps({"status": "planned_import", "import_point_count": len(records),
+                      "excluded_unsellable": len(excluded)}), flush=True)
 
     client = QdrantClient(url=os.environ["QDRANT_URL"], timeout=60)
     prepare_collection(client, models, args.collection, args.resume)
@@ -153,6 +203,11 @@ def run(args) -> dict:
         if (start // args.batch_size) % 10 == 0:
             print(json.dumps({"status": "upserting", "done": start + len(batch), "total": len(records)}), flush=True)
     result.update(validate_collection(client, models, args.collection, records))
+    if excluded:
+        ids = [item["point_id"] for item in excluded]
+        present = [point for start in range(0, len(ids), 256)
+                   for point in client.retrieve(collection_name=args.collection, ids=ids[start:start + 256])]
+        result["checks"]["unsellable_points_absent"] = not present
     result["passed"] = (result["failed_batch_count"] == 0
                         and result["upsert_success_count"] == len(records)
                         and all(result["checks"].values()))
@@ -171,6 +226,8 @@ def main() -> None:
     parser.add_argument("--collection", required=True, help="new version collection, e.g. fitzza_products_20261025_01")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--resume", action="store_true", help="continue into a collection this run already created")
+    parser.add_argument("--exclude-unsellable-colors", action="store_true",
+                        help="drop points whose color is not an active option in the approved bundle")
     parser.add_argument("--execute-approved-run", action="store_true")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", args.vector_run_id):

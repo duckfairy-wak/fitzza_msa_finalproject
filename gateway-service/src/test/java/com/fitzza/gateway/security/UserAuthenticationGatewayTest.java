@@ -25,6 +25,7 @@ import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "management.server.port=0",
         "spring.cloud.config.enabled=false",
         "eureka.client.enabled=false",
         "jwt.secret=test-only-jwt-secret-with-32-bytes-or-more"
