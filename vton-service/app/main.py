@@ -19,6 +19,7 @@ from PIL import Image
 from fastapi.routing import APIRoute
 
 from app.api.vton import router as vton_router
+from app.core.metrics import setup_metrics
 from app.core.tracing import setup_tracing
 from app.services.vton_generator import (
     DEFAULT_MODEL,
@@ -68,6 +69,8 @@ app = FastAPI(
 app.state.ready = True
 _mount_router_routes(app, vton_router)
 setup_tracing("vton-service", app)
+# Prometheus 메트릭은 API 포트가 아니라 관리 포트(9091, MANAGEMENT_SERVER_PORT)에서만 제공한다.
+setup_metrics(app, "vton-service", default_port=9091)
 
 
 
