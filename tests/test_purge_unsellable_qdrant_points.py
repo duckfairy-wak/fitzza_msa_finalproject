@@ -91,3 +91,23 @@ class PurgeUnsellableQdrantPointsTests(unittest.TestCase):
 
         self.assertEqual(result["deleted_count"], 1)
         mock_client.delete.assert_called_once()
+
+    def test_build_sellable_colors_map_skips_when_no_intersection(self):
+        """사이즈 옵션만 있어 sellable이 {"s", "m"}인데 mapping_colors는 {"black"}인 경우,
+        오삭제를 방지하기 위해 sellable_map에서 제외되어야 한다."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            dir_path = Path(tmp_dir)
+            p = {
+                "product_id": 2001,
+                "options": [{"name": "사이즈"}],
+                "option_items": [
+                    {"activated": True, "values": ["S"]},
+                    {"activated": True, "values": ["M"]},
+                ],
+                "color_image_mappings": [
+                    {"product_id": 2001, "color_raw": "BLACK", "image_url": "https://img.com/black.jpg"}
+                ],
+            }
+            (dir_path / "2001.json").write_text(json.dumps(p), encoding="utf-8")
+            res = build_sellable_colors_map(dir_path)
+            self.assertNotIn(2001, res)
