@@ -581,13 +581,19 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: DenyInsecureTransport
+          - Sid: DenyInsecureTransportJobQueue
             Effect: Deny
             Principal: '*'
             Action: sqs:*
-            Resource:
-              - !GetAtt VtonJobQueue.Arn
-              - !GetAtt VtonJobDeadLetterQueue.Arn
+            Resource: !GetAtt VtonJobQueue.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyInsecureTransportDeadLetterQueue
+            Effect: Deny
+            Principal: '*'
+            Action: sqs:*
+            Resource: !GetAtt VtonJobDeadLetterQueue.Arn
             Condition:
               Bool:
                 aws:SecureTransport: 'false'
