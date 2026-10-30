@@ -216,8 +216,6 @@ scripts/                 운영 보조 스크립트
 performance/             k6 시나리오(구매 여정 스모크 등). 본격 부하는 인프라 합의 후
 ```
 
-구매 API 스모크는 [performance/README.md](performance/README.md)의 `purchase_flow.js`를 따른다. 기본은 VU 1회이며 운영 ALB에 큰 부하는 올리지 않는다.
-
 크롤러에서 Jev 색상 정규화로 전달하는 데이터 계약은 [infra/data-pipeline/README.md](infra/data-pipeline/README.md)를 따릅니다.
 
 AWS 배포 기반은 [infra/aws/cloudformation/README.md](infra/aws/cloudformation/README.md)를 따릅니다. CloudFormation은 전용 VPC, 단일 NAT Gateway, EKS, S3, ECR을 구성하며 Managed Node Group은 비용 보호를 위해 `desired=0`으로 시작합니다.
