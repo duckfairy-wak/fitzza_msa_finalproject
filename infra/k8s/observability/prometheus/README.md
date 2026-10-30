@@ -115,6 +115,10 @@ dry-run을 실행한다. dry-run을 위해 CRD만 별도로 클러스터에 적�
 - Grafana Secret 값이 렌더 결과나 터미널 출력에 없는지
 - Operator, kube-state-metrics, node-exporter의 requests/limits가 정책 상한 이하인지
 
+`kube-state-metrics`는 `registry.k8s.io`의 리전별 S3 전달 경로에서 발생하는 pull
+실패를 피하기 위해 Kubernetes production 이미지의 공식 아시아 Artifact Registry
+경로를 사용한다. 이미지 버전은 차트의 app version과 같은 `v2.20.0`으로 고정한다.
+
 `.tmp/` 렌더 결과는 검증 후 삭제한다. Secret이 포함된 파일이나 command output은
 저장하지 않는다.
 

@@ -130,6 +130,13 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     assert "logs:" not in role_block
     assert "Namespace: fitzza-monitoring" in association_block
     assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
+    assert values["kube-state-metrics"]["image"] == {
+        "registry": "asia-east1-docker.pkg.dev",
+        "repository": (
+            "k8s-artifacts-prod/images/kube-state-metrics/kube-state-metrics"
+        ),
+        "tag": "v2.20.0",
+    }
 
 
 def test_prometheus_preflight_accepts_current_helm_crd_output_path():
