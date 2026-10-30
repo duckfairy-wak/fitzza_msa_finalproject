@@ -152,7 +152,9 @@ Prometheus Targets에서 kubelet, node-exporter, kube-state-metrics가 `UP`인�
 Grafana의 Connections > Data sources에서 Prometheus와 CloudWatch가 모두 provisioned
 상태인지 확인한다. CloudWatch는 기본 리전 `ap-northeast-2`, 인증 방식 `AWS SDK
 Default`여야 한다. 메트릭 전용 역할이므로 CloudWatch Logs 조회는 허용하지 않는다.
-CloudWatch 패널의 기본 refresh는 5분으로 유지한다.
+CloudWatch 패널의 기본 refresh는 5분으로 유지한다. 서울 리전의 AWS 리소스 지표는
+기본 리전을 사용하고, CloudFront 및 CloudFront 범위의 WAF 지표를 조회하는 각 쿼리는
+리전을 `us-east-1`로 선택한다.
 
 ```powershell
 kubectl -n fitzza-monitoring get serviceaccount fitzza-monitoring-grafana

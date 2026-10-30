@@ -1128,6 +1128,7 @@ Resources:
         must:
           - trust only the fitzza-monitoring Grafana service account on this EKS cluster
           - keep permissions read-only and metrics-only
+          - query only ap-northeast-2 plus us-east-1 for CloudFront and global WAF metrics
         mutable: change-with-constraints
     Properties:
       RoleName: !Sub '${ProjectName}-${Environment}-grafana-cloudwatch-read'
@@ -1155,6 +1156,11 @@ Resources:
                   - cloudwatch:GetMetricData
                   - cloudwatch:ListMetrics
                 Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion:
+                      - ap-northeast-2
+                      - us-east-1
       Tags:
         - { Key: Project, Value: !Ref ProjectName }
         - { Key: Environment, Value: !Ref Environment }

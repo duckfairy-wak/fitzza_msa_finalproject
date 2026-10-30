@@ -124,6 +124,9 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     assert "aws:RequestTag/eks-cluster-arn: !GetAtt EksCluster.Arn" in role_block
     assert "cloudwatch:GetMetricData" in role_block
     assert "cloudwatch:ListMetrics" in role_block
+    assert "aws:RequestedRegion:" in role_block
+    assert "- ap-northeast-2" in role_block
+    assert "- us-east-1" in role_block
     assert "logs:" not in role_block
     assert "Namespace: fitzza-monitoring" in association_block
     assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
