@@ -66,7 +66,7 @@ FITZZA-308의 최초 values 후보는 다음 합계를 넘지 않도록 조정�
 | 구성요소 | CPU request 상한 | Memory request 상한 | CPU limit 상한 | Memory limit 상한 |
 | --- | ---: | ---: | ---: | ---: |
 | Prometheus | 150m | 384Mi | 500m | 768Mi |
-| Grafana | 50m | 128Mi | 200m | 256Mi |
+| Grafana | 50m | 128Mi | 200m | 512Mi |
 | Prometheus Operator | 25m | 64Mi | 100m | 128Mi |
 | kube-state-metrics | 25m | 64Mi | 100m | 128Mi |
 | node-exporter(노드당) | 10m | 32Mi | 50m | 64Mi |
