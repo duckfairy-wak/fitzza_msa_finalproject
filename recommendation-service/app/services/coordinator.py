@@ -35,9 +35,15 @@ class FashionPipelineCoordinator:
             slot: SlotQuery,
             user_id: str,
     ) -> list[dict[str, Any]]:
-        """
-        검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
-        또한 product-service의 실제 판매 옵션과 대조하여 미판매 색상이면 판매 가능 색상으로 보정한다.
+        """검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
+
+        Args:
+            items: Qdrant 벡터 검색을 통해 선정된 상품 후보군 목록.
+            slot: 사용자의 검색 요청 슬롯 쿼리.
+            user_id: 요청 사용자 ID.
+
+        Returns:
+            각 상품에 추천 사이즈 및 산출 근거가 부착된 평가 결과 목록.
         """
         learned_pref: dict[str, float] | None = None
         if self.repository is not None and slot.subcategory:
@@ -54,38 +60,8 @@ class FashionPipelineCoordinator:
                     exc,
                 )
 
-        # product-service 판매 가능 옵션 색상 조회
-        client = getattr(self, "product_client", None)
-        available_colors_by_pid: dict[int, list[str]] = {}
-        if client is not None and hasattr(client, "get_product_measurements"):
-            try:
-                pids = [int(it["product_id"]) for it in items if it.get("product_id")]
-                if pids:
-                    measurements = client.get_product_measurements(pids)
-                    for pid, opts in measurements.items():
-                        colors = [
-                            opt["color"] for opt in opts
-                            if opt.get("color") and isinstance(opt["color"], str)
-                        ]
-                        if colors:
-                            available_colors_by_pid[pid] = colors
-            except Exception as exc:
-                logger.debug("판매 옵션 조회 실패 (color validation): %s", exc)
-
         evaluated_items = []
         for item in items:
-            pid = item.get("product_id")
-            if pid and int(pid) in available_colors_by_pid:
-                avail_colors = available_colors_by_pid[int(pid)]
-                avail_lower = [c.strip().lower() for c in avail_colors]
-                current_raw = item.get("color_raw")
-                if current_raw and current_raw.strip().lower() not in avail_lower:
-                    logger.warning(
-                        "추천 상품의 색상(%s)이 판매 옵션에 없습니다 (pid=%s). 이미지 및 조화도 불일치 방지를 위해 추천 후보에서 제외합니다.",
-                        current_raw, pid
-                    )
-                    continue
-
             size_result = self.size_resolver.resolve_and_calculate_size(
                 user_id=user_id,
                 subcategory=slot.subcategory,

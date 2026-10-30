@@ -216,6 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """CLI 진입점: 판매 색상 맵을 로드하고 Qdrant의 미판매 포인트를 정리한다."""
     parser = build_parser()
     args = parser.parse_args()
 
