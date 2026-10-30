@@ -105,7 +105,9 @@ def test_only_qdrant_reading_workloads_pass_qdrant_network_policy():
 
 def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     yaml = pytest.importorskip("yaml")
-    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    template = (
+        ROOT / "infra/aws/cloudformation/grafana-cloudwatch.yaml"
+    ).read_text()
     values = yaml.safe_load(
         (ROOT / "infra/k8s/observability/prometheus/values.yaml").read_text()
     )
@@ -136,18 +138,20 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     ]
     association_block = template[
         template.index("  GrafanaCloudWatchPodIdentityAssociation:\n"):
-        template.index("  VtonRuntimeRole:\n")
+        template.index("\nOutputs:")
     ]
     assert "Principal: { Service: pods.eks.amazonaws.com }" in role_block
-    assert "aws:RequestTag/eks-cluster-arn: !GetAtt EksCluster.Arn" in role_block
+    assert "aws:RequestTag/eks-cluster-arn: !Sub" in role_block
     assert "cloudwatch:GetMetricData" in role_block
     assert "cloudwatch:ListMetrics" in role_block
     assert "aws:RequestedRegion:" in role_block
     assert "- ap-northeast-2" in role_block
     assert "- us-east-1" in role_block
     assert "logs:" not in role_block
-    assert "Namespace: fitzza-monitoring" in association_block
-    assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
+    assert "Default: fitzza-monitoring" in template
+    assert "Default: fitzza-monitoring-grafana" in template
+    assert "Namespace: !Ref GrafanaNamespace" in association_block
+    assert "ServiceAccount: !Ref GrafanaServiceAccount" in association_block
     assert values["kube-state-metrics"]["image"] == {
         "registry": "asia-east1-docker.pkg.dev",
         "repository": (

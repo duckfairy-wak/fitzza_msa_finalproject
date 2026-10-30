@@ -24,9 +24,19 @@ remote_write, 공개 Ingress와 LoadBalancer는 설치하지 않는다. 설계·
   실제 pull 전 확인해야 한다.
 - Grafana 관리자 Secret은 운영 비밀 저장소에서 생성한다. Secret 값은 저장소, Jira,
   shell history, 로그에 넣지 않는다.
-- `foundation.yaml`의 `GrafanaCloudWatchPodIdentityAssociation`이 배포되어야 한다.
+- `grafana-cloudwatch.yaml`의 `GrafanaCloudWatchPodIdentityAssociation`이 별도
+  `fitzza-prod-grafana-cloudwatch` 스택으로 배포되어야 한다.
   연결 대상은 `fitzza-monitoring/fitzza-monitoring-grafana`이며 역할은 CloudWatch
   metric 조회만 허용한다.
+
+```powershell
+aws cloudformation deploy `
+  --stack-name fitzza-prod-grafana-cloudwatch `
+  --template-file infra/aws/cloudformation/grafana-cloudwatch.yaml `
+  --capabilities CAPABILITY_NAMED_IAM `
+  --profile fitzza `
+  --region ap-northeast-2
+```
 
 Grafana Secret은 반드시 아래 키만 사용한다.
 
