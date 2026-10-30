@@ -85,6 +85,24 @@ def test_vton_uses_dedicated_pod_identity_and_least_privilege_queue_role():
     assert apps.count("serviceAccountName: fitzza-vton") == 2
 
 
+def test_only_qdrant_reading_workloads_pass_qdrant_network_policy():
+    yaml = pytest.importorskip("yaml")
+    apps = list(yaml.safe_load_all((ROOT / "infra/k8s/base/apps.yaml").read_text(encoding="utf-8")))
+    qdrant = list(yaml.safe_load_all((ROOT / "infra/k8s/base/qdrant.yaml").read_text(encoding="utf-8")))
+    policy = next(doc for doc in qdrant if doc and doc.get("kind") == "NetworkPolicy")
+    allowed = policy["spec"]["ingress"][0]["from"][0]["podSelector"]["matchLabels"]
+    assert allowed == {"fitzza.io/qdrant-client": "true"}
+
+    clients = {
+        doc["metadata"]["name"]
+        for doc in apps
+        if doc and doc.get("kind") == "Deployment"
+        and doc["spec"]["template"]["metadata"]["labels"].get("fitzza.io/qdrant-client") == "true"
+    }
+    # vton-worker는 피팅 작업에서 상품 메타데이터를 Qdrant로 조회한다. 요청만 큐에 넣는 vton-service API에는 열지 않는다.
+    assert clients == {"recommendation-service", "vton-worker"}
+
+
 def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     yaml = pytest.importorskip("yaml")
     template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
