@@ -1223,6 +1223,10 @@ Resources:
                 Effect: Allow
                 Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-${Environment}-assets-vton/*'
+              - Sid: ReadProductDataBucket
+                Effect: Allow
+                Action: [s3:GetObject]
+                Resource: !Sub '${DataBucket.Arn}/*'
               - Sid: ProduceAndConsumeVtonJobs
                 Effect: Allow
                 Action:

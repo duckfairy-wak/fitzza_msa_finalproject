@@ -25,6 +25,11 @@ class StorageClient:
         self.settings = settings or get_settings()
         self.backend = self.settings.storage_backend.lower().strip()
         self.bucket_name = self.settings.aws_s3_bucket_name
+        self.product_bucket_name = getattr(
+            self.settings,
+            "product_image_s3_bucket",
+            "fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+        )
         self.cloudfront_domain = self.settings.cloudfront_domain.strip().rstrip("/")
         self.endpoint_url = self.settings.aws_endpoint_url.strip() or None
         self._s3_client: Any = None
@@ -42,7 +47,12 @@ class StorageClient:
         clean = key_or_url.strip()
         bucket = self.bucket_name
 
-        if clean.startswith(("http://", "https://")):
+        if clean.startswith("s3://"):
+            s3_path = clean[5:]
+            parts = s3_path.split("/", 1)
+            bucket = parts[0]
+            path = parts[1] if len(parts) > 1 else ""
+        elif clean.startswith(("http://", "https://")):
             parsed = urllib.parse.urlparse(clean)
             host = parsed.netloc.lower()
             path = parsed.path.lstrip("/")
@@ -57,6 +67,9 @@ class StorageClient:
                 path = parts[1] if len(parts) > 1 else ""
             elif path.startswith(f"{self.bucket_name}/"):
                 path = path[len(self.bucket_name) + 1 :]
+            elif path.startswith(f"{self.product_bucket_name}/"):
+                bucket = self.product_bucket_name
+                path = path[len(self.product_bucket_name) + 1 :]
         else:
             path = clean.lstrip("/")
 
@@ -65,6 +78,13 @@ class StorageClient:
             parts = path.split("/")
             if len(parts) == 4 and parts[2].isdigit():
                 path = f"fittings/{parts[2]}.png"
+
+        # 버킷 자동 라우팅:
+        # 키 경로가 pipeline/ 또는 images/products/ 로 시작하거나 포함하는 경우,
+        # 기본 버킷(fitzza-prod-assets-vton) 대신 상품 이미지 버킷(product_bucket_name)으로 분기
+        if bucket in (self.bucket_name, "fitzza-prod-assets-vton"):
+            if path.startswith("pipeline/") or path.startswith("images/products/"):
+                bucket = self.product_bucket_name
 
         return bucket, path
 
@@ -194,15 +214,15 @@ class StorageClient:
 
     def delete_object(self, key_or_path: str) -> bool:
         """스토리지에서 객체 또는 로컬 파일을 삭제합니다."""
-        clean_key = self._extract_s3_key(key_or_path)
+        bucket, clean_key = self._parse_s3_location(key_or_path)
         if self.is_s3:
             s3 = self._get_s3()
             try:
-                s3.delete_object(Bucket=self.bucket_name, Key=clean_key)
-                logger.info("S3 객체 삭제 성공: s3://%s/%s", self.bucket_name, clean_key)
+                s3.delete_object(Bucket=bucket, Key=clean_key)
+                logger.info("S3 객체 삭제 성공: s3://%s/%s", bucket, clean_key)
                 return True
             except Exception as exc:
-                logger.warning("S3 객체 삭제 실패 (%s): %s", clean_key, exc)
+                logger.warning("S3 객체 삭제 실패 (%s/%s): %s", bucket, clean_key, exc)
                 return False
 
         local_p = Path(key_or_path)
@@ -217,16 +237,16 @@ class StorageClient:
 
     def get_public_url(self, key: str) -> str:
         """CloudFront 또는 S3 공개 URL을 조합하여 반환합니다."""
-        clean_key = self._extract_s3_key(key)
-        if self.cloudfront_domain:
+        bucket, clean_key = self._parse_s3_location(key)
+        if self.cloudfront_domain and bucket == self.bucket_name:
             domain = self.cloudfront_domain
             if not domain.startswith(("http://", "https://")):
                 domain = f"https://{domain}"
             return f"{domain}/{clean_key}"
         if self.endpoint_url:
             base = self.endpoint_url.rstrip("/")
-            return f"{base}/{self.bucket_name}/{clean_key}"
-        return f"https://{self.bucket_name}.s3.{self.settings.aws_region}.amazonaws.com/{clean_key}"
+            return f"{base}/{bucket}/{clean_key}"
+        return f"https://{bucket}.s3.{self.settings.aws_region}.amazonaws.com/{clean_key}"
 
     def get_presigned_url(self, key_or_url: str | None, expires_in: int = 3600) -> str:
         """S3 객체에 대한 임시 서명 URL(Pre-signed URL)을 생성하여 반환합니다.
@@ -249,6 +269,7 @@ class StorageClient:
             netloc = (parsed.netloc or "").lower()
             is_s3_host = (
                 self.bucket_name.lower() in netloc
+                or self.product_bucket_name.lower() in netloc
                 or (self.endpoint_url and urllib.parse.urlparse(self.endpoint_url).netloc.lower() == netloc)
                 or netloc.endswith(".amazonaws.com")
             )
@@ -263,15 +284,15 @@ class StorageClient:
         if not self.is_s3:
             return clean_input
 
-        # CloudFront 도메인이 연결되어 있으면 CDN 캐싱 URL로 자동 반환
-        if self.cloudfront_domain:
-            return self.get_public_url(clean_input)
-
-        clean_key = self._extract_s3_key(clean_input)
+        bucket, clean_key = self._parse_s3_location(clean_input)
         if not clean_key:
             return clean_input
 
-        cache_key = f"{clean_key}:{expires_in}"
+        # CloudFront 도메인이 연결되어 있고 기본 에셋 버킷인 경우 CDN 캐싱 URL로 자동 반환
+        if self.cloudfront_domain and bucket == self.bucket_name:
+            return self.get_public_url(clean_input)
+
+        cache_key = f"{bucket}:{clean_key}:{expires_in}"
         now = time.time()
         # 남은 유효 시간이 요청 기간 대비 안전 마진(최대 300초 또는 유효기간 절반) 이상일 때만 캐시 재사용
         min_margin = min(300, expires_in // 2) if expires_in > 60 else 10
@@ -286,7 +307,7 @@ class StorageClient:
             s3 = self._get_s3()
             url = s3.generate_presigned_url(
                 ClientMethod="get_object",
-                Params={"Bucket": self.bucket_name, "Key": clean_key},
+                Params={"Bucket": bucket, "Key": clean_key},
                 ExpiresIn=expires_in,
             )
             url_str = str(url)
@@ -299,7 +320,8 @@ class StorageClient:
             return url_str
         except Exception as exc:
             logger.warning(
-                "S3 Pre-signed URL 생성 실패 (key=%s): %s. 원본 URL을 반환합니다.",
+                "S3 Pre-signed URL 생성 실패 (bucket=%s, key=%s): %s. 원본 URL을 반환합니다.",
+                bucket,
                 clean_key,
                 exc,
             )
