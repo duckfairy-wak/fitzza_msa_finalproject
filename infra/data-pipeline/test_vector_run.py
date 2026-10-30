@@ -1,3 +1,4 @@
+import ast
 import csv
 import hashlib
 import io
@@ -9,7 +10,7 @@ import tarfile
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "crawler/src"))
@@ -76,8 +77,18 @@ def product(product_id: int, colors: list[tuple[str, str]]) -> dict:
                                      for raw, url in colors]}
 
 
-def build_run(root: Path) -> FakeS3:
-    """Approved bundle + curated manifest + stored images for two products (one image never stored)."""
+def with_color_options(item: dict, active: list[str], inactive: list[str] = ()) -> dict:
+    item["options"] = [{"name": "컬러", "values": []}, {"name": "사이즈", "values": []}]
+    item["option_items"] = ([{"activated": True, "values": [color, "M"]} for color in active]
+                            + [{"activated": False, "values": [color, "M"]} for color in inactive])
+    return item
+
+
+def build_run(root: Path, color_options: dict | None = None) -> FakeS3:
+    """Approved bundle + curated manifest + stored images for two products (one image never stored).
+
+    color_options: product_id -> (active colors, inactive colors) written as option_items.
+    """
     s3 = FakeS3()
     bundle = root / "bundle"
     (bundle / "config").mkdir(parents=True)
@@ -87,6 +98,8 @@ def build_run(root: Path) -> FakeS3:
         102: product(102, [("네이비", "https://image.msscdn.net/a/102_na.jpg"),
                            ("화이트", "https://image.msscdn.net/a/102_wh_missing.jpg")]),
     }
+    for product_id, (active, inactive) in (color_options or {}).items():
+        with_color_options(products[product_id], active, inactive)
     records = []
     for product_id, item in products.items():
         data = json.dumps(item, ensure_ascii=False).encode("utf-8")
@@ -227,6 +240,112 @@ class VectorRunTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertEqual(result["record_problems"], {"invalid_vector:wrong_dimension": 1})
         qdrant.assert_not_called()
+
+
+def load_index_to_qdrant_filters() -> dict:
+    """The sellable-color functions of index_to_qdrant.py without importing torch."""
+    tree = ast.parse((ROOT / "index_to_qdrant.py").read_text(encoding="utf-8"))
+    selected = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+                and node.name in {"extract_sellable_colors", "filter_sellable_color_mappings"}]
+    scope = {}
+    exec(compile(ast.Module(body=selected, type_ignores=[]), "index_to_qdrant", "exec"), scope)
+    return scope
+
+
+class SellableColorTests(unittest.TestCase):
+    """Only colors sold as an active option become points (FITZZA re-import, 2026-10-30)."""
+
+    CASES = {
+        "inactive_color_dropped": with_color_options(
+            product(1, [("블랙", "u1"), ("BK", "u2")]), ["블랙"], ["BK"]),
+        "size_only_options_keep_all": dict(product(2, [("브라운", "u3")]), options=[{"name": "사이즈"}],
+                                           option_items=[{"activated": True, "values": ["S"]}]),
+        "no_match_falls_back_to_all": with_color_options(product(3, [("레드", "u4")]), ["RED"]),
+        "all_inactive_falls_back_to_all": with_color_options(product(4, [("블랙", "u5")]), [], ["블랙"]),
+        "no_option_items_keep_all": product(5, [("블랙", "u6"), ("화이트", "u7")]),
+        "case_and_space_insensitive": with_color_options(
+            product(6, [(" Black ", "u8"), ("White", "u9")]), ["BLACK"]),
+    }
+
+    def test_filter_matches_index_to_qdrant(self):
+        reference = load_index_to_qdrant_filters()
+        for name, item in self.CASES.items():
+            with self.subTest(name):
+                self.assertEqual(vector_points.extract_sellable_colors(item),
+                                 reference["extract_sellable_colors"](item))
+                self.assertEqual(vector_points.filter_sellable_color_mappings(item),
+                                 reference["filter_sellable_color_mappings"](item))
+        self.assertEqual(vector_points.sellable_color_keys(self.CASES["inactive_color_dropped"]), {"블랙"})
+        self.assertEqual(vector_points.sellable_color_keys(self.CASES["case_and_space_insensitive"]), {"black"})
+
+    def test_plan_skips_unsellable_colors_as_recorded_failures(self):
+        item = with_color_options(product(7, [("블랙", "https://image.msscdn.net/a/7_bk.jpg"),
+                                              ("BK", "https://image.msscdn.net/a/7_bk2.jpg")]), ["블랙"], ["BK"])
+        manifest = {"images": [{"source_url": f"https://image.msscdn.net/a/{name}", "s3_key": f"k/{name}"}
+                               for name in ("7_bk.jpg", "7_bk2.jpg")]}
+        points, failures, _ = vector_points.plan_product_points(item, {"블랙": "black", "bk": "black"}, manifest)
+        self.assertEqual([point["payload"]["color_raw"] for point in points], ["블랙"])
+        self.assertEqual([(failure["color_raw"], failure["reason"]) for failure in failures],
+                         [("BK", "unsellable_color")])
+
+
+class SellableReimportTests(unittest.TestCase):
+    """Re-import a run embedded before the filter existed, without re-embedding."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.root = Path(self.folder.name)
+        # 101 sells only 블랙 (BK deactivated); 102 has no option_items, so nothing is filtered.
+        self.s3 = build_run(self.root, {101: (["블랙"], ["BK"])})
+        (self.root / "embed").mkdir()
+        unfiltered = vector_points.filter_sellable_color_mappings
+        with patch.dict(os.environ, {"WORK_DIR": str(self.root / "embed")}), \
+                patch("boto3.client", return_value=self.s3), patch.object(embed_job, "FashionClip", FakeModel), \
+                patch.object(vector_points, "filter_sellable_color_mappings",
+                             lambda item: item.get("color_image_mappings") or []):
+            self.report = embed_job.run(embed_args())
+        self.assertIs(vector_points.filter_sellable_color_mappings, unfiltered)
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def run_import(self, collection: str, exclude: bool, client=None):
+        from qdrant_client import QdrantClient
+
+        (self.root / collection).mkdir()
+        args = SimpleNamespace(bucket=BUCKET, vector_run_id="collection-test-fclip-01", collection=collection,
+                               batch_size=100, resume=False, exclude_unsellable_colors=exclude)
+        with patch.dict(os.environ, {"QDRANT_URL": "http://unused", "WORK_DIR": str(self.root / collection)}), \
+                patch("boto3.client", return_value=self.s3), \
+                patch("qdrant_client.QdrantClient", return_value=client or QdrantClient(":memory:")):
+            return import_job.run(args)
+
+    def test_reimport_drops_only_unsellable_points(self):
+        self.assertEqual(self.report["input_embedding_count"], 3)
+        result = self.run_import("fitzza_products_test_02", exclude=True)
+        self.assertTrue(result["passed"], result)
+        self.assertEqual((result["input_embedding_count"], result["import_point_count"],
+                          result["qdrant_point_count"]), (3, 2, 2))
+        excluded = result["sellable_filter"]["excluded_points"]
+        self.assertEqual([(item["product_id"], item["color_raw"]) for item in excluded], [(101, "BK")])
+        self.assertEqual(result["sellable_filter"]["products_without_points_after_filter"], [])
+        self.assertTrue(result["checks"]["unsellable_points_absent"])
+        self.assertIn(f"{VRUN}/import-report-fitzza_products_test_02.json", self.s3.objects)
+
+    def test_import_without_flag_keeps_every_point(self):
+        result = self.run_import("fitzza_products_test_01", exclude=False)
+        self.assertTrue(result["passed"], result)
+        self.assertEqual(result["qdrant_point_count"], 3)
+        self.assertNotIn("sellable_filter", result)
+
+    def test_changed_bundle_is_rejected_before_qdrant(self):
+        key = f"{RUN}/approved/bundle.tar.gz"
+        self.s3.objects[key] = self.s3.objects[key] + b"x"
+        qdrant = MagicMock()
+        with self.assertRaisesRegex(ValueError, "differs from the one this vector run embedded"):
+            self.run_import("fitzza_products_test_02", exclude=True, client=qdrant)
+        qdrant.create_collection.assert_not_called()
+        qdrant.upsert.assert_not_called()
 
 
 class DeploymentModeTests(unittest.TestCase):

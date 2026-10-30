@@ -40,6 +40,65 @@ def color_key(raw: str) -> str:
     return raw.strip().lower()
 
 
+# The two functions below must keep the same rule as index_to_qdrant.py and
+# scripts/purge_unsellable_qdrant_points.py (test_vector_run checks index_to_qdrant).
+def extract_sellable_colors(product: dict) -> set[str]:
+    """Lowercased color values of active option_items; an empty set means "no filter"."""
+    option_items = product.get("option_items") or []
+    if not option_items:
+        return set()
+
+    options = product.get("options") or []
+    color_group_idx = None
+    for idx, opt in enumerate(options):
+        name = opt.get("name") or ""
+        if any(kw in name.lower() for kw in ["컬러", "색상", "color"]):
+            color_group_idx = idx
+            break
+
+    sellable = set()
+    for item in option_items:
+        if item.get("activated") is False:
+            continue
+        values = item.get("values") or []
+        if not values:
+            continue
+        if color_group_idx is not None and color_group_idx < len(values):
+            val = values[color_group_idx]
+            if isinstance(val, str) and val.strip():
+                sellable.add(val.strip().lower())
+        else:
+            for val in values:
+                if isinstance(val, str) and val.strip():
+                    sellable.add(val.strip().lower())
+    return sellable
+
+
+def filter_sellable_color_mappings(product: dict) -> list[dict]:
+    """Keep only color_image_mappings sold as an active option; keep all if none would remain."""
+    mappings = product.get("color_image_mappings") or []
+    if not mappings:
+        return []
+
+    sellable_colors = extract_sellable_colors(product)
+    if not sellable_colors:
+        return mappings
+
+    filtered = [
+        m for m in mappings
+        if isinstance(m.get("color_raw"), str)
+        and m["color_raw"].strip().lower() in sellable_colors
+    ]
+
+    return filtered if filtered else mappings
+
+
+def sellable_color_keys(product: dict) -> set[str]:
+    """color_key values a point of this product may have after the sellable-color filter."""
+    return {color_key(m["color_raw"]) for m in filter_sellable_color_mappings(product)
+            if isinstance(m.get("color_raw"), str)}
+
+
 def normalize_image_url(value: object) -> str | None:
     """Same rule as crawler cloud_media.normalize_image_url, used to find the stored copy."""
     if not isinstance(value, str) or not value.strip():
@@ -133,7 +192,13 @@ def plan_product_points(product: dict, color_map: dict[str, str], image_manifest
         if url and record.get("s3_key"):
             stored[url] = record
     points, failures, seen, duplicates = [], [], set(), 0
+    sellable = filter_sellable_color_mappings(product)
+    kept = {id(mapping) for mapping in sellable}
     for mapping in product.get("color_image_mappings") or []:
+        if id(mapping) not in kept:
+            failures.append({"product_id": product_id, "color_raw": mapping.get("color_raw") or "",
+                             "image_url": mapping.get("image_url"), "reason": "unsellable_color"})
+    for mapping in sellable:
         raw = mapping.get("color_raw") or ""
         failure = {"product_id": product_id, "color_raw": raw, "image_url": mapping.get("image_url")}
         key = color_key(raw)
