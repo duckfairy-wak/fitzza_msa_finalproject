@@ -19,10 +19,32 @@ _harmonizer_prompt_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_prompt_t
 _harmonizer_completion_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_completion_tokens_ctx", default=0)
 
 # 후보 조합 중 Vision LLM 검수 대상의 최대 개수
-MAX_CANDIDATES_TO_REVIEW = 9
+MAX_CANDIDATES_TO_REVIEW = 5
 
 # 최종 응답에 포함할 통과 코디의 최대 개수
 DEFAULT_TOP_K = 2
+
+# 카테고리 고정 노출 순서: 아우터 -> 상의 -> 하의 -> 모자 -> 신발 (없는 카테고리는 건너뜀)
+CATEGORY_DISPLAY_ORDER = {
+    "아우터": 1,
+    "outer": 1,
+    "상의": 2,
+    "top": 2,
+    "하의": 3,
+    "bottom": 3,
+    "모자": 4,
+    "hat": 4,
+    "신발": 5,
+    "shoes": 5,
+}
+
+def sort_items_by_standard_category(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        items,
+        key=lambda item: CATEGORY_DISPLAY_ORDER.get(
+            str(item.get("category", "")).lower().strip(), 99
+        ),
+    )
 
 
 SYSTEM_PROMPT = """
@@ -150,6 +172,17 @@ class OutfitHarmonizer:
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
+        self.last_combo_latency: float = 0.0
+        self.last_s3_latency: float = 0.0
+        self.last_llm_latency: float = 0.0
+        self.last_total_latency: float = 0.0
+
+    def reset_latencies(self) -> None:
+        self.last_latency = 0.0
+        self.last_combo_latency = 0.0
+        self.last_s3_latency = 0.0
+        self.last_llm_latency = 0.0
+        self.last_total_latency = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
@@ -304,7 +337,9 @@ class OutfitHarmonizer:
             if not raw_image_url:
                 continue
 
+            s3_start = time.perf_counter()
             image_url = get_storage_client().get_presigned_url(raw_image_url)
+            self.last_s3_latency += (time.perf_counter() - s3_start)
             if not image_url or not image_url.startswith(("http://", "https://")):
                 continue
 
@@ -345,7 +380,9 @@ class OutfitHarmonizer:
 
         end_time = time.perf_counter()
 
-        self.last_latency = end_time - start_time
+        duration = end_time - start_time
+        self.last_latency = duration
+        self.last_llm_latency += duration
         usage = getattr(completion, "usage", None)
         p_tok = int(getattr(usage, "prompt_tokens", 0) or 0)
         c_tok = int(getattr(usage, "completion_tokens", 0) or 0)
@@ -385,23 +422,30 @@ class OutfitHarmonizer:
             total_budget: int | None = None,
             pre_filtered_combos: list[tuple] | None = None,
     ) -> list[dict[str, Any]]:
+        start_total = time.perf_counter()
+        self.reset_latencies()
         self.last_prompt_tokens = 0
         self.last_completion_tokens = 0
 
         if top_k < 1:
+            self.last_total_latency = time.perf_counter() - start_total
             raise ValueError("top_k는 1 이상이어야 합니다.")
 
+        start_combo = time.perf_counter()
         if pre_filtered_combos is not None:
             all_combos = pre_filtered_combos
         else:
             if not slot_candidates:
+                self.last_total_latency = time.perf_counter() - start_total
                 return []
 
-            slots = [
-                slot for slot, items in slot_candidates.items() if items
-            ]
+            slots = sorted(
+                [slot for slot, items in slot_candidates.items() if items],
+                key=lambda s: CATEGORY_DISPLAY_ORDER.get(str(s).lower().strip(), 99),
+            )
 
             if not slots:
+                self.last_total_latency = time.perf_counter() - start_total
                 return []
 
             all_combos = list(
@@ -409,12 +453,13 @@ class OutfitHarmonizer:
             )
 
         if not all_combos:
+            self.last_total_latency = time.perf_counter() - start_total
             return []
 
         ranked: list[dict[str, Any]] = []
 
         for combo in all_combos:
-            items = list(combo)
+            items = sort_items_by_standard_category(list(combo))
 
             total_price = sum(
                 int(item.get("price") or 0)
@@ -481,6 +526,7 @@ class OutfitHarmonizer:
             key=lambda candidate: candidate["composite_score"],
             reverse=True,
         )
+        self.last_combo_latency = time.perf_counter() - start_combo
 
         candidates_to_review = ranked[:MAX_CANDIDATES_TO_REVIEW]
 
@@ -532,6 +578,8 @@ class OutfitHarmonizer:
             key=lambda outfit: outfit["final_score"],
             reverse=True,
         )
+
+        self.last_total_latency = time.perf_counter() - start_total
 
         if not passed_outfits and rejected_outfits:
             logger.info("모든 후보가 Vision Gate 기준을 통과하지 못해 차선책 후보를 반환합니다.")

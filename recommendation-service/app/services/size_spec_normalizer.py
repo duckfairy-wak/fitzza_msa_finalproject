@@ -7,19 +7,35 @@ logger = logging.getLogger(__name__)
 # [무신사 표준 실측 규격 정의 (FITZZA-53)]
 # 상의/아우터, 하의, 신발, 모자 카테고리별 정확한 실측 항목
 # ==============================================================================
+# ==============================================================================
+# [무신사 5대 표준 카테고리 실측 규격 정의]
+# 서비스 전반의 표준에 맞춰 한글 대분류를 1급 기본 키(Primary Key)로 직접 사용합니다.
+# ==============================================================================
 MUSINSA_CATEGORY_SPEC_FIELDS: dict[str, list[str]] = {
-    "top": ["총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"],
-    "outer": ["총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"],
-    "bottom": ["총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"],
-    "shoes": ["발길이", "발볼", "발목높이", "굽높이"],
-    "hat": ["머리둘레", "챙길이", "깊이"],
+    "상의": ["총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"],
+    "아우터": ["총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"],
+    "하의": ["총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"],
+    "신발": ["발길이", "발볼", "발목높이", "굽높이"],
+    "모자": ["머리둘레", "챙길이", "깊이"],
+}
+
+# 하위 호환성을 위한 영문 보조 변환 맵 (안전장치)
+_LEGACY_EN_TO_KO: dict[str, str] = {
+    "top": "상의",
+    "outer": "아우터",
+    "bottom": "하의",
+    "shoes": "신발",
+    "hat": "모자",
 }
 
 
 def get_musinsa_spec_fields(category: str) -> list[str]:
-    """카테고리별 무신사 표준 실측 스펙 필드 목록을 반환한다."""
-    cat = category.strip().lower() if category else "top"
-    return list(MUSINSA_CATEGORY_SPEC_FIELDS.get(cat, []))
+    """카테고리(한글 기본)에 해당하는 무신사 표준 실측 항목 목록을 반환한다."""
+    if not category:
+        return []
+    cat = category.strip()
+    resolved_cat = _LEGACY_EN_TO_KO.get(cat.lower(), cat)
+    return list(MUSINSA_CATEGORY_SPEC_FIELDS.get(resolved_cat, []))
 
 
 def parse_numeric_measurement(raw_val: Any, is_shoes: bool = False) -> Optional[float]:
@@ -62,9 +78,10 @@ def normalize_measurement_spec(
     if not raw_spec or not isinstance(raw_spec, dict):
         return {}
 
-    cat = category.strip().lower() if category else None
-    target_fields = MUSINSA_CATEGORY_SPEC_FIELDS.get(cat) if cat else None
-    is_shoes = (cat == "shoes")
+    cat = category.strip() if category else ""
+    resolved_cat = _LEGACY_EN_TO_KO.get(cat.lower(), cat) if cat else None
+    target_fields = MUSINSA_CATEGORY_SPEC_FIELDS.get(resolved_cat) if resolved_cat else None
+    is_shoes = (resolved_cat == "신발")
 
     normalized: dict[str, float] = {}
 
