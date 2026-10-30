@@ -2,7 +2,9 @@
 
 이 디렉터리는 `kube-prometheus-stack` Helm chart `92.14.1`의 FITZZA 값 파일을
 관리한다. EKS·애플리케이션 지표는 Prometheus가 수집하고, RDS·SQS·NAT·CloudFront·WAF
-지표는 후속 FITZZA-310에서 Grafana CloudWatch data source로 조회한다.
+지표는 Grafana의 선언형 CloudWatch data source로 조회한다. CloudWatch data source는
+정적 access key 없이 `fitzza-monitoring-grafana` ServiceAccount의 EKS Pod Identity를
+사용한다.
 
 최초 구성은 Prometheus Operator, Prometheus, Grafana, kube-state-metrics,
 node-exporter만 설치한다. Alertmanager, Prometheus Adapter, Thanos, Loki,
@@ -22,6 +24,9 @@ remote_write, 공개 Ingress와 LoadBalancer는 설치하지 않는다. 설계·
   실제 pull 전 확인해야 한다.
 - Grafana 관리자 Secret은 운영 비밀 저장소에서 생성한다. Secret 값은 저장소, Jira,
   shell history, 로그에 넣지 않는다.
+- `foundation.yaml`의 `GrafanaCloudWatchPodIdentityAssociation`이 배포되어야 한다.
+  연결 대상은 `fitzza-monitoring/fitzza-monitoring-grafana`이며 역할은 CloudWatch
+  metric 조회만 허용한다.
 
 Grafana Secret은 반드시 아래 키만 사용한다.
 
@@ -143,6 +148,20 @@ kubectl -n fitzza-monitoring port-forward --address 127.0.0.1 service/fitzza-mon
 Prometheus Targets에서 kubelet, node-exporter, kube-state-metrics가 `UP`인지
 확인한다. 실패 시 대상 URL, 인증서, RBAC, node-exporter DaemonSet 스케줄 상태를
 확인하고 무단으로 `--resolve-conflicts`나 공개 Service를 추가하지 않는다.
+
+Grafana의 Connections > Data sources에서 Prometheus와 CloudWatch가 모두 provisioned
+상태인지 확인한다. CloudWatch는 기본 리전 `ap-northeast-2`, 인증 방식 `AWS SDK
+Default`여야 한다. 메트릭 전용 역할이므로 CloudWatch Logs 조회는 허용하지 않는다.
+CloudWatch 패널의 기본 refresh는 5분으로 유지한다. 서울 리전의 AWS 리소스 지표는
+기본 리전을 사용하고, CloudFront 및 CloudFront 범위의 WAF 지표를 조회하는 각 쿼리는
+리전을 `us-east-1`로 선택한다.
+
+```powershell
+kubectl -n fitzza-monitoring get serviceaccount fitzza-monitoring-grafana
+kubectl -n fitzza-monitoring get pods -l app.kubernetes.io/name=grafana -o wide
+kubectl -n fitzza-monitoring logs deployment/fitzza-monitoring-grafana --since=10m |
+  Select-String -Pattern 'CloudWatch|AccessDenied|NoCredentialProviders|WebIdentityErr'
+```
 
 ## 롤백과 저장소
 

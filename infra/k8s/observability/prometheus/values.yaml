@@ -10,10 +10,23 @@ alertmanager:
 
 grafana:
   enabled: true
+  serviceAccount:
+    create: true
+    name: fitzza-monitoring-grafana
   admin:
     existingSecret: fitzza-grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  additionalDataSources:
+    - name: CloudWatch
+      uid: cloudwatch
+      type: cloudwatch
+      access: proxy
+      editable: false
+      isDefault: false
+      jsonData:
+        authType: default
+        defaultRegion: ap-northeast-2
   service:
     type: ClusterIP
   ingress:

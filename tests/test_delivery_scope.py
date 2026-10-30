@@ -85,6 +85,53 @@ def test_vton_uses_dedicated_pod_identity_and_least_privilege_queue_role():
     assert apps.count("serviceAccountName: fitzza-vton") == 2
 
 
+def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
+    yaml = pytest.importorskip("yaml")
+    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    values = yaml.safe_load(
+        (ROOT / "infra/k8s/observability/prometheus/values.yaml").read_text()
+    )
+
+    grafana = values["grafana"]
+    assert grafana["serviceAccount"] == {
+        "create": True,
+        "name": "fitzza-monitoring-grafana",
+    }
+    assert grafana["additionalDataSources"] == [
+        {
+            "name": "CloudWatch",
+            "uid": "cloudwatch",
+            "type": "cloudwatch",
+            "access": "proxy",
+            "editable": False,
+            "isDefault": False,
+            "jsonData": {
+                "authType": "default",
+                "defaultRegion": "ap-northeast-2",
+            },
+        }
+    ]
+
+    role_block = template[
+        template.index("  GrafanaCloudWatchRole:\n"):
+        template.index("  GrafanaCloudWatchPodIdentityAssociation:\n")
+    ]
+    association_block = template[
+        template.index("  GrafanaCloudWatchPodIdentityAssociation:\n"):
+        template.index("  VtonRuntimeRole:\n")
+    ]
+    assert "Principal: { Service: pods.eks.amazonaws.com }" in role_block
+    assert "aws:RequestTag/eks-cluster-arn: !GetAtt EksCluster.Arn" in role_block
+    assert "cloudwatch:GetMetricData" in role_block
+    assert "cloudwatch:ListMetrics" in role_block
+    assert "aws:RequestedRegion:" in role_block
+    assert "- ap-northeast-2" in role_block
+    assert "- us-east-1" in role_block
+    assert "logs:" not in role_block
+    assert "Namespace: fitzza-monitoring" in association_block
+    assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
+
+
 def test_base_tracing_stays_disabled_without_a_production_overlay():
     config = (ROOT / "infra/k8s/base/configmap.yaml").read_text(encoding="utf-8")
     assert "MANAGEMENT_OTLP_TRACING_ENDPOINT" not in config
