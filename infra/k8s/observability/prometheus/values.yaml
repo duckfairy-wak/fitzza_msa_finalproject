@@ -86,6 +86,10 @@ prometheus:
               storage: 10Gi
 
 kube-state-metrics:
+  image:
+    registry: asia-east1-docker.pkg.dev
+    repository: k8s-artifacts-prod/images/kube-state-metrics/kube-state-metrics
+    tag: v2.20.0
   resources:
     requests:
       cpu: 25m

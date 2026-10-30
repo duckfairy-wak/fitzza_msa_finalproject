@@ -130,6 +130,27 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     assert "logs:" not in role_block
     assert "Namespace: fitzza-monitoring" in association_block
     assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
+    assert values["kube-state-metrics"]["image"] == {
+        "registry": "asia-east1-docker.pkg.dev",
+        "repository": (
+            "k8s-artifacts-prod/images/kube-state-metrics/kube-state-metrics"
+        ),
+        "tag": "v2.20.0",
+    }
+
+
+def test_prometheus_preflight_accepts_current_helm_crd_output_path():
+    script = (ROOT / "scripts/deploy_prometheus_stack.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "Join-Path $manifestRoot 'crds'" in script
+    assert "Join-Path $manifestRoot 'charts/crds/crds'" in script
+    assert "foreach ($crdRootCandidate in $crdRootCandidates)" in script
+    assert "'--skip-tests'" in script
+    assert (
+        "'apply', '--server-side', '--force-conflicts', '--dry-run=server', "
+        "'--recursive'" in script
+    )
 
 
 def test_base_tracing_stays_disabled_without_a_production_overlay():
