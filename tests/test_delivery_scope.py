@@ -113,6 +113,10 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     )
 
     grafana = values["grafana"]
+    assert grafana["resources"] == {
+        "requests": {"cpu": "50m", "memory": "128Mi"},
+        "limits": {"cpu": "200m", "memory": "512Mi"},
+    }
     assert grafana["serviceAccount"] == {
         "create": True,
         "name": "fitzza-monitoring-grafana",
