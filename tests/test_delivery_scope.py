@@ -132,6 +132,20 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
 
 
+def test_prometheus_preflight_accepts_current_helm_crd_output_path():
+    script = (ROOT / "scripts/deploy_prometheus_stack.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "Join-Path $manifestRoot 'crds'" in script
+    assert "Join-Path $manifestRoot 'charts/crds/crds'" in script
+    assert "foreach ($crdRootCandidate in $crdRootCandidates)" in script
+    assert "'--skip-tests'" in script
+    assert (
+        "'apply', '--server-side', '--force-conflicts', '--dry-run=server', "
+        "'--recursive'" in script
+    )
+
+
 def test_base_tracing_stays_disabled_without_a_production_overlay():
     config = (ROOT / "infra/k8s/base/configmap.yaml").read_text(encoding="utf-8")
     assert "MANAGEMENT_OTLP_TRACING_ENDPOINT" not in config
