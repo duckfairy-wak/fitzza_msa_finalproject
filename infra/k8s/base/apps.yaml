@@ -396,7 +396,10 @@ spec:
     matchLabels: { app.kubernetes.io/name: vton-worker }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: vton-worker }
+      labels:
+        app.kubernetes.io/name: vton-worker
+        # 피팅 작업이 상품 메타데이터를 Qdrant에서 직접 조회한다. qdrant-ingress NetworkPolicy는 이 라벨만 허용한다.
+        fitzza.io/qdrant-client: "true"
     spec:
       serviceAccountName: fitzza-vton
       containers:
