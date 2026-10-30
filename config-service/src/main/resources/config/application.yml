@@ -9,7 +9,16 @@ management:
   endpoints:
     web:
       exposure:
-        exclude: "*"
+        # 메트릭(Prometheus)만 연다. 각 서비스는 일반 API와 다른 관리 포트(management.server.port)에서만 응답하므로
+        # Gateway·Ingress를 거쳐 외부로 나가지 않는다. Config·Discovery는 자체 설정에서 계속 모두 막는다.
+        include: prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # p90/p95/p99는 Prometheus에서 histogram_quantile로 계산한다. 버킷 수를 고정해 시계열 수가 늘지 않게 한다.
+      slo:
+        http.server.requests: 25ms,50ms,100ms,250ms,500ms,1s,2500ms,5s,10s
   tracing:
     sampling:
       # 기본 꺼짐(운영 안전). 로컬 Compose는 MANAGEMENT_TRACING_SAMPLING_PROBABILITY=1.0 으로 켠다.

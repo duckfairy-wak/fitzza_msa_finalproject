@@ -35,6 +35,8 @@ subprojects {
             // Micrometer Tracing → OTLP(Jaeger). yml 기본 샘플링 0.0, Compose는 1.0으로 켠다.
             implementation 'io.micrometer:micrometer-tracing-bridge-otel'
             implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+            // Prometheus 메트릭(/actuator/prometheus). 일반 API와 다른 관리 포트에서만 연다(각 서비스 application.yml).
+            runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
         }
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
