@@ -11,10 +11,16 @@ logger = logging.getLogger(__name__)
 # 자연어 의도 분석 -> 단품/코디 분기 -> 조화도 검수 -> 응답 생성하는 전체 흐름 총괄
 
 class FashionPipelineCoordinator:
-    def __init__(self, cache_service: Any = None, repository: Any = None):
+    def __init__(
+        self,
+        cache_service: Any = None,
+        repository: Any = None,
+        product_client: Any = None,
+    ):
         logger.info("패션 추천 파이프라인 컴포넌트 초기화 중...")
         self.cache_service = cache_service
         self.repository = repository
+        self.product_client = product_client
         self.parser = QueryParser()
         self.engine = FashionSearchEngine(cache_service=cache_service)
         self.size_resolver = SizeProfileResolver()
@@ -29,8 +35,15 @@ class FashionPipelineCoordinator:
             slot: SlotQuery,
             user_id: str,
     ) -> list[dict[str, Any]]:
-        """
-        검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
+        """검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
+
+        Args:
+            items: Qdrant 벡터 검색을 통해 선정된 상품 후보군 목록.
+            slot: 사용자의 검색 요청 슬롯 쿼리.
+            user_id: 요청 사용자 ID.
+
+        Returns:
+            각 상품에 추천 사이즈 및 산출 근거가 부착된 평가 결과 목록.
         """
         learned_pref: dict[str, float] | None = None
         if self.repository is not None and slot.subcategory:

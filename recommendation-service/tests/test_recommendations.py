@@ -1100,3 +1100,31 @@ def test_llm_services_token_contextvars_concurrency() -> None:
     assert res_b == (999, 888, 777)
 
 
+def test_coordinator_attach_size_info_assigns_size_recommendations() -> None:
+    from unittest.mock import MagicMock
+    from app.services.coordinator import FashionPipelineCoordinator
+    from app.services.query_parser import SlotQuery
+
+    coordinator = FashionPipelineCoordinator.__new__(FashionPipelineCoordinator)
+    coordinator.repository = None
+    coordinator.size_resolver = MagicMock()
+    coordinator.size_resolver.resolve_and_calculate_size.return_value = {
+        "source_type": "standard_spec",
+        "recommendation": {"size": "FREE"},
+    }
+
+    items = [
+        {"product_id": 2837412, "color_raw": "BEIGE", "name": "오버핏 니트 베이지"},
+        {"product_id": 2837412, "color_raw": "BLACK", "name": "오버핏 니트 블랙"},
+    ]
+    slot = SlotQuery(category="top", subcategory="니트/스웨터", clip_query_en="oversized knit")
+
+    result = coordinator._attach_size_info(items=items, slot=slot, user_id="user_1")
+
+    assert len(result) == 2
+    assert result[0]["size_recommendation"] == {"size": "FREE"}
+    assert result[0]["fit_source_type"] == "standard_spec"
+    assert result[1]["size_recommendation"] == {"size": "FREE"}
+    assert result[1]["fit_source_type"] == "standard_spec"
+
+

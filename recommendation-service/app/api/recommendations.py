@@ -191,9 +191,14 @@ def _get_coordinator(app: Any) -> Any:
         from app.services.coordinator import FashionPipelineCoordinator
 
         cache_service = _get_cache_service(app)
+        product_client = getattr(app.state, "product_client", None)
+        if product_client is None:
+            settings = getattr(app.state, "settings", None)
+            product_client = ProductServiceClient(settings)
         coordinator = FashionPipelineCoordinator(
             cache_service=cache_service,
             repository=repository,
+            product_client=product_client,
         )
         app.state.coordinator = coordinator
     elif getattr(coordinator, "repository", None) is None and repository is not None:

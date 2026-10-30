@@ -94,6 +94,12 @@ Deploy the production overlay from that build's artifact, which includes the pop
 kubectl kustomize infra/k8s/overlays/prod
 ```
 
+The production overlay right-sizes the 11 API/application Deployment CPU requests from
+the shared 50m baseline to 25m while retaining the 1-core CPU limits. The worker keeps
+its 50m request because queue-processing bursts differ from idle API traffic. Restore
+the production request to 50m if sustained measurements show CPU throttling, rollout
+timeouts, or health-check failures.
+
 ## Deployment order
 
 The production overlay explicitly sets `SPRING_PROFILES_ACTIVE=native,prod` for Config Server. Its classpath configuration backend requires `native`; the shared ConfigMap's `prod` profile alone would disable that backend. Other services retain the shared `prod` profile.

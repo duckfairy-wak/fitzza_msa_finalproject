@@ -29,6 +29,64 @@ def normalize_fit(raw_fit_list: list) -> str:
     fit_map = {"슬림": "slim", "레귤러": "regular", "보통": "regular", "루즈": "relaxed", "오버 사이즈": "oversized", "오버핏": "oversized"}
     return fit_map.get(raw_fit_list[0].strip(), None)
 
+def extract_sellable_colors(product: dict) -> set[str]:
+    """Extract active/sellable color names from option_items.
+
+    Returns normalized lowercase strings. If no active option_items or color
+    cannot be distinguished, returns an empty set indicating fallback to all.
+    """
+    option_items = product.get("option_items") or []
+    if not option_items:
+        return set()
+
+    options = product.get("options") or []
+    color_group_idx = None
+    for idx, opt in enumerate(options):
+        name = opt.get("name") or ""
+        if any(kw in name.lower() for kw in ["컬러", "색상", "color"]):
+            color_group_idx = idx
+            break
+
+    sellable = set()
+    for item in option_items:
+        if item.get("activated") is False:
+            continue
+        values = item.get("values") or []
+        if not values:
+            continue
+        if color_group_idx is not None and color_group_idx < len(values):
+            val = values[color_group_idx]
+            if isinstance(val, str) and val.strip():
+                sellable.add(val.strip().lower())
+        else:
+            for val in values:
+                if isinstance(val, str) and val.strip():
+                    sellable.add(val.strip().lower())
+    return sellable
+
+def filter_sellable_color_mappings(product: dict) -> list[dict]:
+    """Filter color_image_mappings to only those present in sellable option_items.
+
+    If sellable_colors is determined, only mappings matching a sellable color
+    are retained. If filtering would eliminate all mappings (edge case),
+    it falls back to original mappings to ensure product remains indexable.
+    """
+    mappings = product.get("color_image_mappings") or []
+    if not mappings:
+        return []
+
+    sellable_colors = extract_sellable_colors(product)
+    if not sellable_colors:
+        return mappings
+
+    filtered = [
+        m for m in mappings
+        if isinstance(m.get("color_raw"), str)
+        and m["color_raw"].strip().lower() in sellable_colors
+    ]
+
+    return filtered if filtered else mappings
+
 class FashionCLIPRunner:
     def __init__(self, model_name="patrickjohncyh/fashion-clip"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -209,7 +267,7 @@ def main():
 
     try:
         for product in products:
-            mappings = product.get("color_image_mappings") or []
+            mappings = filter_sellable_color_mappings(product)
             if not mappings:
                 raise ValueError("Product missing color-image mappings")
             for mapping in mappings:

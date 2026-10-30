@@ -26,6 +26,7 @@ DEFAULT_ALIAS = "musinsa_products"
 DEFAULT_REGION = "ap-northeast-2"
 DEFAULT_PROFILE = "fitzza"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
+DEFAULT_PRODUCT_DATA_DIR = "product-service/src/main/resources/final_products"
 PART_COUNT = 27  # part-00000.jsonl ~ part-00026.jsonl
 
 
@@ -53,6 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--alias",
         default=DEFAULT_ALIAS,
         help="서비스가 바라볼 Qdrant 별칭 (기본값: musinsa_products)",
+    )
+    parser.add_argument(
+        "--product-data-dir",
+        default=DEFAULT_PRODUCT_DATA_DIR,
+        help="상품 JSON 디렉터리 경로 (판매 가능 색상 필터링용)",
     )
     parser.add_argument("--region", default=DEFAULT_REGION, help="AWS 리전")
     parser.add_argument("--profile", default=DEFAULT_PROFILE, help="AWS CLI 프로필")
@@ -89,7 +95,19 @@ def import_vectors(args: argparse.Namespace) -> int:
     )
     logger.info("새 컬렉션 '%s' 생성 완료 (512차원, Cosine)", args.collection)
 
+    sellable_map: dict[int, set[str]] = {}
+    if getattr(args, "product_data_dir", None):
+        try:
+            try:
+                from scripts.purge_unsellable_qdrant_points import build_sellable_colors_map
+            except ImportError:
+                from purge_unsellable_qdrant_points import build_sellable_colors_map
+            sellable_map = build_sellable_colors_map(args.product_data_dir)
+        except Exception as exc:
+            logger.warning("판매 색상 매핑 로드 실패 (%s): %s. 필터링 없이 전체 적재합니다.", args.product_data_dir, exc)
+
     total_upserted = 0
+    total_skipped_unsellable = 0
     for idx in range(PART_COUNT):
         part_key = f"{args.prefix}/embeddings/part-{idx:05d}.jsonl"
         try:
@@ -105,6 +123,14 @@ def import_vectors(args: argparse.Namespace) -> int:
                 continue
             rec = json.loads(line)
             payload = rec.get("payload") or {}
+
+            pid = payload.get("product_id")
+            raw_color = payload.get("color_raw")
+            if sellable_map and pid is not None and int(pid) in sellable_map and raw_color:
+                if str(raw_color).strip().lower() not in sellable_map[int(pid)]:
+                    total_skipped_unsellable += 1
+                    continue
+
             # S3 Object Key를 우선하여 image_url에 매핑
             if payload.get("image_key"):
                 payload["image_url"] = payload["image_key"]
@@ -119,7 +145,8 @@ def import_vectors(args: argparse.Namespace) -> int:
         if points:
             client.upsert(collection_name=args.collection, points=points, wait=True)
             total_upserted += len(points)
-            logger.info("Part %02d/%02d 적재 완료 (+%d개, 누적: %d개)", idx + 1, PART_COUNT, len(points), total_upserted)
+            logger.info("Part %02d/%02d 적재 완료 (+%d개, 누적: %d개, 제외된 비판매: %d개)",
+                        idx + 1, PART_COUNT, len(points), total_upserted, total_skipped_unsellable)
 
     # Alias 연결
     if args.alias:

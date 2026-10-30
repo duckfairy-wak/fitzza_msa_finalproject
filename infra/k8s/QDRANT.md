@@ -37,6 +37,11 @@ python scripts/qdrant_smoke_test.py
 
 `qdrant` Service는 `ClusterIP`여야 하며 외부 LoadBalancer나 NodePort가 생기면 안 됩니다. 애플리케이션 로그는 표준 출력으로 기록되어 EKS의 CloudWatch 로그 수집 경로와 호환됩니다.
 
+단일 노드 운영의 CPU 예약량을 줄이기 위해 Qdrant CPU request는 100m, limit은 1 core로
+유지한다. request 조정은 CPU 상한을 낮추지 않으므로 검색·색인 시 1 core까지 burst할 수
+있다. 지속적인 throttling, readiness 실패 또는 색인 지연이 관측되면 request를 250m로
+되돌리고 노드 용량을 재검토한다.
+
 ## 스냅샷과 복구
 
 컬렉션 스냅샷 생성:

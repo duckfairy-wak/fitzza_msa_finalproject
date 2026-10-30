@@ -8,7 +8,8 @@ class IndexerContractTests(unittest.TestCase):
     def setUp(self):
         tree = ast.parse((Path(__file__).parent / "index_to_qdrant.py").read_text(encoding="utf-8"))
         selected = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-                    and node.name in {"normalize_measurements", "make_payload", "load_image"}]
+                    and node.name in {"normalize_measurements", "make_payload", "load_image",
+                                      "extract_sellable_colors", "filter_sellable_color_mappings"}]
         self.scope = {"requests": Mock()}
         exec(compile(ast.Module(body=selected, type_ignores=[]), "indexer-functions", "exec"), self.scope)
 
@@ -36,3 +37,38 @@ class IndexerContractTests(unittest.TestCase):
         tree = ast.parse((Path(__file__).parent / "index_to_qdrant.py").read_text(encoding="utf-8"))
         self.assertFalse(any(isinstance(node, ast.Attribute) and node.attr == "delete_collection"
                              for node in ast.walk(tree)))
+
+    def test_filter_sellable_color_mappings_excludes_unsellable_colors(self):
+        product = {
+            "product_id": 2837412,
+            "options": [{"name": "컬러", "values": []}, {"name": "사이즈", "values": []}],
+            "option_items": [
+                {"activated": True, "values": ["BEIGE", "FREE"]},
+                {"activated": True, "values": ["BLACK", "FREE"]},
+                {"activated": False, "values": ["PURPLE", "FREE"]},
+            ],
+            "color_image_mappings": [
+                {"product_id": 2837412, "color_raw": "BEIGE", "image_url": "https://image.msscdn.net/beige.jpg"},
+                {"product_id": 2837412, "color_raw": "BLACK", "image_url": "https://image.msscdn.net/black.jpg"},
+                {"product_id": 2837412, "color_raw": "RED", "image_url": "https://image.msscdn.net/red.jpg"},
+                {"product_id": 2837412, "color_raw": "PURPLE", "image_url": "https://image.msscdn.net/purple.jpg"},
+            ],
+        }
+        filtered = self.scope["filter_sellable_color_mappings"](product)
+        colors = [m["color_raw"] for m in filtered]
+        self.assertEqual(colors, ["BEIGE", "BLACK"])
+        self.assertNotIn("RED", colors)
+        self.assertNotIn("PURPLE", colors)
+
+    def test_filter_sellable_color_mappings_fallback_when_empty_or_no_options(self):
+        product = {
+            "product_id": 9999999,
+            "options": [],
+            "option_items": [],
+            "color_image_mappings": [
+                {"product_id": 9999999, "color_raw": "ONE", "image_url": "https://image.msscdn.net/one.jpg"}
+            ],
+        }
+        filtered = self.scope["filter_sellable_color_mappings"](product)
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["color_raw"], "ONE")

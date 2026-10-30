@@ -7,7 +7,7 @@ FITZZA-303에서 이 메모리 기반 파일럿과 운영 샘플링 `0.1` 적용
 
 ## 용량과 저장 정책
 
-- Pod 1개, requests CPU 100m / 메모리 128Mi, limits CPU 500m / 메모리 512Mi.
+- Pod 1개, requests CPU 50m / 메모리 128Mi, limits CPU 500m / 메모리 512Mi.
 - 메모리에 최대 1,000개 trace를 저장한다. 시간 기준 보존 정책은 없으며 재시작,
   재배포, 노드 축소 시 모두 사라진다. trace 개수 제한은 메모리 사용량 상한을 보장하지 않는다.
 - PVC, LoadBalancer, Ingress를 생성하지 않는다. 장기 보관이 필요하면 별도 저장소와
@@ -31,7 +31,7 @@ kubectl apply --dry-run=server -k infra/k8s/observability/jaeger
 ```
 
 운영 시간 안에 노드 allocatable과 기존 Pod requests를 비교한다. Jaeger 추가 후에도
-CPU 100m, 메모리 128Mi, Pod 슬롯 1개가 확보되어야 한다. `top`이 없으면 Metrics Server
+CPU 50m, 메모리 128Mi, Pod 슬롯 1개가 확보되어야 한다. `top`이 없으면 Metrics Server
 없이 requests와 실제 사용량을 별도로 확인한다. 용량 부족 시 노드를 자동 확장하지 않는다.
 
 ```bash

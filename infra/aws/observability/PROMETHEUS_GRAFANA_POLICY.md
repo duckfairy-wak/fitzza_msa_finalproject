@@ -98,6 +98,14 @@ limits 합계는 모든 구성요소가 동시에 최대로 동작할 때 노드
 OOM, scrape 누락이 발생하면 requests와 limits를 함께 재산정하며, limit만 높여 노드
 과할당을 숨기지 않는다.
 
+2026-10-29 단일 노드 관측에서 실제 CPU는 229m(11%)였지만 Prometheus 포함 예상 CPU
+requests는 1960m으로 allocatable 약 1930m을 초과했다. 운영 application Deployment
+11개의 CPU request를 각각 50m에서 25m로, Qdrant를 250m에서 100m로, Jaeger를 100m에서
+50m로 조정하면 약 475m을 회수해 예상 requests는 약 1485m(77%)이 된다. CPU limits와
+메모리 requests는 유지한다. 이 값은 유휴 시점 하나를 성능 기준으로 확정한 것이 아니며,
+Prometheus가 수집한 rollout·검색·색인·요청 피크에서 throttling과 latency를 확인해 다시
+산정한다.
+
 ## 보존·저장소 정책
 
 - 전역 scrape interval과 evaluation interval은 60초로 시작한다.

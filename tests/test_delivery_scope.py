@@ -124,7 +124,7 @@ def test_jaeger_pilot_is_internal_and_resource_bounded():
     container = deployment["spec"]["template"]["spec"]["containers"][0]
     assert deployment["metadata"]["namespace"] == "fitzza"
     assert container["image"] == "cr.jaegertracing.io/jaegertracing/jaeger:2.22.0"
-    assert container["resources"]["requests"] == {"cpu": "100m", "memory": "128Mi"}
+    assert container["resources"]["requests"] == {"cpu": "50m", "memory": "128Mi"}
     assert container["resources"]["limits"] == {"cpu": "500m", "memory": "512Mi"}
     assert "max_traces: 1000" in config["data"]["config.yaml"]
     assert service["spec"]["type"] == "ClusterIP"

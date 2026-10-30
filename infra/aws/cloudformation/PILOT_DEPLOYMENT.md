@@ -104,7 +104,7 @@ FITZZA-221의 [payer 관리자용 예산 설정 요청안·수동 점검표](../
 
 ### FITZZA-303: 운영 Jaeger 파일럿 활성화
 
-- 운영자 관리 Jaeger Pod 1개를 추가한다. requests는 CPU 100m/메모리 128Mi이고,
+- 운영자 관리 Jaeger Pod 1개를 추가한다. requests는 CPU 50m/메모리 128Mi이고,
   최대 1,000개 trace를 메모리에 저장한다. 재시작·재배포·노드 종료 시 trace는 삭제된다.
 - 적용 직전에 collector를 포함한 전체 Pod requests와 노드 allocatable을 비교한다.
   용량이 부족하면 노드를 자동 확장하지 않고 배포를 중단한다.
