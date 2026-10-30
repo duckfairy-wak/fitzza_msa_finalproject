@@ -165,6 +165,25 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     }
 
 
+def test_grafana_runbook_covers_pod_identity_migration_and_runtime_checks():
+    runbook = (
+        ROOT / "infra/k8s/observability/prometheus/README.md"
+    ).read_text(encoding="utf-8")
+
+    assert "eks-pod-identity-agent" in runbook
+    assert "$Agent.status.numberReady -ne $Agent.status.desiredNumberScheduled" in runbook
+    assert "GrafanaCloudWatchRole" in runbook
+    assert "GrafanaCloudWatchPodIdentityAssociation" in runbook
+    assert "UPDATE_COMPLETE" in runbook
+    assert "fitzza-prod-grafana-cloudwatch-read" in runbook
+    assert "kubectl -n fitzza-monitoring rollout restart" in runbook
+    assert "kubectl -n fitzza-monitoring rollout status" in runbook
+    assert "AWS_CONTAINER_CREDENTIALS_FULL_URI" in runbook
+    assert "Namespace=AWS/EC2" in runbook
+    assert "Metric=CPUUtilization" in runbook
+    assert "Region=us-east-1" in runbook
+
+
 def test_prometheus_preflight_accepts_current_helm_crd_output_path():
     script = (ROOT / "scripts/deploy_prometheus_stack.ps1").read_text(
         encoding="utf-8"
