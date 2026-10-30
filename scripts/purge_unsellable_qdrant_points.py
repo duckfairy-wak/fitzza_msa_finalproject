@@ -74,7 +74,15 @@ def build_sellable_colors_map(data_dir: Path | str) -> dict[int, set[str]]:
             pid = product.get("product_id")
             if pid is not None:
                 colors = extract_sellable_colors(product)
-                if colors:
+                mapping_colors = {
+                    m["color_raw"].strip().lower()
+                    for m in product.get("color_image_mappings") or []
+                    if isinstance(m.get("color_raw"), str)
+                }
+                # 인덱서(filter_sellable_color_mappings)와 동일하게,
+                # 색상 매핑과 겹치는 색상이 전혀 없으면(예: 사이즈 옵션만 있는 상품)
+                # 오삭제를 방지하기 위해 필터링 대상에서 제외하여 포인트를 보존한다.
+                if colors and (not mapping_colors or (colors & mapping_colors)):
                     sellable_map[int(pid)] = colors
         except Exception as exc:
             logger.debug("JSON 읽기 실패 (%s): %s", json_file, exc)
@@ -207,21 +215,21 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
     sellable_map = build_sellable_colors_map(args.data_dir)
     if not sellable_map:
         logger.error("판매 색상 정보를 읽지 못했습니다. 경로를 확인하세요: %s", args.data_dir)
-        return
+        return 1
 
     try:
         client = QdrantClient(url=args.qdrant_url, timeout=60)
         client.get_collections()
     except Exception as exc:
         logger.error("Qdrant 연결 실패 (%s): %s", args.qdrant_url, exc)
-        return
+        return 1
 
     scan_and_purge_unsellable_points(
         client=client,
@@ -229,7 +237,8 @@ def main() -> None:
         sellable_map=sellable_map,
         dry_run=args.dry_run,
     )
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

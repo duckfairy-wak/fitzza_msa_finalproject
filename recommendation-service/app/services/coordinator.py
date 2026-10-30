@@ -81,10 +81,10 @@ class FashionPipelineCoordinator:
                 current_raw = item.get("color_raw")
                 if current_raw and current_raw.strip().lower() not in avail_lower:
                     logger.warning(
-                        "추천 상품의 색상(%s)이 판매 옵션에 없습니다 (pid=%s). 판매 중인 색상(%s)으로 치환합니다.",
-                        current_raw, pid, avail_colors[0]
+                        "추천 상품의 색상(%s)이 판매 옵션에 없습니다 (pid=%s). 이미지 및 조화도 불일치 방지를 위해 추천 후보에서 제외합니다.",
+                        current_raw, pid
                     )
-                    item["color_raw"] = avail_colors[0]
+                    continue
 
             size_result = self.size_resolver.resolve_and_calculate_size(
                 user_id=user_id,

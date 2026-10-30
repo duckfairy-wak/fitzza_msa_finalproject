@@ -1100,7 +1100,7 @@ def test_llm_services_token_contextvars_concurrency() -> None:
     assert res_b == (999, 888, 777)
 
 
-def test_coordinator_color_validation_replaces_unsellable_color() -> None:
+def test_coordinator_color_validation_excludes_unsellable_color() -> None:
     from unittest.mock import MagicMock
     from app.services.coordinator import FashionPipelineCoordinator
     from app.services.query_parser import SlotQuery
@@ -1122,13 +1122,17 @@ def test_coordinator_color_validation_replaces_unsellable_color() -> None:
         "recommendation": {"size": "FREE"},
     }
 
-    # Item with unsellable color RED
-    items = [{"product_id": 2837412, "color_raw": "RED", "name": "오버핏 니트"}]
+    # Item with unsellable color RED, and another with sellable color BEIGE
+    items = [
+        {"product_id": 2837412, "color_raw": "RED", "name": "오버핏 니트 레드"},
+        {"product_id": 2837412, "color_raw": "BEIGE", "name": "오버핏 니트 베이지"},
+    ]
     slot = SlotQuery(category="top", subcategory="니트/스웨터", clip_query_en="oversized knit")
 
     result = coordinator._attach_size_info(items=items, slot=slot, user_id="user_1")
 
-    # RED must be replaced with the first available selling color "BEIGE"
+    # RED must be safely excluded, BEIGE must be retained
+    assert len(result) == 1
     assert result[0]["color_raw"] == "BEIGE"
 
 
