@@ -21,10 +21,14 @@ fitzza:
     support-threshold: ${JEV_SUPPORT_THRESHOLD:0.6}
 
 management:
+  server:
+    # 메트릭은 일반 API(community-service 포트)와 다른 이 포트에서만 연다. Gateway·Ingress·Service의 http 포트가
+    # 이 포트로 라우팅하지 않으므로 클러스터 밖에 노출되지 않는다. Prometheus만 이 포트를 수집한다.
+    port: ${MANAGEMENT_SERVER_PORT:9084}
   endpoints:
     web:
       exposure:
-        exclude: "*"
+        include: prometheus
 
 # 로그 줄마다 Gateway가 붙인 요청 ID(X-Request-Id)를 함께 찍는다.
 logging:

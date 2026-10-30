@@ -119,6 +119,38 @@ curl -X POST http://localhost:8080/api/v1/recommendations \
   -d '{"user_id":"00000000-0000-0000-0000-000000000001","limit":10}'
 ```
 
+## Prometheus 메트릭 (FITZZA-314)
+
+Java 서비스(gateway·user·product·order·community·review·notification)는 Micrometer Prometheus 메트릭을 `/actuator/prometheus`로, FastAPI 서비스(recommendation·vton)는 `prometheus-client`로 `/metrics`를 내보냅니다. 일반 API 포트가 아니라 **관리 포트**에서만 응답하고, 그 밖의 actuator 엔드포인트는 열지 않습니다. Gateway·Ingress·각 Service의 `http` 포트는 관리 포트로 라우팅하지 않으므로 클러스터 밖에 노출되지 않습니다. 인증정보는 응답에 들어가지 않습니다.
+
+| 서비스 | API 포트 | 관리(메트릭) 포트 |
+|------|------|------|
+| gateway-service | 8080 | 9080 |
+| user-service | 8081 | 9081 |
+| product-service | 8082 | 9082 |
+| order-service | 8083 | 9083 |
+| community-service | 8084 | 9084 |
+| review-service | 8085 | 9085 |
+| notification-service | 8086 | 9086 |
+| vton-service (FastAPI) | 8000 (로컬 8091) | 9091 (`/metrics`) |
+| recommendation-service (FastAPI) | 8000 (로컬 8092) | 9092 (`/metrics`) |
+
+- 관리 포트는 `MANAGEMENT_SERVER_PORT`로 바꿀 수 있습니다(기본값은 위 표).
+- 주요 지표: `http_server_requests_seconds_count`(요청 수, `status`로 5xx 비율), `http_server_requests_seconds_bucket`(지연시간 히스토그램 → `histogram_quantile`로 p90/p95/p99), `jvm_memory_used_bytes`, `jvm_gc_pause_seconds`, `jvm_threads_live_threads`, `process_cpu_usage`, `hikaricp_connections_*`.
+- 라벨은 `application`, `method`, `uri`(경로 템플릿, 예 `/api/community/posts/{postId}`), `status`, `outcome`, `exception`(예외 클래스 이름)만 씁니다. 사용자 ID·상품 ID·요청 ID·토큰·원래 URL·쿼리값·예외 메시지는 라벨에 들어가지 않습니다. 매칭되지 않은 경로는 `UNKNOWN`/`NOT_FOUND`로 묶입니다.
+- 지연시간 버킷은 config-service 공통 설정(`management.metrics.distribution.slo.http.server.requests`)에 고정했습니다.
+- FastAPI는 Java와 같은 이름(`http_server_requests_seconds`)·라벨·버킷으로 요청 지표를 남기고, `process_*`·`python_gc_*`·`python_info`를 함께 내보냅니다(`app/core/metrics.py`). 단일 uvicorn 워커 기준이며, 메트릭 포트를 열지 못해도 API는 계속 뜹니다. `MANAGEMENT_SERVER_PORT=0`이면 메트릭 서버를 띄우지 않습니다. SQS 워커(`vton-worker`)는 HTTP 요청이 없어 이번 범위에서 제외했습니다.
+- 메트릭 수집은 Jaeger 추적 설정(`MANAGEMENT_TRACING_SAMPLING_PROBABILITY`)과 무관하게 항상 동작합니다.
+
+로컬 확인(Compose는 관리 포트를 호스트에 공개하지 않으므로 같은 네트워크에서 호출합니다):
+
+```bash
+docker run --rm --network fitzza_default curlimages/curl:8.10.1 -s http://community-service:9084/actuator/prometheus | grep http_server_requests_seconds_count
+docker run --rm --network fitzza_default curlimages/curl:8.10.1 -s http://recommendation-service:9092/metrics | grep http_server_requests_seconds_count
+```
+
+Prometheus 수집(ServiceMonitor)과 Grafana 대시보드는 인프라 작업(FITZZA-309·308)에서 위 관리 포트를 `metrics` 포트로 Service에 추가해 구성합니다.
+
 ## 서비스별 DB 계정
 
 운영의 Java 6개 서비스(user·product·order·community·review·notification)는 서비스 전용 DB 계정(`<스키마>_app`, 예: `user_service_app`)으로 접속합니다.
