@@ -39,8 +39,12 @@ function Invoke-Captured {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $valuesFile = Join-Path $repoRoot 'infra/k8s/observability/prometheus/values.yaml'
+$serviceMonitorFile = Join-Path $repoRoot 'infra/k8s/observability/prometheus/gateway-service-monitor.yaml'
 if (-not (Test-Path -LiteralPath $valuesFile -PathType Leaf)) {
     throw "Values file not found: $valuesFile"
+}
+if (-not (Test-Path -LiteralPath $serviceMonitorFile -PathType Leaf)) {
+    throw "ServiceMonitor file not found: $serviceMonitorFile"
 }
 
 foreach ($commandName in @('helm', 'kubectl', 'aws')) {
@@ -196,7 +200,9 @@ try {
         '--values', $valuesFile,
         '--wait', '--timeout', '10m'
     )
+    Invoke-Checked kubectl @('apply', '--filename', $serviceMonitorFile)
     Invoke-Checked kubectl @('-n', $Namespace, 'get', 'pods,svc,pvc')
+    Invoke-Checked kubectl @('-n', $Namespace, 'get', 'servicemonitor', 'gateway-service')
     Invoke-Checked kubectl @('-n', $Namespace, 'get', 'svc', '-o', 'jsonpath={range .items[*]}{.metadata.name}{"="}{.spec.type}{"\n"}{end}')
 } finally {
     if (Test-Path -LiteralPath $renderRoot) {

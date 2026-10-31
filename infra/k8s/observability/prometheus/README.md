@@ -255,7 +255,11 @@ helm upgrade --install fitzza-monitoring prometheus-community/kube-prometheus-st
   --values infra/k8s/observability/prometheus/values.yaml `
   --wait --timeout 10m
 
+kubectl apply `
+  --filename infra/k8s/observability/prometheus/gateway-service-monitor.yaml
+
 kubectl -n fitzza-monitoring get pods,svc,pvc
+kubectl -n fitzza-monitoring get servicemonitor gateway-service
 kubectl -n fitzza-monitoring get svc -o jsonpath='{range .items[*]}{.metadata.name}{"="}{.spec.type}{"\n"}{end}'
 
 # 기존 Pod에도 새 association의 자격 증명 설정이 주입되도록 반드시 재생성한다.
