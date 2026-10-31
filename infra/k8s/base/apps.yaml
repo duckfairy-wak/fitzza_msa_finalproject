@@ -78,7 +78,9 @@ spec:
         - name: gateway-service
           image: fitzza/gateway-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8080 }]
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: metrics, containerPort: 9080 }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
@@ -87,9 +89,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gateway-service
+  labels: { app.kubernetes.io/name: gateway-service }
 spec:
   selector: { app.kubernetes.io/name: gateway-service }
-  ports: [{ name: http, port: 8080, targetPort: http }]
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+    - { name: metrics, port: 9080, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
