@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Fitzza Grafana CloudWatch metrics access through EKS Pod Identity, isolated
+  from the production foundation stack so observability IAM changes deploy independently.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: Grafana service account -> EKS Pod Identity -> read-only CloudWatch metrics role
+    must:
+      - deploy in the same account and region as the target EKS cluster
+      - keep credentials ephemeral and never add static AWS keys to Grafana
+      - allow metric queries only in ap-northeast-2 and us-east-1
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: fitzza
+    AllowedPattern: '^[a-z][a-z0-9-]{1,20}$'
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  Owner:
+    Type: String
+    Default: team3
+  CostCenter:
+    Type: String
+    Default: lgcns5-retail
+  ClusterName:
+    Type: String
+    Default: fitzza-prod
+    AllowedPattern: '^[0-9A-Za-z][A-Za-z0-9-_]*$'
+  GrafanaNamespace:
+    Type: String
+    Default: fitzza-monitoring
+  GrafanaServiceAccount:
+    Type: String
+    Default: fitzza-monitoring-grafana
+
+Resources:
+  GrafanaCloudWatchRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: let Grafana query CloudWatch metrics with rotating Pod Identity credentials
+        must:
+          - trust only the configured Grafana service account on the configured EKS cluster
+          - keep permissions read-only and metrics-only
+          - query only ap-northeast-2 plus us-east-1 for CloudFront and global WAF metrics
+        mutable: change-with-constraints
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-grafana-cloudwatch-read'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: pods.eks.amazonaws.com }
+            Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Condition:
+              StringEquals:
+                aws:RequestTag/eks-cluster-arn: !Sub 'arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}'
+                aws:RequestTag/kubernetes-service-account: !Ref GrafanaServiceAccount
+                aws:RequestTag/kubernetes-namespace: !Ref GrafanaNamespace
+      Policies:
+        - PolicyName: cloudwatch-metrics-read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: QueryCloudWatchMetrics
+                Effect: Allow
+                Action:
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:ListMetrics
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion:
+                      - ap-northeast-2
+                      - us-east-1
+      Tags:
+        - { Key: Project, Value: !Ref ProjectName }
+        - { Key: Environment, Value: !Ref Environment }
+        - { Key: Owner, Value: !Ref Owner }
+        - { Key: CostCenter, Value: !Ref CostCenter }
+
+  GrafanaCloudWatchPodIdentityAssociation:
+    Type: AWS::EKS::PodIdentityAssociation
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: bind only the monitoring Grafana pod to its CloudWatch metrics reader role
+        must:
+          - namespace and service account must match the declarative Helm values
+        mutable: change-with-constraints
+    Properties:
+      ClusterName: !Ref ClusterName
+      Namespace: !Ref GrafanaNamespace
+      RoleArn: !GetAtt GrafanaCloudWatchRole.Arn
+      ServiceAccount: !Ref GrafanaServiceAccount
+
+Outputs:
+  GrafanaCloudWatchRoleArn:
+    Description: EKS Pod Identity role for Grafana CloudWatch metrics queries
+    Value: !GetAtt GrafanaCloudWatchRole.Arn
+  GrafanaCloudWatchPodIdentityAssociationArn:
+    Description: EKS Pod Identity association used by Grafana
+    Value: !GetAtt GrafanaCloudWatchPodIdentityAssociation.AssociationArn

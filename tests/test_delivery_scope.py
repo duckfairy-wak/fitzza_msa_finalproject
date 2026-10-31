@@ -105,12 +105,18 @@ def test_only_qdrant_reading_workloads_pass_qdrant_network_policy():
 
 def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     yaml = pytest.importorskip("yaml")
-    template = (ROOT / "infra/aws/cloudformation/foundation.yaml").read_text()
+    template = (
+        ROOT / "infra/aws/cloudformation/grafana-cloudwatch.yaml"
+    ).read_text()
     values = yaml.safe_load(
         (ROOT / "infra/k8s/observability/prometheus/values.yaml").read_text()
     )
 
     grafana = values["grafana"]
+    assert grafana["resources"] == {
+        "requests": {"cpu": "50m", "memory": "128Mi"},
+        "limits": {"cpu": "200m", "memory": "512Mi"},
+    }
     assert grafana["serviceAccount"] == {
         "create": True,
         "name": "fitzza-monitoring-grafana",
@@ -136,18 +142,20 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
     ]
     association_block = template[
         template.index("  GrafanaCloudWatchPodIdentityAssociation:\n"):
-        template.index("  VtonRuntimeRole:\n")
+        template.index("\nOutputs:")
     ]
     assert "Principal: { Service: pods.eks.amazonaws.com }" in role_block
-    assert "aws:RequestTag/eks-cluster-arn: !GetAtt EksCluster.Arn" in role_block
+    assert "aws:RequestTag/eks-cluster-arn: !Sub" in role_block
     assert "cloudwatch:GetMetricData" in role_block
     assert "cloudwatch:ListMetrics" in role_block
     assert "aws:RequestedRegion:" in role_block
     assert "- ap-northeast-2" in role_block
     assert "- us-east-1" in role_block
     assert "logs:" not in role_block
-    assert "Namespace: fitzza-monitoring" in association_block
-    assert "ServiceAccount: fitzza-monitoring-grafana" in association_block
+    assert "Default: fitzza-monitoring" in template
+    assert "Default: fitzza-monitoring-grafana" in template
+    assert "Namespace: !Ref GrafanaNamespace" in association_block
+    assert "ServiceAccount: !Ref GrafanaServiceAccount" in association_block
     assert values["kube-state-metrics"]["image"] == {
         "registry": "asia-east1-docker.pkg.dev",
         "repository": (
@@ -155,6 +163,25 @@ def test_grafana_uses_pod_identity_for_cloudwatch_metrics_only():
         ),
         "tag": "v2.20.0",
     }
+
+
+def test_grafana_runbook_covers_pod_identity_migration_and_runtime_checks():
+    runbook = (
+        ROOT / "infra/k8s/observability/prometheus/README.md"
+    ).read_text(encoding="utf-8")
+
+    assert "eks-pod-identity-agent" in runbook
+    assert "$Agent.status.numberReady -ne $Agent.status.desiredNumberScheduled" in runbook
+    assert "GrafanaCloudWatchRole" in runbook
+    assert "GrafanaCloudWatchPodIdentityAssociation" in runbook
+    assert "UPDATE_COMPLETE" in runbook
+    assert "fitzza-prod-grafana-cloudwatch-read" in runbook
+    assert "kubectl -n fitzza-monitoring rollout restart" in runbook
+    assert "kubectl -n fitzza-monitoring rollout status" in runbook
+    assert "AWS_CONTAINER_CREDENTIALS_FULL_URI" in runbook
+    assert "Namespace=AWS/EC2" in runbook
+    assert "Metric=CPUUtilization" in runbook
+    assert "Region=us-east-1" in runbook
 
 
 def test_prometheus_preflight_accepts_current_helm_crd_output_path():
