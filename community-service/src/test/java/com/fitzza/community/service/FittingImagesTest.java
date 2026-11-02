@@ -14,8 +14,10 @@ import com.fitzza.community.domain.Post;
 import com.fitzza.community.domain.PostCategory;
 import com.fitzza.community.domain.SharedSnapshot;
 import com.fitzza.community.domain.SharedType;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.ResourceAccessException;
@@ -78,6 +80,28 @@ class FittingImagesTest {
                         fittingPost(1L, AUTHOR_ID, 70L), fittingPost(2L, AUTHOR_ID, 71L), fittingPost(3L, AUTHOR_ID, 72L))))
                 .containsOnlyKeys(70L)
                 .containsEntry(70L, "new-70");
+        verify(fittingResults, never()).findFitting(72L, AUTHOR_ID);
+    }
+
+    // 실패 없이 느리기만 해도, 시간 예산을 다 쓰면 남은 피팅은 부르지 않고 그때까지 받은 주소만 쓴다.
+    @Test
+    void stopsAskingOnceTheTimeBudgetIsSpentAndKeepsWhatItAlreadyGot() {
+        AtomicLong now = new AtomicLong();
+        FittingImages budgeted = new FittingImages(fittingResults, now::get, Duration.ofSeconds(2));
+        when(fittingResults.findFitting(70L, AUTHOR_ID)).thenAnswer(invocation -> {
+            now.addAndGet(Duration.ofSeconds(1).toNanos());
+            return completed("new-70");
+        });
+        when(fittingResults.findFitting(71L, AUTHOR_ID)).thenAnswer(invocation -> {
+            now.addAndGet(Duration.ofSeconds(1).toNanos());
+            return completed("new-71");
+        });
+
+        assertThat(budgeted.latest(List.of(
+                        fittingPost(1L, AUTHOR_ID, 70L), fittingPost(2L, AUTHOR_ID, 71L), fittingPost(3L, AUTHOR_ID, 72L))))
+                .containsOnlyKeys(70L, 71L)
+                .containsEntry(70L, "new-70")
+                .containsEntry(71L, "new-71");
         verify(fittingResults, never()).findFitting(72L, AUTHOR_ID);
     }
 
