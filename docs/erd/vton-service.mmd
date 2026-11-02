@@ -1,0 +1,46 @@
+erDiagram
+    %% Central service: vton-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: fitting_job
+    %% External table: outfit_combo (recommendation-service)
+    %% External table: users (user-service)
+    %% This domain is marked unimplemented in the original ERD.
+
+    %% Internal and directly connected external relationships
+    users ||..o{ fitting_job : "user_id"
+    outfit_combo ||..o{ fitting_job : "combo_id"
+
+    fitting_job {
+        int fitting_id PK
+        int user_id
+        varchar combo_id
+        varchar result_image_url
+        varchar job_status
+        text error_message
+        datetime created_at
+        datetime completed_at
+    }
+
+    outfit_combo {
+        varchar combo_id PK
+        varchar request_id FK
+        int total_price
+        boolean pass_status
+        float harmony_score
+        text feedback_summary
+        boolean budget_exceeded
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }

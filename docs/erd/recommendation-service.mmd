@@ -1,0 +1,126 @@
+erDiagram
+    %% Central service: recommendation-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: recommendation_request, recommendation_slot, slot_candidate, outfit_combo, recommendation_message, combo_candidate
+    %% External table: fitting_job (vton-service)
+    %% External table: product (product-service)
+    %% External table: users (user-service)
+    %% This domain is marked unimplemented in the original ERD.
+
+    %% Internal and directly connected external relationships
+    recommendation_request ||--o{ recommendation_slot : "request_id"
+    recommendation_request ||--o{ outfit_combo : "request_id"
+    recommendation_request ||--o{ recommendation_message : "request_id"
+    recommendation_slot ||--o{ slot_candidate : "slot_id"
+    outfit_combo ||--o{ combo_candidate : "combo_id"
+    slot_candidate ||--o{ combo_candidate : "candidate_id"
+    users ||..o{ recommendation_request : "user_id"
+    product ||..o{ slot_candidate : "product_id"
+    outfit_combo ||..o{ fitting_job : "combo_id"
+
+    recommendation_request {
+        varchar request_id PK
+        int user_id
+        varchar guest_id
+        text query_text
+        varchar tpo_summary
+        varchar search_type
+        varchar season
+        int total_max_price
+        datetime created_at
+        varchar status
+    }
+
+    recommendation_slot {
+        varchar slot_id PK
+        varchar request_id FK
+        varchar category
+        text clip_query_en
+        varchar color
+        int max_price
+        varchar fit_type
+    }
+
+    slot_candidate {
+        varchar candidate_id PK
+        varchar slot_id FK
+        int product_id
+        float vec_score
+        varchar reco_size
+        float fit_score
+        int rank_no
+    }
+
+    outfit_combo {
+        varchar combo_id PK
+        varchar request_id FK
+        int total_price
+        boolean pass_status
+        float harmony_score
+        text feedback_summary
+        boolean budget_exceeded
+    }
+
+    recommendation_message {
+        varchar message_id PK
+        varchar request_id FK
+        varchar sender_type
+        text content
+        datetime created_at
+    }
+
+    combo_candidate {
+        varchar combo_id PK, FK
+        varchar candidate_id PK, FK
+    }
+
+    fitting_job {
+        int fitting_id PK
+        int user_id
+        varchar combo_id
+        varchar result_image_url
+        varchar job_status
+        text error_message
+        datetime created_at
+        datetime completed_at
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }

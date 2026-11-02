@@ -1,0 +1,197 @@
+erDiagram
+    %% Central service: user-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: users, user_body, user_preferences
+    %% External table: cart (order-service)
+    %% External table: fitting_job (vton-service)
+    %% External table: notification_channel (notification-service)
+    %% External table: notification_logs (notification-service)
+    %% External table: orders (order-service)
+    %% External table: posts (community-service)
+    %% External table: recommendation_request (recommendation-service)
+    %% External table: reviews (review-service)
+    %% External table: size_surveys (review-service)
+    %% External table: wishlist (product-service)
+    %% External table: worldcup_history (product-service)
+    %% user_preferences is marked unimplemented in the original ERD.
+
+    %% Internal and directly connected external relationships
+    users ||--o| user_body : "user_id"
+    users ||--o{ user_preferences : "user_id (미구현)"
+    users ||..o{ wishlist : "user_id"
+    users ||..o{ worldcup_history : "user_id"
+    users ||..o{ orders : "user_id"
+    users ||..o{ cart : "user_id"
+    users ||..o{ reviews : "user_id"
+    users ||..o{ size_surveys : "user_id"
+    users ||..o{ recommendation_request : "user_id"
+    users ||..o{ notification_logs : "user_id"
+    users ||..o{ notification_channel : "user_id (미사용)"
+    users ||..o{ posts : "user_id"
+    users ||..o{ fitting_job : "user_id"
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    user_body {
+        bigint user_id PK
+        float height
+        float weight
+        char gender
+        varchar preferred_styles
+        varchar preferred_fit
+        int shoe_size
+        datetime updated_at
+    }
+
+    user_preferences {
+        int preference_id PK
+        int user_id FK
+        varchar subcategory
+        varchar fit_type
+        json preference_spec
+        int sample_count
+        datetime created_at
+        datetime updated_at
+    }
+
+    cart {
+        bigint cart_id PK
+        bigint user_id
+        bigint option_id
+        int quantity
+        datetime created_at
+        datetime updated_at
+    }
+
+    fitting_job {
+        int fitting_id PK
+        int user_id
+        varchar combo_id
+        varchar result_image_url
+        varchar job_status
+        text error_message
+        datetime created_at
+        datetime completed_at
+    }
+
+    notification_channel {
+        varchar channel_id PK
+        int user_id
+        varchar channel_type
+        boolean enabled
+        varchar push_token UK
+        datetime updated_at
+    }
+
+    notification_logs {
+        varchar log_id PK
+        bigint user_id
+        varchar type
+        text content
+        varchar target_id
+        varchar event_id UK
+        boolean is_read
+        datetime created_at
+    }
+
+    orders {
+        bigint order_id PK
+        varchar order_num UK
+        bigint user_id
+        bigint total_price
+        varchar order_status
+        varchar recipient_name
+        varchar recipient_phone
+        varchar shipping_address
+        datetime created_at
+        datetime updated_at
+    }
+
+    posts {
+        bigint post_id PK
+        bigint user_id
+        varchar post_type
+        varchar category
+        varchar title
+        text content
+        varchar image_url
+        bigint view_count
+        varchar shared_type
+        bigint shared_id
+        bigint shared_product_id
+        varchar shared_brand_name
+        varchar shared_product_name
+        int shared_price
+        varchar shared_image_url
+        text shared_summary
+        datetime vote_end_at
+        boolean vote_closed
+        boolean vote_close_notification_pending
+        datetime vote_close_notify_failed_at
+        datetime deleted_at
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    recommendation_request {
+        varchar request_id PK
+        int user_id
+        varchar guest_id
+        text query_text
+        varchar tpo_summary
+        varchar search_type
+        varchar season
+        int total_max_price
+        datetime created_at
+        varchar status
+    }
+
+    reviews {
+        bigint review_id PK
+        bigint user_id
+        bigint product_id
+        bigint order_item_id UK
+        int rating
+        text content
+        varchar image_url
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id
+        bigint option_id
+        bigint order_item_id
+        varchar size_feedback
+        datetime created_at
+    }
+
+    wishlist {
+        bigint wishlist_id PK
+        bigint user_id
+        varchar item_id
+        varchar item_type
+        datetime created_at
+    }
+
+    worldcup_history {
+        bigint worldcup_history_id PK
+        bigint user_id
+        bigint winner_product_id FK
+        datetime completed_at
+    }

@@ -1,0 +1,176 @@
+erDiagram
+    %% Central service: product-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: brand, category, product, product_option, option_measurement, product_image, product_size_guide, wishlist, worldcup_history
+    %% External table: cart (order-service)
+    %% External table: order_item (order-service)
+    %% External table: reviews (review-service)
+    %% External table: size_surveys (review-service)
+    %% External table: slot_candidate (recommendation-service)
+    %% External table: users (user-service)
+
+    %% Internal and directly connected external relationships
+    brand ||--o{ product : "brand_id"
+    product ||--o{ product_option : "product_id"
+    product ||--o{ product_image : "product_id"
+    product ||--o| product_size_guide : "product_id"
+    product_option ||--o| option_measurement : "option_id"
+    product ||--o{ worldcup_history : "winner_product_id"
+    users ||..o{ wishlist : "user_id"
+    users ||..o{ worldcup_history : "user_id"
+    product_option ||..o{ order_item : "option_id"
+    product_option ||..o{ cart : "option_id"
+    product ||..o{ reviews : "product_id"
+    product_option ||..o{ size_surveys : "option_id"
+    product ||..o{ slot_candidate : "product_id"
+
+    brand {
+        bigint brand_id PK
+        varchar brand_name UK
+        varchar brand_name_en
+        varchar brand_code UK
+    }
+
+    category {
+        varchar category_code PK
+        varchar category_name
+        varchar parent_code
+        int depth
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    product_option {
+        bigint option_id PK
+        bigint product_id FK
+        bigint source_option_id UK
+        varchar managed_code
+        varchar color
+        varchar size
+        int additional_price
+        varchar image_url
+    }
+
+    option_measurement {
+        bigint option_id PK, FK
+        varchar size_label
+        int sequence
+        json measurement_spec
+    }
+
+    product_image {
+        bigint image_id PK
+        bigint product_id FK
+        varchar image_url
+        int sequence
+    }
+
+    product_size_guide {
+        bigint product_id PK, FK
+        varchar type_name
+        varchar unit
+        varchar description
+        varchar guide_image_url
+    }
+
+    wishlist {
+        bigint wishlist_id PK
+        bigint user_id
+        varchar item_id
+        varchar item_type
+        datetime created_at
+    }
+
+    worldcup_history {
+        bigint worldcup_history_id PK
+        bigint user_id
+        bigint winner_product_id FK
+        datetime completed_at
+    }
+
+    cart {
+        bigint cart_id PK
+        bigint user_id
+        bigint option_id
+        int quantity
+        datetime created_at
+        datetime updated_at
+    }
+
+    order_item {
+        bigint order_item_id PK
+        bigint order_id FK
+        bigint option_id
+        int order_qty
+        int unit_price
+    }
+
+    reviews {
+        bigint review_id PK
+        bigint user_id
+        bigint product_id
+        bigint order_item_id UK
+        int rating
+        text content
+        varchar image_url
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id
+        bigint option_id
+        bigint order_item_id
+        varchar size_feedback
+        datetime created_at
+    }
+
+    slot_candidate {
+        varchar candidate_id PK
+        varchar slot_id FK
+        int product_id
+        float vec_score
+        varchar reco_size
+        float fit_score
+        int rank_no
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }

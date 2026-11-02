@@ -1,0 +1,44 @@
+erDiagram
+    %% Central service: notification-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: notification_channel, notification_logs
+    %% External table: users (user-service)
+    %% notification_channel is marked unused in the original ERD.
+
+    %% Internal and directly connected external relationships
+    users ||..o{ notification_logs : "user_id"
+    users ||..o{ notification_channel : "user_id (미사용)"
+
+    notification_channel {
+        varchar channel_id PK
+        int user_id
+        varchar channel_type
+        boolean enabled
+        varchar push_token UK
+        datetime updated_at
+    }
+
+    notification_logs {
+        varchar log_id PK
+        bigint user_id
+        varchar type
+        text content
+        varchar target_id
+        varchar event_id UK
+        boolean is_read
+        datetime created_at
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
