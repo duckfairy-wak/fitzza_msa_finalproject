@@ -58,7 +58,7 @@ services:
     profiles: [performance]
     working_dir: /results
     user: "0:0"
-    command: ["run", "/scripts/api.js"]
+    command: ["run", "/scripts/simple-api-load-test.js"]
     environment:
       BASE_URL: ${K6_BASE_URL:-http://gateway-service:8080}
       PROFILE: ${K6_PROFILE:-public}

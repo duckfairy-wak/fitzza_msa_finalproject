@@ -134,14 +134,25 @@ try {
         '--namespace', $Namespace,
         '--create-namespace',
         '--include-crds',
+        '--skip-tests',
         '--values', $valuesFile,
         '--output-dir', $renderRoot
     )
 
     $manifestRoot = Join-Path $renderRoot 'kube-prometheus-stack'
-    $crdRoot = Join-Path $manifestRoot 'crds'
-    if (-not (Test-Path -LiteralPath $crdRoot -PathType Container)) {
-        throw "Rendered CRD directory not found: $crdRoot"
+    $crdRoot = $null
+    $crdRootCandidates = @(
+        (Join-Path $manifestRoot 'crds'),
+        (Join-Path $manifestRoot 'charts/crds/crds')
+    )
+    foreach ($crdRootCandidate in $crdRootCandidates) {
+        if (Test-Path -LiteralPath $crdRootCandidate -PathType Container) {
+            $crdRoot = $crdRootCandidate
+            break
+        }
+    }
+    if ($null -eq $crdRoot) {
+        throw "Rendered CRD directory not found. Checked: $($crdRootCandidates -join ', ')"
     }
 
     $renderedCrdResources = @(Invoke-Captured kubectl @(
@@ -159,7 +170,10 @@ try {
     }
 
     if ($missingCrdNames.Count -eq 0) {
-        Invoke-Checked kubectl @('apply', '--dry-run=server', '--namespace', $Namespace, '--filename', $manifestRoot)
+        Invoke-Checked kubectl @(
+            'apply', '--server-side', '--force-conflicts', '--dry-run=server', '--recursive',
+            '--filename', $manifestRoot
+        )
         Write-Host "Rendered and server-side validated: $manifestRoot"
     } else {
         Write-Warning "Skipping full server-side dry-run until Helm installs required CRDs: $($missingCrdNames -join ', ')"

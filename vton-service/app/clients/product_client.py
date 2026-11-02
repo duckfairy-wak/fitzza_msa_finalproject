@@ -158,8 +158,10 @@ class ProductServiceClient:
         storage = self.storage_client or self._get_storage()
         if storage and storage.is_s3:
             is_http = clean_url.startswith(("http://", "https://"))
+            product_bucket = getattr(storage, "product_bucket_name", "")
             is_s3_target = not is_http or (
                 storage.bucket_name in clean_url
+                or (product_bucket and product_bucket in clean_url)
                 or (storage.endpoint_url and storage.endpoint_url in clean_url)
                 or ".amazonaws.com" in clean_url
             )
@@ -245,6 +247,10 @@ class ProductServiceClient:
         # S3 및 공식 도메인 화이트리스트 검사
         storage = self.storage_client or self._get_storage()
         configured_bucket = (self.settings.aws_s3_bucket_name or (storage.bucket_name if storage else "")).lower()
+        configured_product_bucket = (
+            getattr(self.settings, "product_image_s3_bucket", "")
+            or (getattr(storage, "product_bucket_name", "") if storage else "")
+        ).lower()
         configured_cf = (
             urllib.parse.urlparse(self.settings.cloudfront_domain).netloc.lower()
             if self.settings.cloudfront_domain
@@ -276,23 +282,28 @@ class ProductServiceClient:
         if is_aws_s3 or is_local_s3:
             path = parsed.path.lstrip("/")
             is_valid_bucket = False
-            if configured_bucket:
+            for b in (configured_bucket, configured_product_bucket):
+                if not b:
+                    continue
                 # Virtual-hosted style: <bucket>.s3.<region>.amazonaws.com 또는 <bucket>.s3.amazonaws.com
                 if (
-                    hostname.startswith(f"{configured_bucket}.s3.")
-                    or hostname.startswith(f"{configured_bucket}.s3-")
-                    or hostname == f"{configured_bucket}.s3.amazonaws.com"
+                    hostname.startswith(f"{b}.s3.")
+                    or hostname.startswith(f"{b}.s3-")
+                    or hostname == f"{b}.s3.amazonaws.com"
                 ):
                     is_valid_bucket = True
+                    break
                 # Path style: s3.<region>.amazonaws.com/<bucket>/... 또는 localhost:4566/<bucket>/...
-                elif path.startswith(f"{configured_bucket}/"):
+                elif path.startswith(f"{b}/"):
                     is_valid_bucket = True
+                    break
 
             if not is_valid_bucket:
                 logger.warning(
-                    "override_image_url 타사/비인가 S3 버킷 접근 거부 (url=%s, expected_bucket=%s)",
+                    "override_image_url 타사/비인가 S3 버킷 접근 거부 (url=%s, expected_buckets=[%s, %s])",
                     clean_url,
                     configured_bucket,
+                    configured_product_bucket,
                 )
                 return False
             return True

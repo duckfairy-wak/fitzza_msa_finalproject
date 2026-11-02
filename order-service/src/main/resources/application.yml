@@ -43,10 +43,14 @@ eureka:
     prefer-ip-address: true
 
 management:
+  server:
+    # 메트릭은 일반 API(order-service 포트)와 다른 이 포트에서만 연다. Gateway·Ingress·Service의 http 포트가
+    # 이 포트로 라우팅하지 않으므로 클러스터 밖에 노출되지 않는다. Prometheus만 이 포트를 수집한다.
+    port: ${MANAGEMENT_SERVER_PORT:9083}
   endpoints:
     web:
       exposure:
-        exclude: "*"
+        include: prometheus
 
 springdoc:
   swagger-ui:

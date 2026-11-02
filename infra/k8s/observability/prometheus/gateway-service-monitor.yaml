@@ -1,0 +1,39 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gateway-service
+  namespace: fitzza-monitoring
+  labels:
+    release: fitzza-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - fitzza
+  selector:
+    matchLabels:
+      fitzza.io/metrics-type: spring
+  endpoints:
+    - port: metrics
+      path: /actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fitzza-fastapi-services
+  namespace: fitzza-monitoring
+  labels:
+    release: fitzza-monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - fitzza
+  selector:
+    matchLabels:
+      fitzza.io/metrics-type: fastapi
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

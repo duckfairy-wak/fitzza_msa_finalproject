@@ -104,6 +104,12 @@ class Settings:
     aws_s3_bucket_name: str = field(
         default_factory=lambda: os.getenv("AWS_S3_BUCKET_NAME", "fitzza-prod-assets-vton")
     )
+    product_image_s3_bucket: str = field(
+        default_factory=lambda: os.getenv(
+            "PRODUCT_IMAGE_S3_BUCKET",
+            "fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+        )
+    )
     aws_endpoint_url: str = field(
         default_factory=lambda: os.getenv("AWS_ENDPOINT_URL", "")
     )

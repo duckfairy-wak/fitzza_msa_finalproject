@@ -11,6 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+        "management.server.port=0",
         "spring.cloud.config.enabled=false",
         "eureka.client.enabled=false",
         "jwt.secret=test-only-jwt-secret-with-32-bytes-or-more"

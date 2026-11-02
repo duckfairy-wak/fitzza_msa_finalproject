@@ -10,10 +10,29 @@ alertmanager:
 
 grafana:
   enabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: fitzza-monitoring
+  serviceAccount:
+    create: true
+    name: fitzza-monitoring-grafana
   admin:
     existingSecret: fitzza-grafana-admin
     userKey: admin-user
     passwordKey: admin-password
+  additionalDataSources:
+    - name: CloudWatch
+      uid: cloudwatch
+      type: cloudwatch
+      access: proxy
+      editable: false
+      isDefault: false
+      jsonData:
+        authType: default
+        defaultRegion: ap-northeast-2
   service:
     type: ClusterIP
   ingress:
@@ -26,7 +45,7 @@ grafana:
       memory: 128Mi
     limits:
       cpu: 200m
-      memory: 256Mi
+      memory: 512Mi
 
 prometheusOperator:
   resources:
@@ -73,6 +92,10 @@ prometheus:
               storage: 10Gi
 
 kube-state-metrics:
+  image:
+    registry: asia-east1-docker.pkg.dev
+    repository: k8s-artifacts-prod/images/kube-state-metrics/kube-state-metrics
+    tag: v2.20.0
   resources:
     requests:
       cpu: 25m

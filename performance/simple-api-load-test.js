@@ -99,7 +99,6 @@ function createThresholds() {
   const thresholds = {};
 
   for (const endpoint of endpoints) {
-    // setup 요청을 제외하고 부하 시나리오의 API별 지표만 판정한다.
     const selector = `{endpoint:${endpoint.name},scenario:api}`;
     thresholds[`http_req_duration${selector}`] = [`p(95)<${p95LimitMs}`];
     thresholds[`http_req_failed${selector}`] = [
@@ -188,7 +187,6 @@ export default function testApiEndpoints() {
 }
 
 export function handleSummary(data) {
-  // Only aggregate metrics are exported; never log tokens or response bodies.
   const rows = ['# k6 API performance', '', '| Metric / threshold | Result |', '| --- | --- |'];
   for (const [name, metric] of Object.entries(data.metrics)) {
     for (const [threshold, result] of Object.entries(metric.thresholds || {})) {

@@ -444,7 +444,11 @@ def test_get_presigned_url_in_memory_cache() -> None:
 
 
 def test_product_client_fetch_product_image_from_s3() -> None:
-    settings = Settings(storage_backend="s3", aws_s3_bucket_name="fitzza-prod")
+    settings = Settings(
+        storage_backend="s3",
+        aws_s3_bucket_name="fitzza-prod-assets-vton",
+        product_image_s3_bucket="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+    )
     storage = StorageClient(settings)
     sample_png = _create_sample_png()
 
@@ -456,19 +460,30 @@ def test_product_client_fetch_product_image_from_s3() -> None:
 
     prod_client = ProductServiceClient(settings=settings, storage_client=storage)
 
-    # 1. S3 Object Key
+    # 1. S3 Object Key for product (starts with pipeline/) -> routes to product_image_s3_bucket
     s3_key = "pipeline/runs/run-01/images/products/101/001.jpg"
     bytes_out = prod_client.fetch_product_image_bytes(s3_key)
     assert bytes_out is not None
     assert len(bytes_out) > 0
-    mock_s3.get_object.assert_called_with(Bucket="fitzza-prod", Key=s3_key)
+    mock_s3.get_object.assert_called_with(
+        Bucket="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+        Key=s3_key,
+    )
 
-    # 2. S3 URL
-    s3_url = f"https://fitzza-prod.s3.ap-northeast-2.amazonaws.com/{s3_key}"
+    # 2. S3 Object Key for user/fitting asset -> routes to aws_s3_bucket_name
+    asset_key = "user-images/test_avatar.png"
+    storage.download_bytes(asset_key)
+    mock_s3.get_object.assert_called_with(
+        Bucket="fitzza-prod-assets-vton",
+        Key=asset_key,
+    )
+
+    # 3. S3 URL with product bucket
+    s3_url = f"https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/{s3_key}"
     bytes_out2 = prod_client.fetch_product_image_bytes(s3_url)
     assert bytes_out2 is not None
 
-    # 3. S3 Presigned URL with query params & databucket
+    # 4. S3 Presigned URL with query params & databucket
     presigned_url = (
         f"https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/{s3_key}"
         "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=ASIAR...&X-Amz-Date=20261028"
@@ -603,6 +618,87 @@ def test_validate_override_image_url_security() -> None:
     assert prod_client._validate_override_image_url("https://fitzza-prod-assets-vton.other.s3.amazonaws.com/x.png") is False
     # 공식 무신사 S3 허용 목록 확인
     assert prod_client._validate_override_image_url("https://musinsa-images.s3.ap-northeast-2.amazonaws.com/goods/123.jpg") is True
+    # 상품 데이터 버킷 허용 목록 확인
+    assert prod_client._validate_override_image_url("https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/pipeline/run/001.jpg") is True
+
+
+def test_dual_bucket_presigned_url_generation() -> None:
+    """fittings 및 user-images는 에셋 버킷으로, pipeline은 데이터 버킷으로 분기하여 서명 URL 생성 검증."""
+    settings = Settings(
+        storage_backend="s3",
+        aws_s3_bucket_name="fitzza-prod-assets-vton",
+        product_image_s3_bucket="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+        cloudfront_domain="",
+    )
+    storage = StorageClient(settings)
+    mock_s3 = MagicMock()
+    mock_s3.generate_presigned_url.side_effect = lambda ClientMethod, Params, ExpiresIn: (
+        f"https://{Params['Bucket']}.s3.amazonaws.com/{Params['Key']}?sig=abc"
+    )
+    storage._s3_client = mock_s3
+
+    # 1. fittings -> fitzza-prod-assets-vton
+    url1 = storage.get_presigned_url("fittings/10.png")
+    assert "fitzza-prod-assets-vton" in url1
+    mock_s3.generate_presigned_url.assert_called_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "fitzza-prod-assets-vton", "Key": "fittings/10.png"},
+        ExpiresIn=3600,
+    )
+
+    # 2. user-images -> fitzza-prod-assets-vton
+    url2 = storage.get_presigned_url("user-images/u1_photo.png")
+    assert "fitzza-prod-assets-vton" in url2
+    mock_s3.generate_presigned_url.assert_called_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "fitzza-prod-assets-vton", "Key": "user-images/u1_photo.png"},
+        ExpiresIn=3600,
+    )
+
+    # 3. pipeline/runs -> fitzza-prod-foundation-databucket-wwng6wfc0hqy
+    url3 = storage.get_presigned_url("pipeline/runs/2026-03-01/images/products/101/001.jpg")
+    assert "fitzza-prod-foundation-databucket-wwng6wfc0hqy" in url3
+    mock_s3.generate_presigned_url.assert_called_with(
+        ClientMethod="get_object",
+        Params={"Bucket": "fitzza-prod-foundation-databucket-wwng6wfc0hqy", "Key": "pipeline/runs/2026-03-01/images/products/101/001.jpg"},
+        ExpiresIn=3600,
+    )
+
+    # 4. 무신사 외부 URL -> 원본 URL 그대로 반환 (바이패스)
+    musinsa_url = "https://image.msscdn.net/images/goods_img/20261013/101/101_1_500.jpg"
+    url4 = storage.get_presigned_url(musinsa_url)
+    assert url4 == musinsa_url
+
+
+def test_fetch_product_image_fallback_to_http() -> None:
+    """S3 다운로드 실패 시 HTTP 다운로드로 정상 fallback되는지 검증."""
+    settings = Settings(
+        storage_backend="s3",
+        aws_s3_bucket_name="fitzza-prod-assets-vton",
+        product_image_s3_bucket="fitzza-prod-foundation-databucket-wwng6wfc0hqy",
+    )
+    storage = StorageClient(settings)
+    mock_s3 = MagicMock()
+    # S3 호출 시 장애 발생 시뮬레이션
+    mock_s3.get_object.side_effect = Exception("AWS S3 Service Unavailable")
+    storage._s3_client = mock_s3
+
+    sample_png = _create_sample_png()
+    mock_http_resp = MagicMock()
+    mock_http_resp.status_code = 200
+    mock_http_resp.content = sample_png
+
+    prod_client = ProductServiceClient(settings=settings, storage_client=storage)
+
+    with patch("httpx.Client.get", return_value=mock_http_resp):
+        # 1. 무신사 URL 직접 제공 시 -> S3 호출 없이 바로 HTTP 다운로드
+        res_musinsa = prod_client.fetch_product_image_bytes("https://image.msscdn.net/images/goods_img/20261013/101/101_1_500.jpg")
+        assert res_musinsa is not None
+
+        # 2. S3 URL인데 S3 장애 시 -> HTTP로 fallback 시도
+        s3_http_url = "https://fitzza-prod-foundation-databucket-wwng6wfc0hqy.s3.ap-northeast-2.amazonaws.com/pipeline/run/001.jpg"
+        res_fallback = prod_client.fetch_product_image_bytes(s3_http_url)
+        assert res_fallback is not None
 
 
 

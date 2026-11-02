@@ -190,6 +190,9 @@ pilot은 종료·정지됐고 두 AI 앱의 replicas 및 CD 전환은 복구했�
 계약:
 
 - Point = 상품 + 색상(`color_raw.strip().lower()`) + 저장 이미지 S3 키, ID는 그 문자열의 UUIDv5.
+- 판매 색상만 적재한다. `option_items`의 활성(`activated`가 false가 아닌) 옵션 색상에 있는 `color_image_mappings`만 point로 만들고,
+  걸러지는 색상은 `failures/planning.json`에 `unsellable_color`로 남긴다. 규칙은 `index_to_qdrant.py`·
+  `scripts/purge_unsellable_qdrant_points.py`와 같다(색상 옵션이 없거나 하나도 안 맞으면 전체 유지).
 - 이미지는 크롤링 때 S3에 받아 둔 `images/products/<id>/` 사본을 쓴다(manifest의 sha256 대조). 받지 못한 이미지는 `failures/planning.json`에 남기고 건너뛴다.
 - 전처리·특징 추출은 recommendation-service `SearchEngine.encode_image`와 같다(CLIPProcessor → `get_image_features` → L2 정규화).
 - 모델 revision은 운영 추천 서비스가 실제로 받은 커밋(HF 캐시 snapshot 디렉터리 이름)을 `--model-revision`으로 넘긴다. 다르면 질의 벡터와 상품 벡터가 어긋난다.
@@ -198,6 +201,9 @@ pilot은 종료·정지됐고 두 AI 앱의 replicas 및 CD 전환은 복구했�
 - 이어하기: `plan.json`(데이터·모델 fingerprint)이 같을 때만 기존 part를 건너뛴다. part는 create-only로 쓴다. 다른 데이터·모델이면 새 `--vector-run-id`가 필요하다.
 - importer는 벡터 차원·NaN·0벡터·payload 누락·모델 불일치·중복이 하나라도 있으면 Qdrant에 연결하기 전에 거부한다. 같은 이름의 컬렉션이 있으면 `--resume` 없이는 실패한다.
 - `switch_alias.py`는 실제 컬렉션 이름을 alias로 쓰거나 alias를 대상으로 지정하면 거부한다. 컬렉션을 삭제하지 않는다.
+- 필터 이전에 임베딩한 run은 다시 임베딩하지 않는다. importer에 `--exclude-unsellable-colors`를 주면 run이 임베딩한
+  승인본(SHA-256이 `report.json`과 같아야 함)을 다시 읽어 같은 규칙으로 비판매 색상 point를 빼고 새 버전 컬렉션에 적재한다.
+  제외 목록은 import 보고서 `sellable_filter`에 남고, 검증 항목 `unsellable_points_absent`가 추가된다.
 
 이미지 빌드(빌드 컨텍스트는 `infra/data-pipeline`). 베이스(`BASE_IMAGE`)는 노드에서 실행 중인 recommendation-service
 이미지 digest와 같아야 한다. 노드 디스크가 20GB라, 다른 베이스(3.4GB)를 받으면 디스크가 차서 Pod가 퇴거된다
