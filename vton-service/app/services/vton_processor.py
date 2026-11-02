@@ -124,7 +124,7 @@ def is_vton_result_url(url_or_path: str | None, fitting_id: int) -> bool:
 
     지원 형태:
     - 상대 경로: "/api/vton/{fitting_id}/image" (또는 "/api/vton/{fitting_id}")
-    - 절대 URL: "http(s)://[호스트]/api/vton/{fitting_id}/image"
+    - 절대 URL: "http(s)://[허용된 호스트]/api/vton/{fitting_id}/image"
     """
     if not url_or_path or not isinstance(url_or_path, str):
         return False
@@ -136,7 +136,25 @@ def is_vton_result_url(url_or_path: str | None, fitting_id: int) -> bool:
     if clean_val.startswith(("http://", "https://")):
         try:
             parsed = urllib.parse.urlparse(clean_val)
+            host = (parsed.netloc or "").lower().split(":")[0]
             path = (parsed.path or "").rstrip("/")
+
+            # 허용된 VTON API 호스트 검증 (외부 비인가 도메인 차단)
+            settings = get_settings()
+            allowed_hosts = {
+                "localhost",
+                "127.0.0.1",
+                "host.docker.internal",
+                "vton-service",
+                "gateway-service",
+            }
+            if settings.public_base_url.strip():
+                base_host = (urllib.parse.urlparse(settings.public_base_url).netloc or "").lower().split(":")[0]
+                if base_host:
+                    allowed_hosts.add(base_host)
+
+            if host not in allowed_hosts and not host.endswith(".fitzza.com"):
+                return False
         except Exception:
             return False
     else:
@@ -144,9 +162,6 @@ def is_vton_result_url(url_or_path: str | None, fitting_id: int) -> bool:
 
     expected_image_endpoint = f"/api/vton/{fitting_id}/image"
     if path == expected_image_endpoint or path == f"/api/vton/{fitting_id}":
-        return True
-
-    if path.startswith(f"/api/vton/{fitting_id}/"):
         return True
 
     return False
@@ -159,8 +174,15 @@ def resolve_target_result_key(raw_res_url: str | None, fitting_id: int, is_s3: b
     if not raw_res_url:
         return f"fittings/{fitting_id}.png" if is_s3 else None
 
-    if is_s3 and is_vton_result_url(raw_res_url, fitting_id):
-        return f"fittings/{fitting_id}.png"
+    if is_s3:
+        if is_vton_result_url(raw_res_url, fitting_id):
+            return f"fittings/{fitting_id}.png"
+
+        # 현재 피팅 ID와 일치하지 않는 다른 피팅의 VTON 엔드포인트 경로는 타인 이미지 유출 방지를 위해 거부 (None)
+        clean = raw_res_url.strip()
+        path = urllib.parse.urlparse(clean).path if clean.startswith(("http://", "https://")) else clean
+        if path.lstrip("/").startswith("api/vton/"):
+            return None
 
     return raw_res_url
 
@@ -173,7 +195,7 @@ def build_fitting_detail_response(detail: dict[str, Any]) -> FittingDetailRespon
 
     if detail.get("status") == "COMPLETED" and raw_res_url:
         target_key = resolve_target_result_key(raw_res_url, fitting_id, storage.is_s3)
-        result_img_url = storage.get_presigned_url(target_key)
+        result_img_url = storage.get_presigned_url(target_key) if target_key else None
     else:
         result_img_url = None
 

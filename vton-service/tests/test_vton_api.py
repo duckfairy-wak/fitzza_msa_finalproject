@@ -1570,7 +1570,9 @@ def test_absolute_and_relative_vton_result_urls_normalized_to_s3_key_in_internal
 
 
 def test_unmatched_or_external_urls_not_normalized_to_s3_key() -> None:
-    """타 피팅 ID URL이나 외부 CDN URL은 S3 키로 임의 치환되지 않고 안전하게 원본 유지되는지 검증합니다."""
+    """타 피팅 ID URL, user-image 경로, 비인가 외부 호스트 URL은 S3 키로 오인식되거나 누출되지 않고 거부되며,
+    적법한 외부 CDN 이미지는 원본 유지되는지 검증합니다.
+    """
     client = TestClient(app)
     repo = VtonRepository(db_path=":memory:")
     mock_storage = MagicMock()
@@ -1579,26 +1581,52 @@ def test_unmatched_or_external_urls_not_normalized_to_s3_key() -> None:
     called_keys: list[str] = []
 
     def fake_get_presigned(key, **kwargs):
+        if not key:
+            return None
         called_keys.append(key)
         return f"{key}?Signature=SIGNED"
 
     mock_storage.get_presigned_url.side_effect = fake_get_presigned
     set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
 
+    token = "community-secret-token-32bytes-long-padding!"
+
+    # 1. 다른 피팅 번호(999)의 VTON URL인 경우: 타인 이미지 유출 방지를 위해 거부(None 반환)
     fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
-    # 다른 피팅 번호(999)의 URL이 들어있는 비정상 케이스
     other_fitting_url = "http://api.fitzza.com/api/vton/999/image"
     repo.mark_completed(fitting_id, result_image_url=other_fitting_url)
 
-    token = "community-secret-token-32bytes-long-padding!"
     internal_resp = client.get(
         f"/fittings/{fitting_id}?userId=7",
         headers={"X-Service-Token": token},
     )
     assert internal_resp.status_code == 200
-    # fittings/{fitting_id}.png 로 치환되지 않고 원본 URL이 get_presigned_url에 전달되어야 함
-    assert f"fittings/{fitting_id}.png" not in called_keys
-    assert other_fitting_url in called_keys
+    assert "fittings/999.png" not in called_keys
+    assert "fittings/7.png" not in called_keys
+    assert internal_resp.json()["resultImageUrl"] is None
+
+    # 2. 결과 이미지가 아닌 사용자 얼굴 사진 경로(/user-image)인 경우: 오인식 방지(None 반환)
+    user_image_path = f"/api/vton/{fitting_id}/user-image"
+    repo.mark_completed(fitting_id, result_image_url=user_image_path)
+    detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp.status_code == 200
+    assert detail_resp.json()["resultImageUrl"] is None
+
+    # 3. 비인가 외부 도메인 URL인 경우: 도메인 검증에 의해 거부(None 반환)
+    evil_url = f"https://evil.example.com/api/vton/{fitting_id}/image"
+    repo.mark_completed(fitting_id, result_image_url=evil_url)
+    detail_resp2 = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp2.status_code == 200
+    assert detail_resp2.json()["resultImageUrl"] is None
+
+    # 4. 일반 외부 CDN 이미지인 경우: 원본 URL 안전 유지
+    called_keys.clear()
+    external_cdn_url = "https://image.msscdn.net/images/goods_img/sample.jpg"
+    repo.mark_completed(fitting_id, result_image_url=external_cdn_url)
+    detail_resp3 = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp3.status_code == 200
+    assert external_cdn_url in called_keys
+    assert detail_resp3.json()["resultImageUrl"].startswith(external_cdn_url)
 
     set_dependencies_for_tests(None, None, None, None)
 

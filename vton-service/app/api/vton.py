@@ -151,7 +151,7 @@ def list_user_fittings(
         raw_res_url = item.get("resultImageUrl")
         if item.get("status") == "COMPLETED" and raw_res_url:
             target_key = resolve_target_result_key(raw_res_url, item["fittingId"], storage.is_s3)
-            res_img_url = storage.get_presigned_url(target_key)
+            res_img_url = storage.get_presigned_url(target_key) if target_key else None
         else:
             res_img_url = None
         resolved_products = [
@@ -833,7 +833,7 @@ def get_internal_fitting(
     raw_res_url = detail.get("resultImageUrl")
     if detail.get("status") == "COMPLETED" and raw_res_url:
         target_key = resolve_target_result_key(raw_res_url, fitting_id, storage.is_s3)
-        result_img_url = storage.get_presigned_url(target_key)
+        result_img_url = storage.get_presigned_url(target_key) if target_key else None
     else:
         result_img_url = None
 
