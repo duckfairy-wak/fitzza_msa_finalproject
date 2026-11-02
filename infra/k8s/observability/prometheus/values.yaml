@@ -10,6 +10,12 @@ alertmanager:
 
 grafana:
   enabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: fitzza-monitoring
   serviceAccount:
     create: true
     name: fitzza-monitoring-grafana

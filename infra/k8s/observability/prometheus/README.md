@@ -11,6 +11,22 @@ node-exporter만 설치한다. Alertmanager, Prometheus Adapter, Thanos, Loki,
 remote_write, 공개 Ingress와 LoadBalancer는 설치하지 않는다. 설계·용량·비용 기준은
 [FITZZA-307 운영 정책](../../../aws/observability/PROMETHEUS_GRAFANA_POLICY.md)을 따른다.
 
+애플리케이션 수집과 대시보드는 Helm release와 별도 선언으로 관리한다.
+
+- `gateway-service-monitor.yaml`: Spring `/actuator/prometheus`와 FastAPI `/metrics`를
+  각각 선택하는 ServiceMonitor 2개
+- `service-dashboard.yaml`: request rate, 5xx 비율, p90/p95/p99 latency, target 상태,
+  JVM/Python 메모리, Pod 재시작을 보여 주는 `FITZZA Service Overview`
+
+대시보드의 기대 서비스 목록은 메트릭을 구현한 9개 Deployment(gateway, user,
+product, order, community, review, notification, recommendation, vton)다. 서비스 변수와
+target 상태 패널은 kube-state-metrics의 `kube_deployment_status_replicas_available`을
+이 기준으로 조회하므로 scrape endpoint가 사라져 `up` 시계열이 없어도 0으로 표시한다.
+
+서비스의 `metrics` 포트는 ClusterIP Service에만 추가되며 Ingress는 계속 `http` 포트만
+가리킨다. ServiceMonitor selector에는 서비스 이름, namespace, route template처럼
+제한된 라벨만 사용하고 요청 ID·사용자 ID·원문 URL은 사용하지 않는다.
+
 ## 사전 조건
 
 - 승인된 운영 시간에 EKS 노드가 하나 이상 `Ready`여야 한다.
@@ -255,6 +271,15 @@ helm upgrade --install fitzza-monitoring prometheus-community/kube-prometheus-st
   --values infra/k8s/observability/prometheus/values.yaml `
   --wait --timeout 10m
 
+# 먼저 승인된 애플리케이션 배포 절차로 최신 infra/k8s 매니페스트를 적용하고 rollout을 확인한다.
+kubectl -n fitzza get service `
+  -l 'fitzza.io/metrics-type in (spring,fastapi)' `
+  -o custom-columns='NAME:.metadata.name,METRICS-TYPE:.metadata.labels.fitzza\.io/metrics-type,METRICS-PORT:.spec.ports[?(@.name=="metrics")].port'
+
+# 위 결과에 대상 9개 Service의 metrics-type 라벨과 metrics 포트가 모두 있을 때만 수집 선언을 적용한다.
+kubectl apply --filename infra/k8s/observability/prometheus/gateway-service-monitor.yaml
+kubectl apply --filename infra/k8s/observability/prometheus/service-dashboard.yaml
+
 kubectl -n fitzza-monitoring get pods,svc,pvc
 kubectl -n fitzza-monitoring get svc -o jsonpath='{range .items[*]}{.metadata.name}{"="}{.spec.type}{"\n"}{end}'
 
@@ -283,6 +308,19 @@ kubectl -n fitzza-monitoring port-forward --address 127.0.0.1 service/fitzza-mon
 Prometheus Targets에서 kubelet, node-exporter, kube-state-metrics가 `UP`인지
 확인한다. 실패 시 대상 URL, 인증서, RBAC, node-exporter DaemonSet 스케줄 상태를
 확인하고 무단으로 `--resolve-conflicts`나 공개 Service를 추가하지 않는다.
+
+애플리케이션 target도 모두 `UP`인지 확인하고 다음 쿼리가 서비스별 시계열을 반환하는지
+검증한다. 무부하 서비스는 request 쿼리가 no-data일 수 있으므로 정상·5xx 요청을 각각
+발생시킨 뒤 counter와 histogram 증가를 다시 확인한다.
+
+```promql
+sum by (application) (rate(http_server_requests_seconds_count[5m]))
+sum by (application) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket[5m])))
+```
+
+Grafana의 `FITZZA Service Overview`에서 `datasource`, `namespace`, `service` 변수가
+동작하고 각 패널이 실제 데이터 또는 의도된 no-data 상태를 표시하는지 확인한다.
 
 Grafana의 Connections > Data sources에서 Prometheus와 CloudWatch가 모두 provisioned
 상태인지 확인한다. CloudWatch는 기본 리전 `ap-northeast-2`, 인증 방식 `AWS SDK

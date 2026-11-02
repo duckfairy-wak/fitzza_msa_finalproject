@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fitzza-service-overview-dashboard
+  namespace: fitzza-monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  fitzza-service-overview.json: |-
+    {
+      "annotations": {"list": []},
+      "editable": false,
+      "graphTooltip": 1,
+      "panels": [
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+          "id": 1,
+          "targets": [{"expr": "sum by (application) (rate(http_server_requests_seconds_count{namespace=~\"$namespace\",application=~\"$service\"}[5m]))", "legendFormat": "{{application}}"}],
+          "title": "Request rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"unit": "percentunit"}},
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+          "id": 2,
+          "targets": [{"expr": "(sum by (application) (rate(http_server_requests_seconds_count{namespace=~\"$namespace\",application=~\"$service\",status=~\"5..\"}[5m])) or 0 * sum by (application) (rate(http_server_requests_seconds_count{namespace=~\"$namespace\",application=~\"$service\"}[5m]))) / clamp_min(sum by (application) (rate(http_server_requests_seconds_count{namespace=~\"$namespace\",application=~\"$service\"}[5m])), 0.000001)", "legendFormat": "{{application}}"}],
+          "title": "5xx error ratio",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"unit": "s"}},
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+          "id": 3,
+          "targets": [
+            {"expr": "histogram_quantile(0.90, sum by (le, application) (rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\",application=~\"$service\"}[5m])))", "legendFormat": "p90 {{application}}"},
+            {"expr": "histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\",application=~\"$service\"}[5m])))", "legendFormat": "p95 {{application}}"},
+            {"expr": "histogram_quantile(0.99, sum by (le, application) (rate(http_server_requests_seconds_bucket{namespace=~\"$namespace\",application=~\"$service\"}[5m])))", "legendFormat": "p99 {{application}}"}
+          ],
+          "title": "Request latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "gridPos": {"h": 7, "w": 8, "x": 0, "y": 8},
+          "id": 4,
+          "targets": [{"expr": "max by (service) (up{namespace=~\"$namespace\",service=~\"$service\"}) or 0 * max by (service) (label_replace(kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\"$service\"}, \"service\", \"$1\", \"deployment\", \"(.*)\"))", "legendFormat": "{{service}}"}],
+          "title": "Prometheus targets",
+          "type": "stat"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "fieldConfig": {"defaults": {"unit": "bytes"}},
+          "gridPos": {"h": 7, "w": 8, "x": 8, "y": 8},
+          "id": 5,
+          "targets": [{"expr": "sum by (application) (jvm_memory_used_bytes{namespace=~\"$namespace\",application=~\"$service\",area=\"heap\"})", "legendFormat": "JVM {{application}}"}, {"expr": "sum by (service) (process_resident_memory_bytes{namespace=~\"$namespace\",service=~\"$service\"})", "legendFormat": "process {{service}}"}],
+          "title": "Runtime memory",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "gridPos": {"h": 7, "w": 8, "x": 16, "y": 8},
+          "id": 6,
+          "targets": [{"expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\"${service:regex}-.*\"}[1h]))", "legendFormat": "{{pod}}"}],
+          "title": "Pod restarts (1h)",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 41,
+      "tags": ["fitzza", "service", "FITZZA-177"],
+      "templating": {
+        "list": [
+          {"current": {}, "label": "Data source", "name": "datasource", "query": "prometheus", "type": "datasource"},
+          {"allValue": ".*", "includeAll": true, "label": "Namespace", "name": "namespace", "query": {"query": "label_values(up, namespace)", "refId": "PrometheusVariableQueryEditor-namespace"}, "refresh": 1, "type": "query"},
+          {"allValue": "gateway-service|user-service|product-service|order-service|community-service|review-service|notification-service|recommendation-service|vton-service", "includeAll": true, "label": "Service", "name": "service", "query": {"query": "label_values(kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\"gateway-service|user-service|product-service|order-service|community-service|review-service|notification-service|recommendation-service|vton-service\"}, deployment)", "refId": "PrometheusVariableQueryEditor-service"}, "refresh": 1, "type": "query"}
+        ]
+      },
+      "time": {"from": "now-1h", "to": "now"},
+      "timezone": "browser",
+      "title": "FITZZA Service Overview",
+      "uid": "fitzza-service-overview",
+      "version": 1
+    }
