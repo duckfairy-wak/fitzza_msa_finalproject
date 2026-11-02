@@ -10,11 +10,17 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fitzza.community.client.FittingResults.FittingResult;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.mock.http.client.MockClientHttpRequest;
+import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -58,6 +64,37 @@ class VirtualTryOnServiceClientTest {
         assertThat(client.findFitting(404L, 7L)).isEmpty();
         assertThatThrownBy(() -> client.findFitting(3L, 7L)).isInstanceOf(RestClientException.class);
         server.verify();
+    }
+
+    // 시간 제한을 준 호출은 그 제한으로 만든 요청 팩토리를 쓰고, 주소·서비스 토큰은 평소와 같다.
+    @Test
+    void usesARequestFactoryBuiltForTheGivenTimeout() {
+        List<Duration> timeouts = new ArrayList<>();
+        List<MockClientHttpRequest> requests = new ArrayList<>();
+        ClientHttpRequestFactory fakeFactory = (uri, httpMethod) -> {
+            MockClientHttpRequest request = new MockClientHttpRequest(httpMethod, uri);
+            MockClientHttpResponse response = new MockClientHttpResponse(
+                    "{\"owned\":true,\"status\":\"COMPLETED\",\"resultImageUrl\":\"https://cdn.example.com/f3.png\",\"products\":[]}"
+                            .getBytes(StandardCharsets.UTF_8),
+                    HttpStatus.OK);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            request.setResponse(response);
+            requests.add(request);
+            return request;
+        };
+        VirtualTryOnServiceClient client = new VirtualTryOnServiceClient(
+                RestClient.builder(), BASE_URL, SERVICE_TOKEN, timeout -> {
+                    timeouts.add(timeout);
+                    return fakeFactory;
+                });
+
+        assertThat(client.findFitting(3L, 7L, Duration.ofMillis(800)))
+                .contains(new FittingResult(true, "COMPLETED", "https://cdn.example.com/f3.png", List.of()));
+        assertThat(timeouts).containsExactly(Duration.ofMillis(800));
+        assertThat(requests).singleElement().satisfies(request -> {
+            assertThat(request.getURI()).hasToString(BASE_URL + "/fittings/3?userId=7");
+            assertThat(request.getHeaders().getFirst(VirtualTryOnServiceClient.SERVICE_TOKEN_HEADER)).isEqualTo(SERVICE_TOKEN);
+        });
     }
 
     @Test
