@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 // 피팅 결과 이미지는 1시간짜리 Presigned URL이라 저장된 주소는 곧 만료된다.
 // 피팅 서비스가 응답하지 않으면 글 조회까지 막지 않고 저장된 주소를 그대로 보여준다.
 // 한 번 실패하면 같은 요청 안에서는 더 부르지 않아, 피팅 서비스 장애가 피드를 글 수만큼 느리게 만들지 않는다.
-// 실패 없이 느리기만 해도 대기가 쌓이지 않도록, 한 요청에서 쓰는 시간이 예산을 넘으면 남은 피팅은 부르지 않는다.
+// 실패 없이 느리기만 해도 대기가 쌓이지 않도록, 한 요청에서 쓰는 시간이 예산을 넘으면 남은 피팅은 부르지 않고
+// 호출마다 남은 예산만큼만 응답을 기다린다(넘기면 실패로 보고 저장된 주소를 쓴다).
 @Component
 public class FittingImages {
 
@@ -57,13 +58,15 @@ public class FittingImages {
         Map<Long, String> imageUrls = new HashMap<>();
         long startedAt = nanoTime.getAsLong();
         for (Map.Entry<Long, Long> entry : authorByFittingId.entrySet()) {
-            if (nanoTime.getAsLong() - startedAt >= timeBudgetNanos) {
+            long remainingNanos = timeBudgetNanos - (nanoTime.getAsLong() - startedAt);
+            if (remainingNanos <= 0) {
                 log.warn("피팅 결과 이미지 주소 조회가 시간 예산을 넘어 남은 피팅은 저장된 주소를 씁니다");
                 return imageUrls;
             }
             Optional<FittingResult> fitting;
             try {
-                fitting = fittingResults.findFitting(entry.getKey(), entry.getValue());
+                // 이미 시작한 호출도 남은 예산까지만 기다려, 느린 응답 하나가 예산을 넘기지 않게 한다.
+                fitting = fittingResults.findFitting(entry.getKey(), entry.getValue(), Duration.ofNanos(remainingNanos));
             } catch (RuntimeException exception) {
                 log.warn("피팅 결과 이미지 주소를 새로 받지 못해 저장된 주소를 씁니다: {}", exception.getMessage());
                 return imageUrls;

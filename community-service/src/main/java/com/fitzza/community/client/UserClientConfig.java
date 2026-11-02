@@ -2,6 +2,7 @@ package com.fitzza.community.client;
 
 import com.fitzza.community.logging.RequestIdPropagation;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Duration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +35,15 @@ public class UserClientConfig {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
         requestFactory.setReadTimeout(READ_TIMEOUT_MILLIS);
+        return requestFactory;
+    }
+
+    // 호출 하나를 timeout까지만 기다리게 할 때 쓴다. 연결은 평소 제한(1초)과 timeout 중 짧은 쪽까지만 기다린다.
+    static ClientHttpRequestFactory timeoutRequestFactory(Duration timeout) {
+        int timeoutMillis = (int) Math.max(1, Math.min(timeout.toMillis(), READ_TIMEOUT_MILLIS));
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.min(CONNECT_TIMEOUT_MILLIS, timeoutMillis));
+        requestFactory.setReadTimeout(timeoutMillis);
         return requestFactory;
     }
 }

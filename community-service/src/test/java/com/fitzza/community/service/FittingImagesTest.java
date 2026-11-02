@@ -1,6 +1,8 @@
 package com.fitzza.community.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -36,15 +38,15 @@ class FittingImagesTest {
         Post first = fittingPost(1L, AUTHOR_ID, 70L);
         Post sameFitting = fittingPost(2L, OTHER_ID, 70L);
         Post another = fittingPost(3L, OTHER_ID, 71L);
-        when(fittingResults.findFitting(70L, AUTHOR_ID)).thenReturn(completed("new-70"));
-        when(fittingResults.findFitting(71L, OTHER_ID)).thenReturn(completed("new-71"));
+        when(fittingResults.findFitting(eq(70L), eq(AUTHOR_ID), any(Duration.class))).thenReturn(completed("new-70"));
+        when(fittingResults.findFitting(eq(71L), eq(OTHER_ID), any(Duration.class))).thenReturn(completed("new-71"));
 
         assertThat(fittingImages.latest(List.of(first, sameFitting, another)))
                 .containsOnlyKeys(70L, 71L)
                 .containsEntry(70L, "new-70")
                 .containsEntry(71L, "new-71");
-        verify(fittingResults, times(1)).findFitting(70L, AUTHOR_ID);
-        verify(fittingResults, never()).findFitting(70L, OTHER_ID);
+        verify(fittingResults, times(1)).findFitting(eq(70L), eq(AUTHOR_ID), any(Duration.class));
+        verify(fittingResults, never()).findFitting(eq(70L), eq(OTHER_ID), any(Duration.class));
     }
 
     @Test
@@ -60,10 +62,10 @@ class FittingImagesTest {
     // 없어진 피팅, 완료되지 않은 피팅, 이미지가 빈 피팅은 저장된 주소를 쓰도록 빼 둔다.
     @Test
     void leavesOutMissingUnfinishedOrImagelessFittings() {
-        when(fittingResults.findFitting(70L, AUTHOR_ID)).thenReturn(Optional.empty());
-        when(fittingResults.findFitting(71L, AUTHOR_ID))
+        when(fittingResults.findFitting(eq(70L), eq(AUTHOR_ID), any(Duration.class))).thenReturn(Optional.empty());
+        when(fittingResults.findFitting(eq(71L), eq(AUTHOR_ID), any(Duration.class)))
                 .thenReturn(Optional.of(new FittingResult(true, "PROCESSING", null, List.of())));
-        when(fittingResults.findFitting(72L, AUTHOR_ID)).thenReturn(completed(" "));
+        when(fittingResults.findFitting(eq(72L), eq(AUTHOR_ID), any(Duration.class))).thenReturn(completed(" "));
 
         assertThat(fittingImages.latest(List.of(
                         fittingPost(1L, AUTHOR_ID, 70L), fittingPost(2L, AUTHOR_ID, 71L), fittingPost(3L, AUTHOR_ID, 72L))))
@@ -73,14 +75,14 @@ class FittingImagesTest {
     // 한 번 실패하면 남은 피팅은 부르지 않고, 그때까지 받은 주소만 쓴다.
     @Test
     void stopsAskingAfterTheFirstFailureAndKeepsWhatItAlreadyGot() {
-        when(fittingResults.findFitting(70L, AUTHOR_ID)).thenReturn(completed("new-70"));
-        when(fittingResults.findFitting(71L, AUTHOR_ID)).thenThrow(new ResourceAccessException("vton down"));
+        when(fittingResults.findFitting(eq(70L), eq(AUTHOR_ID), any(Duration.class))).thenReturn(completed("new-70"));
+        when(fittingResults.findFitting(eq(71L), eq(AUTHOR_ID), any(Duration.class))).thenThrow(new ResourceAccessException("vton down"));
 
         assertThat(fittingImages.latest(List.of(
                         fittingPost(1L, AUTHOR_ID, 70L), fittingPost(2L, AUTHOR_ID, 71L), fittingPost(3L, AUTHOR_ID, 72L))))
                 .containsOnlyKeys(70L)
                 .containsEntry(70L, "new-70");
-        verify(fittingResults, never()).findFitting(72L, AUTHOR_ID);
+        verify(fittingResults, never()).findFitting(eq(72L), eq(AUTHOR_ID), any(Duration.class));
     }
 
     // 실패 없이 느리기만 해도, 시간 예산을 다 쓰면 남은 피팅은 부르지 않고 그때까지 받은 주소만 쓴다.
@@ -88,11 +90,11 @@ class FittingImagesTest {
     void stopsAskingOnceTheTimeBudgetIsSpentAndKeepsWhatItAlreadyGot() {
         AtomicLong now = new AtomicLong();
         FittingImages budgeted = new FittingImages(fittingResults, now::get, Duration.ofSeconds(2));
-        when(fittingResults.findFitting(70L, AUTHOR_ID)).thenAnswer(invocation -> {
+        when(fittingResults.findFitting(eq(70L), eq(AUTHOR_ID), any(Duration.class))).thenAnswer(invocation -> {
             now.addAndGet(Duration.ofSeconds(1).toNanos());
             return completed("new-70");
         });
-        when(fittingResults.findFitting(71L, AUTHOR_ID)).thenAnswer(invocation -> {
+        when(fittingResults.findFitting(eq(71L), eq(AUTHOR_ID), any(Duration.class))).thenAnswer(invocation -> {
             now.addAndGet(Duration.ofSeconds(1).toNanos());
             return completed("new-71");
         });
@@ -102,7 +104,24 @@ class FittingImagesTest {
                 .containsOnlyKeys(70L, 71L)
                 .containsEntry(70L, "new-70")
                 .containsEntry(71L, "new-71");
-        verify(fittingResults, never()).findFitting(72L, AUTHOR_ID);
+        verify(fittingResults, never()).findFitting(eq(72L), eq(AUTHOR_ID), any(Duration.class));
+    }
+
+    // 호출마다 남은 예산만큼만 기다리게 한다. 첫 호출은 예산 전체, 다음 호출은 앞에서 쓰고 남은 만큼이다.
+    @Test
+    void waitsForEachCallOnlyAsLongAsTheBudgetThatIsLeft() {
+        AtomicLong now = new AtomicLong();
+        FittingImages budgeted = new FittingImages(fittingResults, now::get, Duration.ofSeconds(2));
+        when(fittingResults.findFitting(70L, AUTHOR_ID, Duration.ofSeconds(2))).thenAnswer(invocation -> {
+            now.addAndGet(Duration.ofMillis(1500).toNanos());
+            return completed("new-70");
+        });
+        when(fittingResults.findFitting(71L, AUTHOR_ID, Duration.ofMillis(500))).thenReturn(completed("new-71"));
+
+        assertThat(budgeted.latest(List.of(fittingPost(1L, AUTHOR_ID, 70L), fittingPost(2L, AUTHOR_ID, 71L))))
+                .containsEntry(70L, "new-70")
+                .containsEntry(71L, "new-71");
+        verify(fittingResults).findFitting(71L, AUTHOR_ID, Duration.ofMillis(500));
     }
 
     private static Optional<FittingResult> completed(String resultImageUrl) {
