@@ -62,6 +62,7 @@ from app.services.vton_processor import (
     get_sqs_client,
     get_storage_client,
     resolve_result_image_url as _resolve_result_image_url,
+    resolve_target_result_key,
     resolve_user_image_url as _resolve_user_image_url,
     run_background_vton as _service_run_background_vton,
     set_dependencies_for_tests,
@@ -149,12 +150,8 @@ def list_user_fittings(
     for item in raw_items:
         raw_res_url = item.get("resultImageUrl")
         if item.get("status") == "COMPLETED" and raw_res_url:
-            target_key = (
-                f"fittings/{item['fittingId']}.png"
-                if storage.is_s3 and raw_res_url.startswith("/api/vton/")
-                else raw_res_url
-            )
-            res_img_url = storage.get_presigned_url(target_key)
+            target_key = resolve_target_result_key(raw_res_url, item["fittingId"], storage.is_s3)
+            res_img_url = storage.get_presigned_url(target_key) if target_key else None
         else:
             res_img_url = None
         resolved_products = [
@@ -676,11 +673,7 @@ def get_fitting_image(
     # 3. S3 백엔드인 경우 서명 URL로 307 임시 리다이렉트
     if storage.is_s3:
         raw_target = detail.get("resultImageUrl")
-        key_or_url = (
-            f"fittings/{fitting_id}.png"
-            if not raw_target or raw_target.startswith("/api/vton/")
-            else raw_target
-        )
+        key_or_url = resolve_target_result_key(raw_target, fitting_id, is_s3=True) or f"fittings/{fitting_id}.png"
         presigned_url = storage.get_presigned_url(key_or_url, expires_in=3600)
         if presigned_url.startswith(("http://", "https://")):
             return RedirectResponse(
@@ -839,12 +832,8 @@ def get_internal_fitting(
 
     raw_res_url = detail.get("resultImageUrl")
     if detail.get("status") == "COMPLETED" and raw_res_url:
-        target_key = (
-            f"fittings/{fitting_id}.png"
-            if storage.is_s3 and raw_res_url.startswith("/api/vton/")
-            else raw_res_url
-        )
-        result_img_url = storage.get_presigned_url(target_key)
+        target_key = resolve_target_result_key(raw_res_url, fitting_id, storage.is_s3)
+        result_img_url = storage.get_presigned_url(target_key) if target_key else None
     else:
         result_img_url = None
 
