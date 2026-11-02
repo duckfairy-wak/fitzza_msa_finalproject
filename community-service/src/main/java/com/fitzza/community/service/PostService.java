@@ -7,7 +7,6 @@ import com.fitzza.community.domain.Post;
 import com.fitzza.community.domain.PostCategory;
 import com.fitzza.community.domain.PostLikeId;
 import com.fitzza.community.domain.PostType;
-import com.fitzza.community.domain.SharedSnapshot;
 import com.fitzza.community.domain.VoteOption;
 import com.fitzza.community.dto.AuthorResponse;
 import com.fitzza.community.dto.LatestImageUrls;
@@ -57,6 +56,7 @@ public class PostService {
     private final VoteService voteService;
     private final SharedTargetGateway sharedTargetGateway;
     private final ProductImages productImages;
+    private final FittingImages fittingImages;
 
     public PostService(
             PostRepository postRepository,
@@ -66,7 +66,8 @@ public class PostService {
             UserDirectory userDirectory,
             VoteService voteService,
             SharedTargetGateway sharedTargetGateway,
-            ProductImages productImages) {
+            ProductImages productImages,
+            FittingImages fittingImages) {
         this.postRepository = postRepository;
         this.postLikeRepository = postLikeRepository;
         this.commentRepository = commentRepository;
@@ -75,6 +76,7 @@ public class PostService {
         this.voteService = voteService;
         this.sharedTargetGateway = sharedTargetGateway;
         this.productImages = productImages;
+        this.fittingImages = fittingImages;
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +112,7 @@ public class PostService {
     }
 
     // 썸네일은 투표글의 첫 번째 선택지 이미지, 공유 대상 스냅샷 이미지 순으로 고른다. 사용자가 직접 올린 이미지는 없다.
-    // 상품 이미지는 저장된 주소가 만료되므로 새로 받은 주소(latest)를 먼저 쓴다.
+    // 상품·피팅 결과 이미지는 저장된 주소가 만료되므로 새로 받은 주소(latest)를 먼저 쓴다.
     private static String thumbnailOf(Post post, Map<Long, PostImage> firstOptions, LatestImageUrls latest) {
         PostImage option = firstOptions.get(post.getId());
         if (option != null) {
@@ -119,11 +121,7 @@ public class PostService {
                 return optionImage;
             }
         }
-        SharedSnapshot snapshot = post.getSharedSnapshot();
-        if (snapshot == null) {
-            return null;
-        }
-        String sharedImage = latest.pick(SharedResponse.snapshotProductIdOf(post), snapshot.getImageUrl());
+        String sharedImage = SharedResponse.snapshotImageOf(post, latest);
         return hasText(sharedImage) ? sharedImage : null;
     }
 
@@ -136,12 +134,12 @@ public class PostService {
         return PostImage.byPostId(voteOptionRepository.findFirstOptionImages(voteIds));
     }
 
-    // 한 페이지에 보이는 상품 이미지를 상품 서비스에서 한 번에 새로 받는다.
+    // 한 페이지에 보이는 상품 이미지는 상품 서비스에서 한 번에, 피팅 결과 이미지는 피팅 서비스에서 새로 받는다.
     private LatestImageUrls latestImagesOf(List<Post> posts, Map<Long, PostImage> firstOptions) {
         List<Long> productIds = new ArrayList<>();
         firstOptions.values().forEach(option -> productIds.add(option.productId()));
         posts.forEach(post -> productIds.add(SharedResponse.snapshotProductIdOf(post)));
-        return new LatestImageUrls(productImages.latest(productIds));
+        return new LatestImageUrls(productImages.latest(productIds), fittingImages.latest(posts));
     }
 
     private static boolean hasText(String value) {
@@ -182,7 +180,7 @@ public class PostService {
                 voteOptions);
     }
 
-    // 상세 화면에 보이는 상품 이미지(투표 상품 선택지, 공유 스냅샷, 공유한 상품 목록)를 새로 받는다.
+    // 상세 화면에 보이는 상품 이미지(투표 상품 선택지, 공유 스냅샷, 공유한 상품 목록)와 피팅 결과 이미지를 새로 받는다.
     private LatestImageUrls latestImagesOf(Post post, List<VoteOption> options) {
         List<Long> productIds = new ArrayList<>();
         options.forEach(option -> productIds.add(VoteOptionResponse.productIdOf(option)));
@@ -190,7 +188,7 @@ public class PostService {
         if (post.isShared()) {
             post.getSharedItems().forEach(item -> productIds.add(item.getProductId()));
         }
-        return new LatestImageUrls(productImages.latest(productIds));
+        return new LatestImageUrls(productImages.latest(productIds), fittingImages.latest(List.of(post)));
     }
 
     @Transactional
