@@ -1505,3 +1505,100 @@ def test_fitting_id_and_user_id_validation_rejects_non_positive() -> None:
             ).status_code
             == 400
         )
+
+
+def test_absolute_and_relative_vton_result_urls_normalized_to_s3_key_in_internal_and_detail_apis() -> None:
+    """CodeRabbit review discussion_r4439549278 검증:
+    DB에 저장된 피팅 결과 URL이 상대 경로(/api/vton/{id}/image)뿐만 아니라
+    절대 URL(http://api.fitzza.com/api/vton/{id}/image)이어도
+    S3 모드에서 'fittings/{id}.png' S3 키로 정상 정규화되어 Presigned URL이 발급되는지 검증합니다.
+    """
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    mock_storage = MagicMock()
+    mock_storage.is_s3 = True
+
+    called_keys: list[str] = []
+
+    def fake_get_presigned(key, **kwargs):
+        called_keys.append(key)
+        return f"https://fitzza-bucket.s3.amazonaws.com/{key}?AWSAccessKeyId=KEY&Signature=SIGNED"
+
+    mock_storage.get_presigned_url.side_effect = fake_get_presigned
+    set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
+    # 절대 URL 형태로 결과 이미지 URL 저장
+    absolute_res_url = f"http://api.fitzza.com/api/vton/{fitting_id}/image"
+    repo.mark_completed(fitting_id, result_image_url=absolute_res_url)
+
+    expected_s3_key = f"fittings/{fitting_id}.png"
+
+    # 1. 커뮤니티 내부 공유 API (/fittings/{fitting_id}?userId=7)
+    token = "community-secret-token-32bytes-long-padding!"
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    internal_data = internal_resp.json()
+    assert internal_data["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 2. 상세 조회 API (/api/vton/{fitting_id})
+    called_keys.clear()
+    detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    assert detail_resp.json()["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 3. 목록 조회 API (/api/vton)
+    called_keys.clear()
+    list_resp = client.get("/api/vton", headers={"X-User-Id": "7"})
+    assert list_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    assert list_resp.json()["items"][0]["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 4. 이미지 리다이렉트 API (/api/vton/{fitting_id}/image)
+    called_keys.clear()
+    img_resp = client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "7"}, follow_redirects=False)
+    assert img_resp.status_code == 307
+    assert expected_s3_key in called_keys
+    assert img_resp.headers["location"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    set_dependencies_for_tests(None, None, None, None)
+
+
+def test_unmatched_or_external_urls_not_normalized_to_s3_key() -> None:
+    """타 피팅 ID URL이나 외부 CDN URL은 S3 키로 임의 치환되지 않고 안전하게 원본 유지되는지 검증합니다."""
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    mock_storage = MagicMock()
+    mock_storage.is_s3 = True
+
+    called_keys: list[str] = []
+
+    def fake_get_presigned(key, **kwargs):
+        called_keys.append(key)
+        return f"{key}?Signature=SIGNED"
+
+    mock_storage.get_presigned_url.side_effect = fake_get_presigned
+    set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
+    # 다른 피팅 번호(999)의 URL이 들어있는 비정상 케이스
+    other_fitting_url = "http://api.fitzza.com/api/vton/999/image"
+    repo.mark_completed(fitting_id, result_image_url=other_fitting_url)
+
+    token = "community-secret-token-32bytes-long-padding!"
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    # fittings/{fitting_id}.png 로 치환되지 않고 원본 URL이 get_presigned_url에 전달되어야 함
+    assert f"fittings/{fitting_id}.png" not in called_keys
+    assert other_fitting_url in called_keys
+
+    set_dependencies_for_tests(None, None, None, None)
+

@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import threading
 from typing import Any, Callable
+import urllib.parse
 
 from fastapi import Request
 
@@ -118,6 +119,52 @@ def resolve_user_image_url(fitting_id: int, request: Request | None = None) -> s
     return f"/api/vton/{fitting_id}/user-image"
 
 
+def is_vton_result_url(url_or_path: str | None, fitting_id: int) -> bool:
+    """주어진 URL 또는 경로가 해당 fitting_id의 VTON 서비스 API 결과 엔드포인트(상대 경로 또는 절대 URL)인지 검증합니다.
+
+    지원 형태:
+    - 상대 경로: "/api/vton/{fitting_id}/image" (또는 "/api/vton/{fitting_id}")
+    - 절대 URL: "http(s)://[호스트]/api/vton/{fitting_id}/image"
+    """
+    if not url_or_path or not isinstance(url_or_path, str):
+        return False
+
+    clean_val = url_or_path.strip()
+    if not clean_val:
+        return False
+
+    if clean_val.startswith(("http://", "https://")):
+        try:
+            parsed = urllib.parse.urlparse(clean_val)
+            path = (parsed.path or "").rstrip("/")
+        except Exception:
+            return False
+    else:
+        path = clean_val.rstrip("/")
+
+    expected_image_endpoint = f"/api/vton/{fitting_id}/image"
+    if path == expected_image_endpoint or path == f"/api/vton/{fitting_id}":
+        return True
+
+    if path.startswith(f"/api/vton/{fitting_id}/"):
+        return True
+
+    return False
+
+
+def resolve_target_result_key(raw_res_url: str | None, fitting_id: int, is_s3: bool) -> str | None:
+    """피팅 결과 이미지 식별자(상대 경로, 절대 URL 등)를 분석하여
+    S3 모드에서 VTON 엔드포인트 URL로 저장된 경우 S3 객체 키('fittings/{fitting_id}.png')로 정규화합니다.
+    """
+    if not raw_res_url:
+        return f"fittings/{fitting_id}.png" if is_s3 else None
+
+    if is_s3 and is_vton_result_url(raw_res_url, fitting_id):
+        return f"fittings/{fitting_id}.png"
+
+    return raw_res_url
+
+
 def build_fitting_detail_response(detail: dict[str, Any]) -> FittingDetailResponse:
     """피팅 상세 딕셔너리를 받아 S3/CDN Pre-signed URL 및 상품 목록을 조합한 응답 DTO를 생성합니다."""
     storage = get_storage_client()
@@ -125,11 +172,7 @@ def build_fitting_detail_response(detail: dict[str, Any]) -> FittingDetailRespon
     raw_res_url = detail.get("resultImageUrl")
 
     if detail.get("status") == "COMPLETED" and raw_res_url:
-        target_key = (
-            f"fittings/{fitting_id}.png"
-            if storage.is_s3 and raw_res_url.startswith("/api/vton/")
-            else raw_res_url
-        )
+        target_key = resolve_target_result_key(raw_res_url, fitting_id, storage.is_s3)
         result_img_url = storage.get_presigned_url(target_key)
     else:
         result_img_url = None
