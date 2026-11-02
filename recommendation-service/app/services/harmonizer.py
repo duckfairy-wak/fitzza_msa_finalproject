@@ -50,6 +50,15 @@ def sort_items_by_standard_category(items: list[dict[str, Any]]) -> list[dict[st
     )
 
 
+def _extract_product_ids(items: list[dict[str, Any]]) -> set[str]:
+    """아이템 목록에서 유효한 상품 ID(product_id 또는 productId) 집합을 추출합니다."""
+    return {
+        str(pid)
+        for item in items
+        if (pid := item.get("product_id") or item.get("productId")) is not None
+    }
+
+
 SYSTEM_PROMPT = """
 당신은 패션 스타일리스트이자 코디 조화도 심사관입니다.
 
@@ -534,10 +543,10 @@ class OutfitHarmonizer:
         # 1차: 모든 기선발 후보와 중복 상품이 MAX_OVERLAP_ITEMS 이하인 후보 선발
         candidates_to_review: list[dict[str, Any]] = []
         for cand in ranked:
-            c_pids = {str(item.get("product_id") or item.get("productId")) for item in cand["items"]}
+            c_pids = _extract_product_ids(cand["items"])
             is_too_similar = False
             for picked in candidates_to_review:
-                p_pids = {str(item.get("product_id") or item.get("productId")) for item in picked["items"]}
+                p_pids = _extract_product_ids(picked["items"])
                 if len(c_pids & p_pids) > MAX_OVERLAP_ITEMS:
                     is_too_similar = True
                     break
@@ -548,10 +557,10 @@ class OutfitHarmonizer:
 
         # 2차 (보충): 후보가 부족할 경우 1등 후보와의 중복이 MAX_OVERLAP_ITEMS 이하인 후보 우선 보충
         if len(candidates_to_review) < MAX_CANDIDATES_TO_REVIEW and candidates_to_review:
-            first_pids = {str(item.get("product_id") or item.get("productId")) for item in candidates_to_review[0]["items"]}
+            first_pids = _extract_product_ids(candidates_to_review[0]["items"])
             for cand in ranked:
                 if cand not in candidates_to_review:
-                    c_pids = {str(item.get("product_id") or item.get("productId")) for item in cand["items"]}
+                    c_pids = _extract_product_ids(cand["items"])
                     if len(c_pids & first_pids) <= MAX_OVERLAP_ITEMS:
                         candidates_to_review.append(cand)
                     if len(candidates_to_review) == MAX_CANDIDATES_TO_REVIEW:
@@ -617,10 +626,10 @@ class OutfitHarmonizer:
         def _pick_diverse_outfits(outfits_list: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
             selected_outfits: list[dict[str, Any]] = []
             for outfit in outfits_list:
-                o_pids = {str(item.get("product_id") or item.get("productId")) for item in outfit["items"]}
+                o_pids = _extract_product_ids(outfit["items"])
                 is_overlap = False
                 for sel in selected_outfits:
-                    s_pids = {str(item.get("product_id") or item.get("productId")) for item in sel["items"]}
+                    s_pids = _extract_product_ids(sel["items"])
                     if len(o_pids & s_pids) > MAX_OVERLAP_ITEMS:
                         is_overlap = True
                         break
@@ -634,9 +643,9 @@ class OutfitHarmonizer:
                 remaining = [o for o in outfits_list if o not in selected_outfits]
                 if selected_outfits and remaining:
                     def _max_overlap(o: dict[str, Any]) -> int:
-                        pids = {str(item.get("product_id") or item.get("productId")) for item in o["items"]}
+                        pids = _extract_product_ids(o["items"])
                         return max(
-                            len(pids & {str(it.get("product_id") or it.get("productId")) for it in s["items"]})
+                            len(pids & _extract_product_ids(s["items"]))
                             for s in selected_outfits
                         )
                     remaining.sort(key=_max_overlap)

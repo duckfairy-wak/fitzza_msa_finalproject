@@ -11,8 +11,8 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
-BUCKET = "fitzza-prod-foundation-databucket-wwng6wfc0hqy"
-PREFIX = "pipeline/runs/collection-20261025-01/curated/data/"
+BUCKET = os.getenv("S3_PRODUCT_BUCKET_NAME", "fitzza-prod-foundation-databucket-wwng6wfc0hqy")
+PREFIX = os.getenv("S3_CURATED_PREFIX", "pipeline/runs/collection-20261025-01/curated/data/")
 
 # S3 한글 대분류 폴더 -> 로컬 영문 폴더 매핑
 CATEGORY_FOLDER_MAP = {
@@ -54,7 +54,13 @@ def main():
     print("=" * 80)
 
     start_time = time.perf_counter()
-    session = boto3.Session(profile_name="fitzza", region_name="ap-northeast-2")
+    aws_profile = os.getenv("AWS_PROFILE")
+    aws_region = os.getenv("AWS_REGION", "ap-northeast-2")
+    session = (
+        boto3.Session(profile_name=aws_profile, region_name=aws_region)
+        if aws_profile
+        else boto3.Session(region_name=aws_region)
+    )
     s3 = session.client("s3")
 
     print("[1] S3 대상 파일 목록 수집 중...")

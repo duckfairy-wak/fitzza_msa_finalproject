@@ -101,7 +101,7 @@ class Settings:
         default_factory=lambda: int(os.getenv("REDIS_DB", "0"))
     )
     redis_password: str | None = field(
-        default_factory=lambda: os.getenv("REDIS_PASSWORD", "fitzza_local") or None
+        default_factory=lambda: os.getenv("REDIS_PASSWORD") or None
     )
     redis_enabled: bool = field(
         default_factory=lambda: os.getenv("REDIS_ENABLED", "true").strip().lower() in ("true", "1", "yes")
