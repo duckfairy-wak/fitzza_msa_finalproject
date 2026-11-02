@@ -1251,6 +1251,7 @@ def test_post_vton_with_invalid_multipart_request_id_returns_400() -> None:
 
 
 def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> None:
+    """목록, 상세, 커뮤니티 내부 공유 조회 시 S3 Pre-signed URL 변환을 검증합니다."""
     client = TestClient(app)
     repo = VtonRepository(db_path=":memory:")
     mock_storage = MagicMock()
