@@ -1251,6 +1251,7 @@ def test_post_vton_with_invalid_multipart_request_id_returns_400() -> None:
 
 
 def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> None:
+    """목록, 상세, 커뮤니티 내부 공유 조회 시 S3 Pre-signed URL 변환을 검증합니다."""
     client = TestClient(app)
     repo = VtonRepository(db_path=":memory:")
     mock_storage = MagicMock()
@@ -1259,6 +1260,17 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
 
     fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101], request_id=10)
+    repo.save_fitting_products(
+        fitting_id,
+        [
+            {
+                "productId": 101,
+                "productName": "자켓",
+                "price": 50000,
+                "imageUrl": "pipeline/runs/products/101.jpg",
+            }
+        ],
+    )
     raw_s3_url = f"https://fitzza-prod-assets-vton.s3.ap-northeast-2.amazonaws.com/fittings/{fitting_id}.png"
     repo.mark_completed(fitting_id, result_image_url=raw_s3_url)
 
@@ -1268,6 +1280,8 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     item = list_resp.json()["items"][0]
     assert item["resultImageUrl"].startswith(raw_s3_url)
     assert "Signature=SIGNED" in item["resultImageUrl"]
+    assert item["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in item["products"][0]["imageUrl"]
 
     # 2. 상세 조회 시 resultImageUrl 서명 URL 변환 확인
     detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
@@ -1275,6 +1289,23 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     detail = detail_resp.json()
     assert detail["resultImageUrl"].startswith(raw_s3_url)
     assert "Signature=SIGNED" in detail["resultImageUrl"]
+    assert detail["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in detail["products"][0]["imageUrl"]
+
+    # 3. 커뮤니티 내부 공유 조회 시 resultImageUrl 및 product.imageUrl 서명 URL 변환 확인
+    token = "community-secret-token-32bytes-long-padding!"
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    internal_data = internal_resp.json()
+    assert internal_data["owned"] is True
+    assert internal_data["status"] == "COMPLETED"
+    assert internal_data["resultImageUrl"].startswith(raw_s3_url)
+    assert "Signature=SIGNED" in internal_data["resultImageUrl"]
+    assert internal_data["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in internal_data["products"][0]["imageUrl"]
 
     set_dependencies_for_tests(None, None, None, None)
 
@@ -1474,3 +1505,128 @@ def test_fitting_id_and_user_id_validation_rejects_non_positive() -> None:
             ).status_code
             == 400
         )
+
+
+def test_absolute_and_relative_vton_result_urls_normalized_to_s3_key_in_internal_and_detail_apis() -> None:
+    """CodeRabbit review discussion_r4439549278 검증:
+    DB에 저장된 피팅 결과 URL이 상대 경로(/api/vton/{id}/image)뿐만 아니라
+    절대 URL(http://api.fitzza.com/api/vton/{id}/image)이어도
+    S3 모드에서 'fittings/{id}.png' S3 키로 정상 정규화되어 Presigned URL이 발급되는지 검증합니다.
+    """
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    mock_storage = MagicMock()
+    mock_storage.is_s3 = True
+
+    called_keys: list[str] = []
+
+    def fake_get_presigned(key, **kwargs):
+        called_keys.append(key)
+        return f"https://fitzza-bucket.s3.amazonaws.com/{key}?AWSAccessKeyId=KEY&Signature=SIGNED"
+
+    mock_storage.get_presigned_url.side_effect = fake_get_presigned
+    set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
+
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
+    # 절대 URL 형태로 결과 이미지 URL 저장
+    absolute_res_url = f"http://api.fitzza.com/api/vton/{fitting_id}/image"
+    repo.mark_completed(fitting_id, result_image_url=absolute_res_url)
+
+    expected_s3_key = f"fittings/{fitting_id}.png"
+
+    # 1. 커뮤니티 내부 공유 API (/fittings/{fitting_id}?userId=7)
+    token = "community-secret-token-32bytes-long-padding!"
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    internal_data = internal_resp.json()
+    assert internal_data["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 2. 상세 조회 API (/api/vton/{fitting_id})
+    called_keys.clear()
+    detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    assert detail_resp.json()["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 3. 목록 조회 API (/api/vton)
+    called_keys.clear()
+    list_resp = client.get("/api/vton", headers={"X-User-Id": "7"})
+    assert list_resp.status_code == 200
+    assert expected_s3_key in called_keys
+    assert list_resp.json()["items"][0]["resultImageUrl"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    # 4. 이미지 리다이렉트 API (/api/vton/{fitting_id}/image)
+    called_keys.clear()
+    img_resp = client.get(f"/api/vton/{fitting_id}/image", headers={"X-User-Id": "7"}, follow_redirects=False)
+    assert img_resp.status_code == 307
+    assert expected_s3_key in called_keys
+    assert img_resp.headers["location"].startswith(f"https://fitzza-bucket.s3.amazonaws.com/{expected_s3_key}")
+
+    set_dependencies_for_tests(None, None, None, None)
+
+
+def test_unmatched_or_external_urls_not_normalized_to_s3_key() -> None:
+    """타 피팅 ID URL, user-image 경로, 비인가 외부 호스트 URL은 S3 키로 오인식되거나 누출되지 않고 거부되며,
+    적법한 외부 CDN 이미지는 원본 유지되는지 검증합니다.
+    """
+    client = TestClient(app)
+    repo = VtonRepository(db_path=":memory:")
+    mock_storage = MagicMock()
+    mock_storage.is_s3 = True
+
+    called_keys: list[str] = []
+
+    def fake_get_presigned(key, **kwargs):
+        if not key:
+            return None
+        called_keys.append(key)
+        return f"{key}?Signature=SIGNED"
+
+    mock_storage.get_presigned_url.side_effect = fake_get_presigned
+    set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
+
+    token = "community-secret-token-32bytes-long-padding!"
+
+    # 1. 다른 피팅 번호(999)의 VTON URL인 경우: 타인 이미지 유출 방지를 위해 거부(None 반환)
+    fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101])
+    other_fitting_url = "http://api.fitzza.com/api/vton/999/image"
+    repo.mark_completed(fitting_id, result_image_url=other_fitting_url)
+
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    assert "fittings/999.png" not in called_keys
+    assert "fittings/7.png" not in called_keys
+    assert internal_resp.json()["resultImageUrl"] is None
+
+    # 2. 결과 이미지가 아닌 사용자 얼굴 사진 경로(/user-image)인 경우: 오인식 방지(None 반환)
+    user_image_path = f"/api/vton/{fitting_id}/user-image"
+    repo.mark_completed(fitting_id, result_image_url=user_image_path)
+    detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp.status_code == 200
+    assert detail_resp.json()["resultImageUrl"] is None
+
+    # 3. 비인가 외부 도메인 URL인 경우: 도메인 검증에 의해 거부(None 반환)
+    evil_url = f"https://evil.example.com/api/vton/{fitting_id}/image"
+    repo.mark_completed(fitting_id, result_image_url=evil_url)
+    detail_resp2 = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp2.status_code == 200
+    assert detail_resp2.json()["resultImageUrl"] is None
+
+    # 4. 일반 외부 CDN 이미지인 경우: 원본 URL 안전 유지
+    called_keys.clear()
+    external_cdn_url = "https://image.msscdn.net/images/goods_img/sample.jpg"
+    repo.mark_completed(fitting_id, result_image_url=external_cdn_url)
+    detail_resp3 = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
+    assert detail_resp3.status_code == 200
+    assert external_cdn_url in called_keys
+    assert detail_resp3.json()["resultImageUrl"].startswith(external_cdn_url)
+
+    set_dependencies_for_tests(None, None, None, None)
+
