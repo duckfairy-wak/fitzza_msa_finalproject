@@ -818,12 +818,25 @@ def get_internal_fitting(
         )
 
     is_owned = (detail["userId"] == user_id)
+    storage = get_storage_client()
+
+    raw_res_url = detail.get("resultImageUrl")
+    if detail.get("status") == "COMPLETED" and raw_res_url:
+        target_key = (
+            f"fittings/{fitting_id}.png"
+            if storage.is_s3 and raw_res_url.startswith("/api/vton/")
+            else raw_res_url
+        )
+        result_img_url = storage.get_presigned_url(target_key)
+    else:
+        result_img_url = None
+
     products_for_community = [
         {
             "productId": p["productId"],
             "productName": p["productName"],
             "price": p["price"],
-            "imageUrl": p["imageUrl"],
+            "imageUrl": storage.get_presigned_url(p.get("imageUrl")) if p.get("imageUrl") else p.get("imageUrl", ""),
         }
         for p in detail.get("products", [])
     ]
@@ -831,7 +844,7 @@ def get_internal_fitting(
     return InternalFittingResponse(
         owned=is_owned,
         status=detail["status"],
-        resultImageUrl=detail["resultImageUrl"] if detail["status"] == "COMPLETED" else None,
+        resultImageUrl=result_img_url,
         products=products_for_community,
     )
 

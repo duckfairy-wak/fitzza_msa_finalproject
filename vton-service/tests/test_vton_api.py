@@ -1259,6 +1259,17 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     set_dependencies_for_tests(repo=repo, storage_client=mock_storage)
 
     fitting_id = repo.create_fitting(user_id=7, photo_id=None, product_ids=[101], request_id=10)
+    repo.save_fitting_products(
+        fitting_id,
+        [
+            {
+                "productId": 101,
+                "productName": "자켓",
+                "price": 50000,
+                "imageUrl": "pipeline/runs/products/101.jpg",
+            }
+        ],
+    )
     raw_s3_url = f"https://fitzza-prod-assets-vton.s3.ap-northeast-2.amazonaws.com/fittings/{fitting_id}.png"
     repo.mark_completed(fitting_id, result_image_url=raw_s3_url)
 
@@ -1268,6 +1279,8 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     item = list_resp.json()["items"][0]
     assert item["resultImageUrl"].startswith(raw_s3_url)
     assert "Signature=SIGNED" in item["resultImageUrl"]
+    assert item["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in item["products"][0]["imageUrl"]
 
     # 2. 상세 조회 시 resultImageUrl 서명 URL 변환 확인
     detail_resp = client.get(f"/api/vton/{fitting_id}", headers={"X-User-Id": "7"})
@@ -1275,6 +1288,23 @@ def test_list_and_detail_vton_converts_result_image_url_to_presigned_url() -> No
     detail = detail_resp.json()
     assert detail["resultImageUrl"].startswith(raw_s3_url)
     assert "Signature=SIGNED" in detail["resultImageUrl"]
+    assert detail["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in detail["products"][0]["imageUrl"]
+
+    # 3. 커뮤니티 내부 공유 조회 시 resultImageUrl 및 product.imageUrl 서명 URL 변환 확인
+    token = "community-secret-token-32bytes-long-padding!"
+    internal_resp = client.get(
+        f"/fittings/{fitting_id}?userId=7",
+        headers={"X-Service-Token": token},
+    )
+    assert internal_resp.status_code == 200
+    internal_data = internal_resp.json()
+    assert internal_data["owned"] is True
+    assert internal_data["status"] == "COMPLETED"
+    assert internal_data["resultImageUrl"].startswith(raw_s3_url)
+    assert "Signature=SIGNED" in internal_data["resultImageUrl"]
+    assert internal_data["products"][0]["imageUrl"].startswith("pipeline/runs/products/101.jpg")
+    assert "Signature=SIGNED" in internal_data["products"][0]["imageUrl"]
 
     set_dependencies_for_tests(None, None, None, None)
 
