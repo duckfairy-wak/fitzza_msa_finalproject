@@ -11,7 +11,7 @@ import java.util.List;
 // COMBO: snapshot에 총 가격(price)·첫 상품 이미지(imageUrl)·조화도 요약(summary), items에 코디 상품들.
 // FITTING: snapshot에 결과 이미지(imageUrl), items에 입어 본 상품들.
 // PRODUCT: snapshot에 찜한 상품(productId·brandName·productName·price·imageUrl), items는 빈 목록.
-// 상품 이미지는 공유 당시 주소가 만료되므로 보여줄 때 새로 받은 주소(latest)로 바꾼다. 피팅 결과 이미지는 그대로 둔다.
+// 상품 이미지와 피팅 결과 이미지는 공유 당시 주소가 만료되므로 보여줄 때 새로 받은 주소(latest)로 바꾼다.
 public record SharedResponse(SharedType type, Long id, Snapshot snapshot, List<Item> items) {
 
     public static SharedResponse of(Post post) {
@@ -33,9 +33,21 @@ public record SharedResponse(SharedType type, Long id, Snapshot snapshot, List<I
                                 snapshot.getBrandName(),
                                 snapshot.getProductName(),
                                 snapshot.getPrice(),
-                                latest.pick(snapshotProductIdOf(post), snapshot.getImageUrl()),
+                                snapshotImageOf(post, latest),
                                 snapshot.getSummary()),
                 post.getSharedItems().stream().map(item -> Item.from(item, latest)).toList());
+    }
+
+    // 스냅샷 이미지를 새 주소로 바꾼다. 피팅은 결과 사진이라 피팅 ID로, 나머지는 상품 ID로 찾는다.
+    public static String snapshotImageOf(Post post, LatestImageUrls latest) {
+        SharedSnapshot snapshot = post.getSharedSnapshot();
+        if (snapshot == null) {
+            return null;
+        }
+        if (post.getSharedType() == SharedType.FITTING) {
+            return latest.pickFitting(post.getSharedId(), snapshot.getImageUrl());
+        }
+        return latest.pick(snapshotProductIdOf(post), snapshot.getImageUrl());
     }
 
     // 스냅샷 이미지가 어느 상품의 이미지인지. 월드컵·상품은 스냅샷 상품, 코디는 첫 상품이다.

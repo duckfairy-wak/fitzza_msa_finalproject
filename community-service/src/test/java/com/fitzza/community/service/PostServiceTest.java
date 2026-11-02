@@ -74,6 +74,7 @@ class PostServiceTest {
     private final VoteService voteService = mock(VoteService.class);
     private final SharedTargetGateway sharedTargetGateway = mock(SharedTargetGateway.class);
     private final ProductImages productImages = mock(ProductImages.class);
+    private final FittingImages fittingImages = mock(FittingImages.class);
     private final PostService postService = new PostService(
             postRepository,
             postLikeRepository,
@@ -82,7 +83,8 @@ class PostServiceTest {
             userDirectory,
             voteService,
             sharedTargetGateway,
-            productImages);
+            productImages,
+            fittingImages);
 
     @Test
     void createStoresTrimmedNormalPostForTheHeaderUser() {
@@ -229,7 +231,8 @@ class PostServiceTest {
         verify(voteOptionRepository).findFirstOptionImages(List.of(3L, 4L));
     }
 
-    // 상품 이미지는 저장된 Presigned 주소가 만료되므로 목록을 보여줄 때 새 주소로 바꾼다. 피팅 결과 사진은 그대로 둔다.
+    // 상품 이미지는 저장된 Presigned 주소가 만료되므로 목록을 보여줄 때 새 주소로 바꾼다.
+    // 피팅 서비스가 새 주소를 주지 않은 피팅 결과 사진은 저장된 주소를 쓴다.
     @Test
     void feedThumbnailsUseFreshProductImageUrls() {
         Post vote = votePost(3L);
@@ -267,6 +270,50 @@ class PostServiceTest {
         PostPageResponse feed = postService.getFeed(null, null, null, 0, 20);
 
         assertThat(feed.content()).extracting(PostSummaryResponse::thumbnailUrl).containsExactly("old-56");
+    }
+
+    // 피팅 결과 사진도 1시간짜리 Presigned 주소라, 목록을 보여줄 때 피팅 서비스에서 받은 새 주소로 바꾼다.
+    @Test
+    void feedThumbnailOfASharedFittingUsesTheFreshResultImage() {
+        Post sharedFitting = post(7L, AUTHOR_ID);
+        sharedFitting.attachShared(SharedType.FITTING, 70L, new SharedSnapshot(null, null, null, null, "old-fitting-70"));
+        when(postRepository.findAll(ArgumentMatchers.<Specification<Post>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(sharedFitting), PageRequest.of(0, 20), 1));
+        when(fittingImages.latest(List.of(sharedFitting))).thenReturn(Map.of(70L, "new-fitting-70"));
+
+        PostPageResponse feed = postService.getFeed(null, null, null, 0, 20);
+
+        assertThat(feed.content()).extracting(PostSummaryResponse::thumbnailUrl).containsExactly("new-fitting-70");
+    }
+
+    @Test
+    void detailOfASharedFittingUsesTheFreshResultImageAndFreshProductImages() {
+        Post post = post(POST_ID, AUTHOR_ID);
+        post.attachShared(SharedType.FITTING, 70L, new SharedSnapshot(null, null, null, null, "old-fitting-70"),
+                List.of(new SharedItem(57L, "바지", 50000, "old-57")));
+        when(postRepository.incrementViewCount(POST_ID)).thenReturn(1);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(productImages.latest(ArgumentMatchers.anyCollection())).thenReturn(Map.of(57L, "new-57"));
+        when(fittingImages.latest(List.of(post))).thenReturn(Map.of(70L, "new-fitting-70"));
+
+        PostDetailResponse detail = postService.getDetail(POST_ID, null);
+
+        assertThat(detail.shared().snapshot().imageUrl()).isEqualTo("new-fitting-70");
+        assertThat(detail.shared().items()).extracting(SharedResponse.Item::imageUrl).containsExactly("new-57");
+    }
+
+    // 피팅 서비스가 새 주소를 주지 못하면 저장된 결과 이미지 주소를 그대로 보여준다.
+    @Test
+    void detailOfASharedFittingKeepsTheStoredImageWhenNoFreshUrlCameBack() {
+        Post post = post(POST_ID, AUTHOR_ID);
+        post.attachShared(SharedType.FITTING, 70L, new SharedSnapshot(null, null, null, null, "old-fitting-70"));
+        when(postRepository.incrementViewCount(POST_ID)).thenReturn(1);
+        when(postRepository.findByIdAndDeletedAtIsNull(POST_ID)).thenReturn(Optional.of(post));
+        when(fittingImages.latest(List.of(post))).thenReturn(Map.of());
+
+        PostDetailResponse detail = postService.getDetail(POST_ID, null);
+
+        assertThat(detail.shared().snapshot().imageUrl()).isEqualTo("old-fitting-70");
     }
 
     @Test
