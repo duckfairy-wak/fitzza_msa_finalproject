@@ -1,0 +1,523 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3728572",
+  "product_id": 3728572,
+  "name": "재스퍼 락 스니커즈 Maple Green",
+  "name_en": "재스퍼 락 스니커즈 Maple Green",
+  "style_no": "1028862,1028860",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "keen",
+    "name": "킨",
+    "name_en": "KEEN"
+  },
+  "category": {
+    "categoryDepth1Code": "103",
+    "categoryDepth1Title": "신발",
+    "categoryDepth1Name": "신발",
+    "categoryDepth2Code": "103004",
+    "categoryDepth2Title": "스니커즈",
+    "categoryDepth2Name": "스니커즈",
+    "categoryDepth3Code": "103004004",
+    "categoryDepth3Title": "패션스니커즈화",
+    "categoryDepth3Name": "패션스니커즈화",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": "sneaker"
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": null,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 179000,
+    "sale": 179000,
+    "discount_rate": 0,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20231122/3728572/3728572_17031197592414_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20231122/3728572/detail_3728572_17006351286419_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20231122/3728572/detail_3728572_17006351292493_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20231122/3728572/detail_3728572_17006351299028_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20231122/3728572/detail_3728572_17006351307688_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20231122/3728572/detail_3728572_17006351316767_500.jpg"
+  ],
+  "features": {},
+  "material": "상피재료 : 소가죽 / 창 재료 : 고무",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "상피재료 : 소가죽 / 창 재료 : 고무",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "스니커즈",
+    "type_number": 54,
+    "unit": "cm",
+    "description": "",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711445100000068699.png",
+    "measurements": [
+      {
+        "size": "225",
+        "sequence": 0,
+        "measurements": {
+          "발길이": 25.0,
+          "발볼": 9.5,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "230",
+        "sequence": 1,
+        "measurements": {
+          "발길이": 25.5,
+          "발볼": 9.5,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "235",
+        "sequence": 2,
+        "measurements": {
+          "발길이": 26.0,
+          "발볼": 10.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "240",
+        "sequence": 3,
+        "measurements": {
+          "발길이": 26.5,
+          "발볼": 10.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "245",
+        "sequence": 4,
+        "measurements": {
+          "발길이": 27.0,
+          "발볼": 10.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "250",
+        "sequence": 5,
+        "measurements": {
+          "발길이": 27.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "255",
+        "sequence": 6,
+        "measurements": {
+          "발길이": 27.5,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "260",
+        "sequence": 7,
+        "measurements": {
+          "발길이": 28.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "265",
+        "sequence": 8,
+        "measurements": {
+          "발길이": 28.5,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "270",
+        "sequence": 9,
+        "measurements": {
+          "발길이": 29.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "275",
+        "sequence": 10,
+        "measurements": {
+          "발길이": 29.5,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "280",
+        "sequence": 11,
+        "measurements": {
+          "발길이": 30.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "285",
+        "sequence": 12,
+        "measurements": {
+          "발길이": 30.5,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "290",
+        "sequence": 13,
+        "measurements": {
+          "발길이": 31.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "300",
+        "sequence": 14,
+        "measurements": {
+          "발길이": 31.5,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "225",
+          "code": "225",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "230",
+          "code": "230",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "235",
+          "code": "235",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "240",
+          "code": "240",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "245",
+          "code": "245",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "250",
+          "code": "250",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "255",
+          "code": "255",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "260",
+          "code": "260",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "265",
+          "code": "265",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "270",
+          "code": "270",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "275",
+          "code": "275",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "280",
+          "code": "280",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "285",
+          "code": "285",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "290",
+          "code": "290",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "300",
+          "code": "300",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 15601496,
+      "managed_code": "225",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "225"
+      ]
+    },
+    {
+      "id": 15601497,
+      "managed_code": "230",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "230"
+      ]
+    },
+    {
+      "id": 15601498,
+      "managed_code": "235",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "235"
+      ]
+    },
+    {
+      "id": 15601499,
+      "managed_code": "240",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "240"
+      ]
+    },
+    {
+      "id": 15601500,
+      "managed_code": "245",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "245"
+      ]
+    },
+    {
+      "id": 15601501,
+      "managed_code": "250",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "250"
+      ]
+    },
+    {
+      "id": 15601502,
+      "managed_code": "255",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "255"
+      ]
+    },
+    {
+      "id": 15601503,
+      "managed_code": "260",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "260"
+      ]
+    },
+    {
+      "id": 15601504,
+      "managed_code": "265",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "265"
+      ]
+    },
+    {
+      "id": 15601505,
+      "managed_code": "270",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "270"
+      ]
+    },
+    {
+      "id": 15601506,
+      "managed_code": "275",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "275"
+      ]
+    },
+    {
+      "id": 15601507,
+      "managed_code": "280",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "280"
+      ]
+    },
+    {
+      "id": 15601508,
+      "managed_code": "285",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "285"
+      ]
+    },
+    {
+      "id": 15601509,
+      "managed_code": "290",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "290"
+      ]
+    },
+    {
+      "id": 15601510,
+      "managed_code": "300",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "300"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 5,
+    "count": 151
+  },
+  "dataset": {
+    "logical_category": "신발",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3728572,
+      "color_raw": "Maple Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20231122/3728572/3728572_17031197592414_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3983703,
+      "color_raw": "Taupe Evergreen",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240322/3983703/3983703_17110921929353_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3046014,
+      "color_raw": "Safari Blue",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230130/3046014/3046014_16953689485486_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3416534,
+      "color_raw": "Curry",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230720/3416534/3416534_16992579724136_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3780725,
+      "color_raw": "Baked Clay",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240108/3780725/3780725_17046916907512_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

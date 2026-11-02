@@ -1,0 +1,267 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/5373166",
+  "product_id": 5373166,
+  "name": "트레포일 베이스볼 캡 - 나이트인디고 / JV7391",
+  "name_en": "BASEBALL CAP AC     NINDIGWHITE",
+  "style_no": "JV7391",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "adidas",
+    "name": "아디다스",
+    "name_en": "ADIDAS"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": null,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 35000,
+    "sale": 35000,
+    "discount_rate": 0,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20250828/5373166/5373166_17566882657344_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250828/5373166/detail_5373166_17566882713237_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250828/5373166/detail_5373166_17566882721260_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250828/5373166/detail_5373166_17566882730339_500.jpg"
+  ],
+  "features": {},
+  "material": "주소재 : 면 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "주소재 : 면 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "OSFM",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 67.0,
+          "챙길이": 7.0,
+          "깊이": 16.0
+        }
+      },
+      {
+        "size": "OSFW",
+        "sequence": 1,
+        "measurements": {
+          "머리둘레": 66.0,
+          "챙길이": 7.0,
+          "깊이": 16.0
+        }
+      },
+      {
+        "size": "OSFL",
+        "sequence": 2,
+        "measurements": {
+          "머리둘레": 0.0,
+          "챙길이": 0.0,
+          "깊이": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "OSFM",
+          "code": "OSFM",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "OSFW",
+          "code": "OSFW",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "OSFL",
+          "code": "OSFL",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 25844344,
+      "managed_code": "OSFM",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "OSFM"
+      ]
+    },
+    {
+      "id": 25844345,
+      "managed_code": "OSFW",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "OSFW"
+      ]
+    },
+    {
+      "id": 26864859,
+      "managed_code": "OSFL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "OSFL"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 49
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 5373166,
+      "color_raw": "나이트인디고",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250828/5373166/5373166_17566882657344_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4865689,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250306/4865689/4865689_17416774037078_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 7152848,
+      "color_raw": "카키쓰리",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260825/7152848/7152848_17876387474684_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 7152831,
+      "color_raw": "아우라커피",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260825/7152831/7152831_17876386873574_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4865690,
+      "color_raw": "화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250306/4865690/4865690_17416773595899_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4790510,
+      "color_raw": "원더화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250214/4790510/4790510_17398515127315_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4790508,
+      "color_raw": "글로우핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250214/4790508/4790508_17398515433729_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3888900,
+      "color_raw": "블랙 화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240221/3888900/3888900_17085822585212_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5364798,
+      "color_raw": "오로라그린",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250826/5364798/5364798_17562568018973_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5364796,
+      "color_raw": "핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250826/5364796/5364796_17562567751405_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5364795,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250826/5364795/5364795_17562567482292_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6242444,
+      "color_raw": "그린",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260402/6242444/6242444_17751803838532_500.jpg",
+      "brand_id": "adidas",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

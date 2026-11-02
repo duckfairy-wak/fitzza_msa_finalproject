@@ -1,0 +1,213 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4190844",
+  "product_id": 4190844,
+  "name": "클럽 언스트럭처드 퓨추라 워시 캡 - 화이트:블랙 / FB5368-100",
+  "name_en": "U NK CLUB CAP U CB FUT WSH L",
+  "style_no": "FB5368-100",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "nike",
+    "name": "나이키",
+    "name_en": "NIKE"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 35000,
+    "sale": 29750,
+    "discount_rate": 15,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240612/4190844/4190844_17189521819716_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240612/4190844/detail_4190844_17189521884112_500.jpg"
+  ],
+  "features": {},
+  "material": "100% 면",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "100% 면",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "S/M",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 15.0
+        }
+      },
+      {
+        "size": "M/L",
+        "sequence": 1,
+        "measurements": {
+          "머리둘레": 61.0,
+          "챙길이": 7.0,
+          "깊이": 16.0
+        }
+      },
+      {
+        "size": "L/XL",
+        "sequence": 2,
+        "measurements": {
+          "머리둘레": 63.0,
+          "챙길이": 7.0,
+          "깊이": 17.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "S/M",
+          "code": "S/M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M/L",
+          "code": "M/L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L/XL",
+          "code": "L/XL",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 17670186,
+      "managed_code": "L/XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L/XL"
+      ]
+    },
+    {
+      "id": 17670187,
+      "managed_code": "M/L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M/L"
+      ]
+    },
+    {
+      "id": 19886348,
+      "managed_code": "S/M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S/M"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 313
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4190844,
+      "color_raw": "화이트 블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240612/4190844/4190844_17189521819716_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4192493,
+      "color_raw": "블랙 화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240612/4192493/4192493_17199742289380_500.jpg",
+      "brand_id": "nike",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4187895,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240611/4187895/4187895_17189521609322_500.jpg",
+      "brand_id": "nike",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4198805,
+      "color_raw": "말라카이트 화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240614/4198805/4198805_17186163297220_500.jpg",
+      "brand_id": "nike",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3983827,
+      "color_raw": "세일 화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240322/3983827/3983827_17115818786808_500.jpg",
+      "brand_id": "nike",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

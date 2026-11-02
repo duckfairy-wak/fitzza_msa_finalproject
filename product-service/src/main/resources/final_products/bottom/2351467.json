@@ -1,0 +1,346 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/2351467",
+  "product_id": 2351467,
+  "name": "바이오스톤 워싱 와이드 데님 팬츠 (BLUE GRAY)",
+  "name_en": "STONE WASHING WIDE DENIM PANTS (BLUE GRAY)",
+  "style_no": "TRSDPT02BG",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "trillion",
+    "name": "트릴리온",
+    "name_en": "TRILLION"
+  },
+  "category": {
+    "categoryDepth1Code": "003",
+    "categoryDepth1Title": "바지",
+    "categoryDepth1Name": "바지",
+    "categoryDepth2Code": "003002",
+    "categoryDepth2Title": "데님 팬츠",
+    "categoryDepth2Name": "데님 팬츠",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ],
+    "primary": "여름",
+    "collection": {
+      "type": "FW",
+      "year": 2026,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "musinsa_season_tags",
+    "primary_candidates": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 54000,
+    "sale": 34900,
+    "discount_rate": 35,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20220210/2351467/2351467_2_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_1_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_2_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_8_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_4_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_5_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_6_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220210/2351467/detail_2351467_7_500.jpg"
+  ],
+  "features": {
+    "핏": [
+      "루즈"
+    ],
+    "촉감": [
+      "보통"
+    ],
+    "신축성": [
+      "보통"
+    ],
+    "비침": [
+      "없음"
+    ],
+    "두께": [
+      "보통"
+    ],
+    "계절": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ]
+  },
+  "material": "Cotton 80, Poly 10, Rayon 10",
+  "fit_type": "RELAXED",
+  "attribute_evidence": {
+    "material": {
+      "raw": "Cotton 80, Poly 10, Rayon 10",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": {
+      "raw": "루즈",
+      "source": "goodsMaterial"
+    }
+  },
+  "size": {
+    "available": true,
+    "type_name": "바지",
+    "type_number": 6,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090720245200000055810.png",
+    "measurements": [
+      {
+        "size": "S",
+        "sequence": 0,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 36.0,
+          "엉덩이단면": 55.5,
+          "허벅지단면": 32.0,
+          "밑위": 34.0,
+          "밑단단면": 24.0
+        }
+      },
+      {
+        "size": "M",
+        "sequence": 1,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 38.0,
+          "엉덩이단면": 57.0,
+          "허벅지단면": 32.5,
+          "밑위": 33.0,
+          "밑단단면": 24.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 2,
+        "measurements": {
+          "총장": 107.0,
+          "허리단면": 40.0,
+          "엉덩이단면": 59.5,
+          "허벅지단면": 34.0,
+          "밑위": 34.0,
+          "밑단단면": 25.0
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 3,
+        "measurements": {
+          "총장": 109.0,
+          "허리단면": 42.0,
+          "엉덩이단면": 61.5,
+          "허벅지단면": 35.5,
+          "밑위": 35.0,
+          "밑단단면": 26.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "S",
+          "code": "S",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 9588604,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 9588605,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 9588606,
+      "managed_code": "S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S"
+      ]
+    },
+    {
+      "id": 9588607,
+      "managed_code": "XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 17083
+  },
+  "dataset": {
+    "logical_category": "하의",
+    "primary_season": "여름",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 2351467,
+      "color_raw": "BLUE GRAY",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220210/2351467/2351467_2_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 2706287,
+      "color_raw": "BEIGE BLUE",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220809/2706287/2706287_1_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2711142,
+      "color_raw": "CREAM",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220810/2711142/2711142_1_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2494147,
+      "color_raw": "BLACK",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220416/2494147/2494147_1_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2351468,
+      "color_raw": "LIGHT BLUE",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220210/2351468/2351468_8_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2351444,
+      "color_raw": "DEEP GRAY",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220210/2351444/2351444_1_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3059333,
+      "color_raw": "BEIGE BLACK",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230203/3059333/3059333_16757897466411_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3059332,
+      "color_raw": "DEEP BLUE",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230203/3059332/3059332_16758338186726_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3139449,
+      "color_raw": "BLACK",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230310/3139449/3139449_16784330510691_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3139448,
+      "color_raw": "BLUE",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230310/3139448/3139448_16784330282471_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3139447,
+      "color_raw": "INDIGO",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230310/3139447/3139447_16784329824799_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3539073,
+      "color_raw": "DEEP GREEN",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230907/3539073/3539073_16941516493504_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3139444,
+      "color_raw": "SUMMER BLEACH",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230310/3139444/3139444_16784326538226_500.jpg",
+      "brand_id": "trillion",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

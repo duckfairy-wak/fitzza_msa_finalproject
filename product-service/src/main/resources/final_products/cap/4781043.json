@@ -1,0 +1,155 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4781043",
+  "product_id": 4781043,
+  "name": "Again Tomorrow 코튼 피치 볼캡-버건디",
+  "name_en": "Again Tomorrow 코튼 피치 볼캡-버건디",
+  "style_no": "5007209855",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "wick",
+    "name": "윅",
+    "name_en": "WICK"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": null,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 24000,
+    "sale": 10900,
+    "discount_rate": 55,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20250212/4781043/4781043_17393353154196_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250212/4781043/detail_4781043_17393353162107_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250212/4781043/detail_4781043_17393353164545_500.jpg"
+  ],
+  "features": {},
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "버건디",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 15.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "버건디",
+          "code": "버건디",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 21834699,
+      "managed_code": "버건디",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "버건디"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 87
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4781043,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250212/4781043/4781043_17393353154196_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4781047,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250212/4781047/4781047_17393353257892_500.jpg",
+      "brand_id": "wick",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4781078,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250212/4781078/4781078_17393354280801_500.jpg",
+      "brand_id": "wick",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

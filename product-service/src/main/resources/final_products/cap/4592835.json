@@ -1,0 +1,162 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4592835",
+  "product_id": 4592835,
+  "name": "ACID 코튼 피치 볼캡-핑크",
+  "name_en": "ACID 코튼 피치 볼캡-핑크",
+  "style_no": "5006644712",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "wick",
+    "name": "윅",
+    "name_en": "WICK"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": null,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 24000,
+    "sale": 14400,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20241106/4592835/4592835_17484194237732_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20241106/4592835/detail_4592835_17484194358330_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20241106/4592835/detail_4592835_17484194374411_500.jpg"
+  ],
+  "features": {},
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "핑크",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 15.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "핑크",
+          "code": "핑크",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 20192429,
+      "managed_code": "핑크",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "핑크"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 32
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4592835,
+      "color_raw": "핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241106/4592835/4592835_17484194237732_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4592836,
+      "color_raw": "카키",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241106/4592836/4592836_17484193860732_500.jpg",
+      "brand_id": "wick",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4592838,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241106/4592838/4592838_17484193499892_500.jpg",
+      "brand_id": "wick",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4592841,
+      "color_raw": "레드와인",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241106/4592841/4592841_17484193131644_500.jpg",
+      "brand_id": "wick",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3949310",
+  "product_id": 3949310,
+  "name": "시그니처 볼캡 (모카 무스 브라운)",
+  "name_en": "Signature ball cap (Mocha mousse brown)",
+  "style_no": "P00000JU",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "mucent",
+    "name": "무센트",
+    "name_en": "MUCENT"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 49900,
+    "sale": 29900,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240313/3949310/3949310_17109257124701_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240313/3949310/detail_3949310_17109257241647_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240313/3949310/detail_3949310_17108345472332_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240313/3949310/detail_3949310_17108345480422_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240313/3949310/detail_3949310_17104670929363_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240313/3949310/detail_3949310_17104670936984_500.jpg"
+  ],
+  "features": {},
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "Free",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 12.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "Brown",
+          "code": "Brown",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3949310/20251113125025_option_69155581dd1ea9.86204294.",
+          "color": null
+        }
+      ]
+    },
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "Free",
+          "code": "Free",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 16646162,
+      "managed_code": "Brown^Free",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Brown",
+        "Free"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 99
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3949310,
+      "color_raw": "Brown",
+      "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3949310/20251113125025_option_69155581dd1ea9.86204294.",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    }
+  ],
+  "related_color_products": [],
+  "color_collection": {
+    "priority": 2,
+    "reason": "complete_color_dropdown_images",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

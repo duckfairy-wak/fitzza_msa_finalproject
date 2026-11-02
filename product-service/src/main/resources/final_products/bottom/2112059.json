@@ -1,0 +1,723 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/2112059",
+  "product_id": 2112059,
+  "name": "[여름 or 기모 or 사계절 원단 선택] 원턱 와이드 스웨트팬츠 그레이",
+  "name_en": "원턱 와이드 스웨트팬츠 그레이",
+  "style_no": "GU01BGR",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "gakka2",
+    "name": "가까이 유니언즈",
+    "name_en": "GAKKAI UNIONS"
+  },
+  "category": {
+    "categoryDepth1Code": "003",
+    "categoryDepth1Title": "바지",
+    "categoryDepth1Name": "바지",
+    "categoryDepth2Code": "003004",
+    "categoryDepth2Title": "트레이닝/조거 팬츠",
+    "categoryDepth2Name": "트레이닝/조거 팬츠",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ],
+    "primary": "봄",
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": "0",
+      "source": null
+    },
+    "primary_source": "original_tag",
+    "primary_candidates": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 52000,
+    "sale": 28600,
+    "discount_rate": 45,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20210906/2112059/2112059_17473624399256_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210906/2112059/detail_2112059_17313756655952_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210906/2112059/detail_2112059_17313756662468_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210906/2112059/detail_2112059_17313756669230_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210906/2112059/detail_2112059_17313756675890_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210906/2112059/detail_2112059_17313756682099_500.jpg"
+  ],
+  "features": {
+    "핏": [
+      "루즈",
+      "오버 사이즈"
+    ],
+    "촉감": [
+      "보통"
+    ],
+    "신축성": [
+      "보통"
+    ],
+    "비침": [
+      "없음"
+    ],
+    "두께": [
+      "보통"
+    ],
+    "계절": [
+      "봄",
+      "여름",
+      "가을",
+      "겨울"
+    ]
+  },
+  "material": "Cotton 65%, Polyester 35%",
+  "fit_type": "RELAXED",
+  "attribute_evidence": {
+    "material": {
+      "raw": "Cotton 65%, Polyester 35%",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": {
+      "raw": "루즈",
+      "source": "goodsMaterial"
+    }
+  },
+  "size": {
+    "available": true,
+    "type_name": "바지",
+    "type_number": 6,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090720245200000055810.png",
+    "measurements": [
+      {
+        "size": "XS",
+        "sequence": 0,
+        "measurements": {
+          "총장": 97.5,
+          "허리단면": 31.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 30.5,
+          "밑위": 29.0,
+          "밑단단면": 23.5
+        }
+      },
+      {
+        "size": "S",
+        "sequence": 1,
+        "measurements": {
+          "총장": 99.0,
+          "허리단면": 32.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 31.0,
+          "밑위": 30.0,
+          "밑단단면": 24.0
+        }
+      },
+      {
+        "size": "M",
+        "sequence": 2,
+        "measurements": {
+          "총장": 101.0,
+          "허리단면": 34.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 32.0,
+          "밑위": 31.0,
+          "밑단단면": 25.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 3,
+        "measurements": {
+          "총장": 103.0,
+          "허리단면": 36.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 33.0,
+          "밑위": 32.0,
+          "밑단단면": 26.0
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 4,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 38.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 34.0,
+          "밑위": 33.0,
+          "밑단단면": 27.0
+        }
+      },
+      {
+        "size": "2XL",
+        "sequence": 5,
+        "measurements": {
+          "총장": 107.5,
+          "허리단면": 39.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 35.0,
+          "밑위": 34.0,
+          "밑단단면": 28.0
+        }
+      },
+      {
+        "size": "XS [여름용]",
+        "sequence": 6,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "S [여름용]",
+        "sequence": 7,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "M [여름용]",
+        "sequence": 8,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "L [여름용]",
+        "sequence": 9,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "XL [여름용]",
+        "sequence": 10,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "2XL [여름용]",
+        "sequence": 11,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "XS [기모]",
+        "sequence": 12,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "S [기모]",
+        "sequence": 13,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "M [기모]",
+        "sequence": 14,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "L [기모]",
+        "sequence": 15,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "XL [기모]",
+        "sequence": 16,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      },
+      {
+        "size": "2XL [기모]",
+        "sequence": 17,
+        "measurements": {
+          "총장": 0.0,
+          "허리단면": 0.0,
+          "엉덩이단면": 0.0,
+          "허벅지단면": 0.0,
+          "밑위": 0.0,
+          "밑단단면": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "XS",
+          "code": "XS",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S",
+          "code": "S",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "2XL",
+          "code": "2XL",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XS [여름용]",
+          "code": "XS [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S [여름용]",
+          "code": "S [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M [여름용]",
+          "code": "M [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L [여름용]",
+          "code": "L [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL [여름용]",
+          "code": "XL [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "2XL [여름용]",
+          "code": "2XL [여름용]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XS [기모]",
+          "code": "XS [기모]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S [기모]",
+          "code": "S [기모]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M [기모]",
+          "code": "M [기모]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L [기모]",
+          "code": "L [기모]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL [기모]",
+          "code": "XL [기모]",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "2XL [기모]",
+          "code": "2XL [기모]",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 8476928,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 8476929,
+      "managed_code": "L [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L [기모]"
+      ]
+    },
+    {
+      "id": 8476930,
+      "managed_code": "L [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L [여름용]"
+      ]
+    },
+    {
+      "id": 8476931,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 8476932,
+      "managed_code": "M [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M [기모]"
+      ]
+    },
+    {
+      "id": 8476933,
+      "managed_code": "M [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M [여름용]"
+      ]
+    },
+    {
+      "id": 8476934,
+      "managed_code": "S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S"
+      ]
+    },
+    {
+      "id": 8476935,
+      "managed_code": "S [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S [기모]"
+      ]
+    },
+    {
+      "id": 8476936,
+      "managed_code": "S [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S [여름용]"
+      ]
+    },
+    {
+      "id": 8476937,
+      "managed_code": "XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL"
+      ]
+    },
+    {
+      "id": 8476938,
+      "managed_code": "XL [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL [기모]"
+      ]
+    },
+    {
+      "id": 8476939,
+      "managed_code": "XL [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL [여름용]"
+      ]
+    },
+    {
+      "id": 20267918,
+      "managed_code": "XS",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS"
+      ]
+    },
+    {
+      "id": 20267919,
+      "managed_code": "2XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "2XL"
+      ]
+    },
+    {
+      "id": 20267920,
+      "managed_code": "XS [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS [기모]"
+      ]
+    },
+    {
+      "id": 20267921,
+      "managed_code": "2XL [기모]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "2XL [기모]"
+      ]
+    },
+    {
+      "id": 20268127,
+      "managed_code": "XS [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS [여름용]"
+      ]
+    },
+    {
+      "id": 20268128,
+      "managed_code": "2XL [여름용]",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "2XL [여름용]"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 81361
+  },
+  "dataset": {
+    "logical_category": "하의",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 2112059,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210906/2112059/2112059_17473624399256_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3478677,
+      "color_raw": "베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3478677/3478677_16994270561249_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3247976,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230419/3247976/3247976_16819081344910_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3043192,
+      "color_raw": "더스트카키",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230127/3043192/3043192_16750398295995_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3043177,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230127/3043177/3043177_16750397641664_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3043166,
+      "color_raw": "카키",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230127/3043166/3043166_16750396213751_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2760338,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220831/2760338/2760338_1_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2760334,
+      "color_raw": "다크그린",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220831/2760334/2760334_1_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2499655,
+      "color_raw": "화이트 멜란지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220419/2499655/2499655_16814303509597_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2321743,
+      "color_raw": "차콜",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220123/2321743/2321743_16812585433370_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2321736,
+      "color_raw": "오트밀",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220123/2321736/2321736_16814301222036_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2112061,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210906/2112061/2112061_17459952841713_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2112057,
+      "color_raw": "다크그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210906/2112057/2112057_16872272336108_500.jpg",
+      "brand_id": "gakka2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

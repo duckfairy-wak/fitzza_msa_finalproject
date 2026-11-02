@@ -1,0 +1,417 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3865936",
+  "product_id": 3865936,
+  "name": "스페셜 후드 바람막이_8color",
+  "name_en": "",
+  "style_no": "스페셜 후드 바람막이_8color",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "maninstore",
+    "name": "무드인사이드",
+    "name_en": "MOOD INSIDE"
+  },
+  "category": {
+    "categoryDepth1Code": "002",
+    "categoryDepth1Title": "아우터",
+    "categoryDepth1Name": "아우터",
+    "categoryDepth2Code": "002006",
+    "categoryDepth2Title": "나일론/코치 재킷",
+    "categoryDepth2Name": "나일론/코치 재킷",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "여름",
+    "collection": {
+      "type": "SS",
+      "year": 2024,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 79900,
+    "sale": 39900,
+    "discount_rate": 50,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240214/3865936/3865936_17748561272852_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039380962_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039388453_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039395388_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039402208_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039408349_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039414888_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039421002_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039426757_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039432917_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039439227_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039445240_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039451635_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039457947_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039464700_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039470895_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240214/3865936/detail_3865936_17751039478584_500.jpg"
+  ],
+  "features": {},
+  "material": "나일론 100",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "나일론 100",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "점퍼",
+    "type_number": 7,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711340900000003694.png",
+    "measurements": [
+      {
+        "size": "블랙",
+        "sequence": 1,
+        "measurements": {
+          "총장": 67.5,
+          "어깨너비": 58.0,
+          "가슴단면": 73.0,
+          "소매길이": 61.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "화이트",
+        "sequence": 2,
+        "measurements": {
+          "총장": 67.5,
+          "어깨너비": 58.0,
+          "가슴단면": 73.0,
+          "소매길이": 61.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "그레이",
+        "sequence": 3,
+        "measurements": {
+          "총장": 67.5,
+          "어깨너비": 58.0,
+          "가슴단면": 73.0,
+          "소매길이": 61.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "레드",
+        "sequence": 4,
+        "measurements": {
+          "총장": 0.0,
+          "어깨너비": 0.0,
+          "가슴단면": 0.0,
+          "소매길이": 0.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "블루그린",
+        "sequence": 5,
+        "measurements": {
+          "총장": 0.0,
+          "어깨너비": 0.0,
+          "가슴단면": 0.0,
+          "소매길이": 0.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "라이트베이지",
+        "sequence": 6,
+        "measurements": {
+          "총장": 0.0,
+          "어깨너비": 0.0,
+          "가슴단면": 0.0,
+          "소매길이": 0.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "와인",
+        "sequence": 7,
+        "measurements": {
+          "총장": 0.0,
+          "어깨너비": 0.0,
+          "가슴단면": 0.0,
+          "소매길이": 0.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "네이비",
+        "sequence": 8,
+        "measurements": {
+          "총장": 0.0,
+          "어깨너비": 0.0,
+          "가슴단면": 0.0,
+          "소매길이": 0.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "블랙",
+          "code": "블랙",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "화이트",
+          "code": "화이트",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "그레이",
+          "code": "그레이",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "레드",
+          "code": "레드",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "블루그린",
+          "code": "블루그린",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "라이트베이지",
+          "code": "라이트베이지",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "와인",
+          "code": "와인",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "네이비",
+          "code": "네이비",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 26230800,
+      "managed_code": "블랙",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "블랙"
+      ]
+    },
+    {
+      "id": 26230801,
+      "managed_code": "화이트",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "화이트"
+      ]
+    },
+    {
+      "id": 26230802,
+      "managed_code": "그레이",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "그레이"
+      ]
+    },
+    {
+      "id": 29764218,
+      "managed_code": "레드",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "레드"
+      ]
+    },
+    {
+      "id": 29764219,
+      "managed_code": "블루그린",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "블루그린"
+      ]
+    },
+    {
+      "id": 29764220,
+      "managed_code": "라이트베이지",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "라이트베이지"
+      ]
+    },
+    {
+      "id": 29764221,
+      "managed_code": "와인",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "와인"
+      ]
+    },
+    {
+      "id": 29764222,
+      "managed_code": "네이비",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "네이비"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.7,
+    "count": 959
+  },
+  "dataset": {
+    "logical_category": "아우터",
+    "primary_season": "여름",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3865936,
+      "color_raw": "멀티",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240214/3865936/3865936_17748561272852_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 6202761,
+      "color_raw": "Light Beige",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260326/6202761/6202761_17748565425209_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6202720,
+      "color_raw": "Red",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260326/6202720/6202720_17748566075627_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6202608,
+      "color_raw": "Blue Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260326/6202608/6202608_17748573868727_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6202571,
+      "color_raw": "Navy",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260326/6202571/6202571_17748573267762_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5061858,
+      "color_raw": "Black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250424/5061858/5061858_17748572064887_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3865942,
+      "color_raw": "White",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240214/3865942/3865942_17748569140723_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3865940,
+      "color_raw": "Gray",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240214/3865940/3865940_17748564353395_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6202697,
+      "color_raw": "Wine",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260326/6202697/6202697_17748566897378_500.jpg",
+      "brand_id": "maninstore",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

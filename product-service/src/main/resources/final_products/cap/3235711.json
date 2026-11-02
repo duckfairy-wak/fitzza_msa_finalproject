@@ -1,0 +1,142 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3235711",
+  "product_id": 3235711,
+  "name": "시그니처 볼캡 (버건디)",
+  "name_en": "Signature ball cap (Burgundy)",
+  "style_no": "P000000Q",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "mucent",
+    "name": "무센트",
+    "name_en": "MUCENT"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 49900,
+    "sale": 29900,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20230414/3235711/3235711_16940501586001_500.jpg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "보통"
+    ]
+  },
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "버건디",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 0.0,
+          "깊이": 12.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "버건디",
+          "code": "버건디",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3235711/20251113124732_option_691554d4539314.01768817.",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 13556409,
+      "managed_code": "버건디",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "버건디"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 242
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3235711,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3235711/20251113124732_option_691554d4539314.01768817.",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    }
+  ],
+  "related_color_products": [],
+  "color_collection": {
+    "priority": 2,
+    "reason": "complete_color_dropdown_images",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

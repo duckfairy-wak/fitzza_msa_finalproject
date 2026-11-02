@@ -1,0 +1,160 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3369141",
+  "product_id": 3369141,
+  "name": "시그니처 볼캡 (다잉 그레이 데님)",
+  "name_en": "Signature ball cap (Dyeing gray denim)",
+  "style_no": "P00000IJ",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "mucent",
+    "name": "무센트",
+    "name_en": "MUCENT"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 49900,
+    "sale": 29900,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20230616/3369141/3369141_16947550817863_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230616/3369141/detail_3369141_16869014558575_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230616/3369141/detail_3369141_17108350596385_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230616/3369141/detail_3369141_17108350604906_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230616/3369141/detail_3369141_17108350746171_500.jpeg",
+    "https://image.msscdn.net/images/prd_img/20230616/3369141/detail_3369141_17108350755317_500.jpeg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "보통"
+    ]
+  },
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "Free",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 12.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "Dyeing gray",
+          "code": "Dyeing gray",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3369141/20251112162138_option_691435823b7a52.65986520.",
+          "color": null
+        }
+      ]
+    },
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "Free",
+          "code": "Free",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 14143084,
+      "managed_code": "Dyeing gray^Free",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Dyeing gray",
+        "Free"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 910
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3369141,
+      "color_raw": "Dyeing gray",
+      "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/3369141/20251112162138_option_691435823b7a52.65986520.",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    }
+  ],
+  "related_color_products": [],
+  "color_collection": {
+    "priority": 2,
+    "reason": "complete_color_dropdown_images",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

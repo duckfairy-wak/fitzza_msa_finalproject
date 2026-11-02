@@ -1,0 +1,262 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/1120223",
+  "product_id": 1120223,
+  "name": "슬라이드 Zerovity OG 그레이",
+  "name_en": "슬라이드 Zerovity OG 그레이",
+  "style_no": "Z-SL-GRAJ",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "tawntoe",
+    "name": "토앤토",
+    "name_en": "TAW&TOE"
+  },
+  "category": {
+    "categoryDepth1Code": "103",
+    "categoryDepth1Title": "신발",
+    "categoryDepth1Name": "신발",
+    "categoryDepth2Code": "103003",
+    "categoryDepth2Title": "샌들/슬리퍼",
+    "categoryDepth2Name": "샌들/슬리퍼",
+    "categoryDepth3Code": "103003010",
+    "categoryDepth3Title": "쪼리/플립플랍",
+    "categoryDepth3Name": "쪼리/플립플랍",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": "sneaker"
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": null,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 49000,
+    "sale": 49000,
+    "discount_rate": 0,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20190819/1120223/1120223_16817806891532_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842124892869_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842124901708_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842124912833_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842124947978_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842124970546_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20190819/1120223/detail_1120223_16842125012456_500.jpg"
+  ],
+  "features": {
+    "굽 높이": [
+      "보통"
+    ],
+    "쿠션": [
+      "있음"
+    ],
+    "무게": [
+      "가벼움"
+    ]
+  },
+  "material": "ZEROVITY",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "ZEROVITY",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "신발",
+    "type_number": 17,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711452700000040310.png",
+    "measurements": [
+      {
+        "size": "S(220-235)",
+        "sequence": 0,
+        "measurements": {
+          "발길이": 245.0,
+          "발볼": 106.0,
+          "발목높이": 0.0,
+          "굽높이": 38.0
+        }
+      },
+      {
+        "size": "M(240-255)",
+        "sequence": 1,
+        "measurements": {
+          "발길이": 265.0,
+          "발볼": 111.0,
+          "발목높이": 0.0,
+          "굽높이": 40.0
+        }
+      },
+      {
+        "size": "L(260-275)",
+        "sequence": 2,
+        "measurements": {
+          "발길이": 285.0,
+          "발볼": 116.0,
+          "발목높이": 0.0,
+          "굽높이": 42.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "Size",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "S(220-235)",
+          "code": "S(220-235)",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M(240-255)",
+          "code": "M(240-255)",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L(260-275)",
+          "code": "L(260-275)",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 3649402,
+      "managed_code": "L(260-275)",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L(260-275)"
+      ]
+    },
+    {
+      "id": 3649403,
+      "managed_code": "M(240-255)",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M(240-255)"
+      ]
+    },
+    {
+      "id": 3649404,
+      "managed_code": "S(220-235)",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S(220-235)"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 174
+  },
+  "dataset": {
+    "logical_category": "신발",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 1120223,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120223/1120223_16817806891532_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 1120217,
+      "color_raw": "크림",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120217/1120217_16817806808086_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1120483,
+      "color_raw": "Teal",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120483/1120483_3_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1120260,
+      "color_raw": "틸",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120260/1120260_3_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1120243,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120243/1120243_2_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1120215,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20190819/1120215/1120215_16817806725528_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3065226,
+      "color_raw": "베이비핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230207/3065226/3065226_16817806254741_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3065225,
+      "color_raw": "차콜",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230207/3065225/3065225_16817806157365_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3371058,
+      "color_raw": "웜그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230619/3371058/3371058_16886160346346_500.jpg",
+      "brand_id": "tawntoe",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

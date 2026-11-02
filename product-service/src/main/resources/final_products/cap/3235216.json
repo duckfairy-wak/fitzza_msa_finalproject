@@ -1,0 +1,255 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3235216",
+  "product_id": 3235216,
+  "name": "시그니처 볼캡 (코랄 핑크)",
+  "name_en": "Signature ball cap (Coral pink)",
+  "style_no": "P00000HD",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "mucent",
+    "name": "무센트",
+    "name_en": "MUCENT"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 49900,
+    "sale": 29900,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20230414/3235216/3235216_16940499186961_500.jpg"
+  ],
+  "features": {},
+  "material": "코튼 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "코튼 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "NONE",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.0,
+          "깊이": 12.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "NONE",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "NONE",
+          "code": "NONE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 13549299,
+      "managed_code": "NONE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "NONE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 112
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3235216,
+      "color_raw": "코랄 핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235216/3235216_16940499186961_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4243778,
+      "color_raw": "핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240711/4243778/4243778_17206620539546_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4243758,
+      "color_raw": "애플 민트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240711/4243758/4243758_17206615764752_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4221367,
+      "color_raw": "그레이쉬 블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240627/4221367/4221367_17194521947915_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4221360,
+      "color_raw": "딸기우유",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240627/4221360/4221360_17194520462169_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4220558,
+      "color_raw": "바이올렛",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240626/4220558/4220558_17193868693345_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3949330,
+      "color_raw": "중청 미드 데님",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240313/3949330/3949330_17109256761212_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3949310,
+      "color_raw": "모카 무스 브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240313/3949310/3949310_17109257124701_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3369430,
+      "color_raw": "연청 라이트 데님",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230616/3369430/3369430_16947549783574_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3369349,
+      "color_raw": "크림",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230616/3369349/3369349_16947550114772_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3369141,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230616/3369141/3369141_16947550817863_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235930,
+      "color_raw": "베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235930/3235930_16940502775178_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235795,
+      "color_raw": "차콜",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235795/3235795_16940502373703_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235711,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235711/3235711_16940501586001_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235598,
+      "color_raw": "사파이어 블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235598/3235598_16940500830715_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235222,
+      "color_raw": "진청 데님",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235222/3235222_16940499849715_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3235215,
+      "color_raw": "카키",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230414/3235215/3235215_16940498219812_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3232889,
+      "color_raw": "멀티",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230413/3232889/3232889_16940492864390_500.jpg",
+      "brand_id": "mucent",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

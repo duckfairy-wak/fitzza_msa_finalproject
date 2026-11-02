@@ -1,0 +1,203 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/5406008",
+  "product_id": 5406008,
+  "name": "싱글라인 라운드 가디건[라이트베이지]",
+  "name_en": "",
+  "style_no": "ND253KT010M",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "nodu",
+    "name": "노드유",
+    "name_en": "NODU"
+  },
+  "category": {
+    "categoryDepth1Code": "002",
+    "categoryDepth1Title": "아우터",
+    "categoryDepth1Name": "아우터",
+    "categoryDepth2Code": "002020",
+    "categoryDepth2Title": "카디건",
+    "categoryDepth2Name": "카디건",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": null,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 56000,
+    "sale": 39200,
+    "discount_rate": 30,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20250904/5406008/5406008_17572911198850_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911318356_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911308638_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911301425_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911326461_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911484698_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911492973_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911499989_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911508063_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911517459_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911526176_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911535000_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250904/5406008/detail_5406008_17572911543232_500.jpg"
+  ],
+  "features": {},
+  "material": "폴리에스테르 80% 아크릴 6% 나일론6% 울 5% 스판 3#",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "폴리에스테르 80% 아크릴 6% 나일론6% 울 5% 스판 3#",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "점퍼",
+    "type_number": 7,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711340900000003694.png",
+    "measurements": [
+      {
+        "size": "M",
+        "sequence": 0,
+        "measurements": {
+          "총장": 67.0,
+          "어깨너비": 46.0,
+          "가슴단면": 56.0,
+          "소매길이": 57.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 1,
+        "measurements": {
+          "총장": 69.0,
+          "어깨너비": 48.0,
+          "가슴단면": 58.0,
+          "소매길이": 58.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 26038603,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 26038604,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.7,
+    "count": 9
+  },
+  "dataset": {
+    "logical_category": "아우터",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 5406008,
+      "color_raw": "라이트베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250904/5406008/5406008_17572911198850_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 5406015,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250904/5406015/5406015_17572913560603_500.jpg",
+      "brand_id": "nodu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5406014,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250904/5406014/5406014_17572912965997_500.jpg",
+      "brand_id": "nodu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5406009,
+      "color_raw": "베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250904/5406009/5406009_17572912176411_500.jpg",
+      "brand_id": "nodu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

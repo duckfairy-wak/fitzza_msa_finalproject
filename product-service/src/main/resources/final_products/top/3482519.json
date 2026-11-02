@@ -1,0 +1,353 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3482519",
+  "product_id": 3482519,
+  "name": "입으면 바로 힙스터 후디 [멜란지그레이]",
+  "name_en": "IBEUMYEON BARO HIPSTER HOODIE [MELANGE GREY]",
+  "style_no": "VJ23B101MG",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "videojockey",
+    "name": "비디오자키",
+    "name_en": "VIDEO JOCKEY"
+  },
+  "category": {
+    "categoryDepth1Code": "001",
+    "categoryDepth1Title": "상의",
+    "categoryDepth1Name": "상의",
+    "categoryDepth2Code": "001004",
+    "categoryDepth2Title": "후드 티셔츠",
+    "categoryDepth2Name": "후드 티셔츠",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": 2023,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 88000,
+    "sale": 26400,
+    "discount_rate": 70,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20230821/3482519/3482519_16926103752741_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230821/3482519/detail_3482519_16926103776466_500.jpg"
+  ],
+  "features": {},
+  "material": null,
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "상세페이지 참조",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": false
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "긴소매티셔츠",
+    "type_number": 21,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711323100000052223.png",
+    "measurements": [
+      {
+        "size": "S",
+        "sequence": 0,
+        "measurements": {
+          "총장": 65.5,
+          "어깨너비": 60.0,
+          "가슴단면": 54.5,
+          "소매길이": 58.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "M",
+        "sequence": 1,
+        "measurements": {
+          "총장": 67.5,
+          "어깨너비": 62.0,
+          "가슴단면": 57.0,
+          "소매길이": 59.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 2,
+        "measurements": {
+          "총장": 70.0,
+          "어깨너비": 63.0,
+          "가슴단면": 59.0,
+          "소매길이": 60.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 3,
+        "measurements": {
+          "총장": 72.5,
+          "어깨너비": 66.0,
+          "가슴단면": 63.0,
+          "소매길이": 61.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "기모/논기모",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "기모",
+          "code": "기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "논기모",
+          "code": "논기모",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    },
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "S",
+          "code": "S",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 14646535,
+      "managed_code": "기모^L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "기모",
+        "L"
+      ]
+    },
+    {
+      "id": 14646536,
+      "managed_code": "기모^M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "기모",
+        "M"
+      ]
+    },
+    {
+      "id": 14646537,
+      "managed_code": "기모^S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "기모",
+        "S"
+      ]
+    },
+    {
+      "id": 14646538,
+      "managed_code": "기모^XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "기모",
+        "XL"
+      ]
+    },
+    {
+      "id": 14646539,
+      "managed_code": "논기모^L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "논기모",
+        "L"
+      ]
+    },
+    {
+      "id": 14646540,
+      "managed_code": "논기모^M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "논기모",
+        "M"
+      ]
+    },
+    {
+      "id": 14646541,
+      "managed_code": "논기모^S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "논기모",
+        "S"
+      ]
+    },
+    {
+      "id": 14646542,
+      "managed_code": "논기모^XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "논기모",
+        "XL"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 52
+  },
+  "dataset": {
+    "logical_category": "상의",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3482519,
+      "color_raw": "멜란지그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3482519/3482519_16926103752741_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3482512,
+      "color_raw": "차콜",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3482512/3482512_16926098548466_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3482515,
+      "color_raw": "2 COLOR",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3482515/3482515_17259527539597_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3482518,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3482518/3482518_17259527758536_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3482514,
+      "color_raw": "블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230821/3482514/3482514_17259516595349_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3597346,
+      "color_raw": "핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230926/3597346/3597346_16957337545045_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4379029,
+      "color_raw": "버건디",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240828/4379029/4379029_17258590735225_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4379157,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240828/4379157/4379157_17258592825486_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4379204,
+      "color_raw": "차콜/핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240828/4379204/4379204_17258593389238_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4379228,
+      "color_raw": "블랙/그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240828/4379228/4379228_17258594181608_500.jpg",
+      "brand_id": "videojockey",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

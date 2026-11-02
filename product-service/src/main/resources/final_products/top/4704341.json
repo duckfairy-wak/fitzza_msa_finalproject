@@ -1,0 +1,412 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4704341",
+  "product_id": 4704341,
+  "name": "[360g] M-Logo 반집업 맨투맨 (JR5TSU838MB)",
+  "name_en": "[360g] M-Logo 반집업 맨투맨 (JR5TSU838MB)",
+  "style_no": "JR5TSU838MB",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "jeep",
+    "name": "지프",
+    "name_en": "JEEP"
+  },
+  "category": {
+    "categoryDepth1Code": "001",
+    "categoryDepth1Title": "상의",
+    "categoryDepth1Name": "상의",
+    "categoryDepth2Code": "001005",
+    "categoryDepth2Title": "맨투맨/스웨트",
+    "categoryDepth2Name": "맨투맨/스웨트",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [
+      "봄",
+      "가을",
+      "겨울"
+    ],
+    "primary": "겨울",
+    "collection": {
+      "type": "FW",
+      "year": 2026,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "musinsa_season_tags",
+    "primary_candidates": [
+      "봄",
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 74000,
+    "sale": 36990,
+    "discount_rate": 50,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20250108/4704341/4704341_17412474701281_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17681942264556_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17681942365950_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17576579447134_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17665409149493_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17665409121583_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17665405358207_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17665405414000_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17576579475631_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17562554282859_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17576579504404_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17681942439899_500.png",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17412470988212_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17370852170269_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17370852177300_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17370852184653_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250108/4704341/detail_4704341_17370852192649_500.jpg"
+  ],
+  "features": {
+    "핏": [
+      "루즈"
+    ],
+    "촉감": [
+      "보통"
+    ],
+    "신축성": [
+      "보통"
+    ],
+    "비침": [
+      "없음"
+    ],
+    "두께": [
+      "약간 두꺼움"
+    ],
+    "계절": [
+      "봄",
+      "가을",
+      "겨울"
+    ]
+  },
+  "material": "겉감: 코튼(Cotton) 54%, 폴리에스터 46% / 배색: 코튼(Cotton) 95%, 폴리우레탄 5%",
+  "fit_type": "RELAXED",
+  "attribute_evidence": {
+    "material": {
+      "raw": "겉감: 코튼(Cotton) 54%, 폴리에스터 46% / 배색: 코튼(Cotton) 95%, 폴리우레탄 5%",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": {
+      "raw": "루즈",
+      "source": "goodsMaterial"
+    }
+  },
+  "size": {
+    "available": true,
+    "type_name": "긴소매티셔츠",
+    "type_number": 21,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711323100000052223.png",
+    "measurements": [
+      {
+        "size": "S",
+        "sequence": 0,
+        "measurements": {
+          "총장": 65.0,
+          "어깨너비": 51.0,
+          "가슴단면": 57.0,
+          "소매길이": 58.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "M",
+        "sequence": 1,
+        "measurements": {
+          "총장": 69.0,
+          "어깨너비": 55.0,
+          "가슴단면": 61.0,
+          "소매길이": 64.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 2,
+        "measurements": {
+          "총장": 70.0,
+          "어깨너비": 56.0,
+          "가슴단면": 64.0,
+          "소매길이": 65.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 3,
+        "measurements": {
+          "총장": 71.0,
+          "어깨너비": 57.0,
+          "가슴단면": 66.0,
+          "소매길이": 65.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "2XL",
+        "sequence": 4,
+        "measurements": {
+          "총장": 72.0,
+          "어깨너비": 58.0,
+          "가슴단면": 69.0,
+          "소매길이": 66.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "S",
+          "code": "S",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/4704341/20251119100818_option_691d18825e7428.55148069.",
+          "color": null
+        },
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/4704341/20251119100821_option_691d1885997094.84244510.",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/4704341/20251119100824_option_691d188850be63.68772205.",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/4704341/20251119100827_option_691d188b17b011.66236928.",
+          "color": null
+        },
+        {
+          "name": "2XL",
+          "code": "2XL",
+          "image_url": "https://image.msscdn.net/thumbnails/images/goods/option-value/4704341/20251119100829_option_691d188de682b2.74503154.",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 21239887,
+      "managed_code": "S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S"
+      ]
+    },
+    {
+      "id": 21239888,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 21239889,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 21239890,
+      "managed_code": "XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL"
+      ]
+    },
+    {
+      "id": 21239891,
+      "managed_code": "2XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "2XL"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 1050
+  },
+  "dataset": {
+    "logical_category": "상의",
+    "primary_season": "겨울",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4704341,
+      "color_raw": "MB",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250108/4704341/4704341_17412474701281_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 6796737,
+      "color_raw": "MR",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260707/6796737/6796737_17875513403519_500.png",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6796734,
+      "color_raw": "BT",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260707/6796734/6796734_17835785758618_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6796731,
+      "color_raw": "DB",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260707/6796731/6796731_17833976658571_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6796717,
+      "color_raw": "CG",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260707/6796717/6796717_17833975919818_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6796715,
+      "color_raw": "GR",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260707/6796715/6796715_17833975866769_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5811593,
+      "color_raw": "CB",
+      "image_url": "https://image.msscdn.net/images/goods_img/20251208/5811593/5811593_17841848806984_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5811592,
+      "color_raw": "CE",
+      "image_url": "https://image.msscdn.net/images/goods_img/20251208/5811592/5811592_17841849836760_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5811591,
+      "color_raw": "BG",
+      "image_url": "https://image.msscdn.net/images/goods_img/20251208/5811591/5811591_17651656163680_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5811590,
+      "color_raw": "GN",
+      "image_url": "https://image.msscdn.net/images/goods_img/20251208/5811590/5811590_17651656107602_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5811585,
+      "color_raw": "BB",
+      "image_url": "https://image.msscdn.net/images/goods_img/20251208/5811585/5811585_17841848592869_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5291758,
+      "color_raw": "BR",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250805/5291758/5291758_17568606030806_500.png",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2090950,
+      "color_raw": "DA",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210826/2090950/2090950_17689757503583_500.png",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2090948,
+      "color_raw": "LR",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210826/2090948/2090948_17576591344045_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1783595,
+      "color_raw": "MW",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210208/1783595/1783595_17551318088227_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1755609,
+      "color_raw": "MG",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210120/1755609/1755609_17681942816847_500.png",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1755605,
+      "color_raw": "BK",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210120/1755605/1755605_17551317401993_500.jpg",
+      "brand_id": "jeep",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

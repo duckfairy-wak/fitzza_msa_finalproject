@@ -1,0 +1,345 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/1812537",
+  "product_id": 1812537,
+  "name": "DP-02_레드",
+  "name_en": "DP-02_RED",
+  "style_no": "PH005-CBRED",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "catchball",
+    "name": "캐치볼",
+    "name_en": "CATCH BALL"
+  },
+  "category": {
+    "categoryDepth1Code": "103",
+    "categoryDepth1Title": "신발",
+    "categoryDepth1Name": "신발",
+    "categoryDepth2Code": "103004",
+    "categoryDepth2Title": "스니커즈",
+    "categoryDepth2Name": "스니커즈",
+    "categoryDepth3Code": "103004001",
+    "categoryDepth3Title": "캔버스/단화",
+    "categoryDepth3Name": "캔버스/단화",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": "sneaker"
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": 2021,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 99000,
+    "sale": 84150,
+    "discount_rate": 15,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20210224/1812537/1812537_17828803178245_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210224/1812537/detail_1812537_17828803272618_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210224/1812537/detail_1812537_17828803279554_500.jpg"
+  ],
+  "features": {},
+  "material": "10S 3PLY Canvas cotton 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "10S 3PLY Canvas cotton 100%",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "스니커즈",
+    "type_number": 54,
+    "unit": "cm",
+    "description": "",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711445100000068699.png",
+    "measurements": [
+      {
+        "size": "230",
+        "sequence": 0,
+        "measurements": {
+          "발길이": 23.5,
+          "발볼": 8.0,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "240",
+        "sequence": 1,
+        "measurements": {
+          "발길이": 24.5,
+          "발볼": 8.3,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "250",
+        "sequence": 2,
+        "measurements": {
+          "발길이": 25.5,
+          "발볼": 8.6,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "260",
+        "sequence": 3,
+        "measurements": {
+          "발길이": 26.5,
+          "발볼": 8.9,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "270",
+        "sequence": 4,
+        "measurements": {
+          "발길이": 27.5,
+          "발볼": 9.2,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "280",
+        "sequence": 5,
+        "measurements": {
+          "발길이": 28.5,
+          "발볼": 9.5,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "290",
+        "sequence": 6,
+        "measurements": {
+          "발길이": 29.5,
+          "발볼": 9.8,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      },
+      {
+        "size": "300",
+        "sequence": 7,
+        "measurements": {
+          "발길이": 30.5,
+          "발볼": 10.1,
+          "발목높이": 0.0,
+          "굽높이": 2.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "230",
+          "code": "230",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "240",
+          "code": "240",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "250",
+          "code": "250",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "260",
+          "code": "260",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "270",
+          "code": "270",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "280",
+          "code": "280",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "290",
+          "code": "290",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "300",
+          "code": "300",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 7014092,
+      "managed_code": "230",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "230"
+      ]
+    },
+    {
+      "id": 7014093,
+      "managed_code": "240",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "240"
+      ]
+    },
+    {
+      "id": 7014094,
+      "managed_code": "250",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "250"
+      ]
+    },
+    {
+      "id": 7014095,
+      "managed_code": "260",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "260"
+      ]
+    },
+    {
+      "id": 7014096,
+      "managed_code": "270",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "270"
+      ]
+    },
+    {
+      "id": 7014097,
+      "managed_code": "280",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "280"
+      ]
+    },
+    {
+      "id": 7014098,
+      "managed_code": "290",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "290"
+      ]
+    },
+    {
+      "id": 7014099,
+      "managed_code": "300",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "300"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 3399
+  },
+  "dataset": {
+    "logical_category": "신발",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 1812537,
+      "color_raw": "레드",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210224/1812537/1812537_17828803178245_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 6778085,
+      "color_raw": "블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260703/6778085/6778085_17830534260971_500.jpg",
+      "brand_id": "catchball",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5230161,
+      "color_raw": "민트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250707/5230161/5230161_17518726892323_500.jpg",
+      "brand_id": "catchball",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1812460,
+      "color_raw": "에크루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210224/1812460/1812460_17830530098215_500.jpg",
+      "brand_id": "catchball",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1812419,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210224/1812419/1812419_17828803757946_500.jpg",
+      "brand_id": "catchball",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

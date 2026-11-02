@@ -1,0 +1,799 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/1551840",
+  "product_id": 1551840,
+  "name": "Deep One Tuck Sweat Pants [Grey]",
+  "name_en": "Deep One Tuck Sweat Pants [Grey]",
+  "style_no": "2020F11",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "xero",
+    "name": "제로",
+    "name_en": "XERO"
+  },
+  "category": {
+    "categoryDepth1Code": "003",
+    "categoryDepth1Title": "바지",
+    "categoryDepth1Name": "바지",
+    "categoryDepth2Code": "003004",
+    "categoryDepth2Title": "트레이닝/조거 팬츠",
+    "categoryDepth2Name": "트레이닝/조거 팬츠",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [
+      "봄",
+      "가을",
+      "겨울"
+    ],
+    "primary": "봄",
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": "original_tag",
+    "primary_candidates": [
+      "봄",
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 39000,
+    "sale": 35100,
+    "discount_rate": 10,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20200818/1551840/1551840_1_500.jpg"
+  ],
+  "features": {
+    "신축성": [
+      "있음"
+    ],
+    "비침": [
+      "없음"
+    ],
+    "두께": [
+      "보통"
+    ],
+    "계절": [
+      "봄",
+      "가을",
+      "겨울"
+    ]
+  },
+  "material": "일반 : Cotton 80% / Poly 20%, 여름용 : Cotton 60% / Poly 40%, 기모 : 2025.10월 이전 코튼 60% / 폴리 40%, 2025.10월 이후 코튼 50% / 폴리 50%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "일반 : Cotton 80% / Poly 20%, 여름용 : Cotton 60% / Poly 40%, 기모 : 2025.10월 이전 코튼 60% / 폴리 40%, 2025.10월 이후 코튼 50% / 폴리 50%",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "바지",
+    "type_number": 6,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090720245200000055810.png",
+    "measurements": [
+      {
+        "size": "XS",
+        "sequence": 0,
+        "measurements": {
+          "총장": 98.0,
+          "허리단면": 31.0,
+          "엉덩이단면": 48.0,
+          "허벅지단면": 30.5,
+          "밑위": 31.5,
+          "밑단단면": 22.5
+        }
+      },
+      {
+        "size": "S",
+        "sequence": 1,
+        "measurements": {
+          "총장": 101.0,
+          "허리단면": 31.5,
+          "엉덩이단면": 50.0,
+          "허벅지단면": 33.0,
+          "밑위": 33.0,
+          "밑단단면": 23.5
+        }
+      },
+      {
+        "size": "M",
+        "sequence": 2,
+        "measurements": {
+          "총장": 103.0,
+          "허리단면": 32.5,
+          "엉덩이단면": 52.0,
+          "허벅지단면": 34.5,
+          "밑위": 34.5,
+          "밑단단면": 24.5
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 3,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 34.5,
+          "엉덩이단면": 54.0,
+          "허벅지단면": 36.0,
+          "밑위": 36.0,
+          "밑단단면": 25.5
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 4,
+        "measurements": {
+          "총장": 107.0,
+          "허리단면": 36.5,
+          "엉덩이단면": 55.0,
+          "허벅지단면": 37.5,
+          "밑위": 37.5,
+          "밑단단면": 28.0
+        }
+      },
+      {
+        "size": "Free",
+        "sequence": 5,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 34.0,
+          "엉덩이단면": 53.0,
+          "허벅지단면": 34.5,
+          "밑위": 35.5,
+          "밑단단면": 25.0
+        }
+      },
+      {
+        "size": "Wide",
+        "sequence": 6,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 35.0,
+          "엉덩이단면": 54.5,
+          "허벅지단면": 38.0,
+          "밑위": 39.0,
+          "밑단단면": 29.0
+        }
+      },
+      {
+        "size": "XS / 기모",
+        "sequence": 7,
+        "measurements": {
+          "총장": 98.0,
+          "허리단면": 31.0,
+          "엉덩이단면": 48.0,
+          "허벅지단면": 30.5,
+          "밑위": 31.5,
+          "밑단단면": 22.5
+        }
+      },
+      {
+        "size": "S / 기모",
+        "sequence": 8,
+        "measurements": {
+          "총장": 101.0,
+          "허리단면": 31.5,
+          "엉덩이단면": 50.0,
+          "허벅지단면": 33.0,
+          "밑위": 33.0,
+          "밑단단면": 23.5
+        }
+      },
+      {
+        "size": "M / 기모",
+        "sequence": 9,
+        "measurements": {
+          "총장": 103.0,
+          "허리단면": 32.5,
+          "엉덩이단면": 52.0,
+          "허벅지단면": 34.5,
+          "밑위": 34.5,
+          "밑단단면": 24.5
+        }
+      },
+      {
+        "size": "L / 기모",
+        "sequence": 10,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 34.5,
+          "엉덩이단면": 54.0,
+          "허벅지단면": 36.0,
+          "밑위": 36.0,
+          "밑단단면": 25.5
+        }
+      },
+      {
+        "size": "XL / 기모",
+        "sequence": 11,
+        "measurements": {
+          "총장": 107.0,
+          "허리단면": 36.5,
+          "엉덩이단면": 55.0,
+          "허벅지단면": 37.5,
+          "밑위": 37.5,
+          "밑단단면": 28.0
+        }
+      },
+      {
+        "size": "Free / 기모",
+        "sequence": 12,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 34.0,
+          "엉덩이단면": 53.0,
+          "허벅지단면": 34.5,
+          "밑위": 35.5,
+          "밑단단면": 25.0
+        }
+      },
+      {
+        "size": "Wide / 기모",
+        "sequence": 13,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 35.0,
+          "엉덩이단면": 54.5,
+          "허벅지단면": 38.0,
+          "밑위": 39.0,
+          "밑단단면": 29.0
+        }
+      },
+      {
+        "size": "XS / 여름용",
+        "sequence": 14,
+        "measurements": {
+          "총장": 98.0,
+          "허리단면": 31.0,
+          "엉덩이단면": 48.0,
+          "허벅지단면": 30.5,
+          "밑위": 31.5,
+          "밑단단면": 22.5
+        }
+      },
+      {
+        "size": "S / 여름용",
+        "sequence": 15,
+        "measurements": {
+          "총장": 101.0,
+          "허리단면": 31.5,
+          "엉덩이단면": 50.0,
+          "허벅지단면": 33.0,
+          "밑위": 33.0,
+          "밑단단면": 23.5
+        }
+      },
+      {
+        "size": "M / 여름용",
+        "sequence": 16,
+        "measurements": {
+          "총장": 103.0,
+          "허리단면": 32.5,
+          "엉덩이단면": 52.0,
+          "허벅지단면": 34.5,
+          "밑위": 34.5,
+          "밑단단면": 24.5
+        }
+      },
+      {
+        "size": "L / 여름용",
+        "sequence": 17,
+        "measurements": {
+          "총장": 105.0,
+          "허리단면": 34.5,
+          "엉덩이단면": 54.0,
+          "허벅지단면": 36.0,
+          "밑위": 36.0,
+          "밑단단면": 25.5
+        }
+      },
+      {
+        "size": "XL / 여름용",
+        "sequence": 18,
+        "measurements": {
+          "총장": 107.0,
+          "허리단면": 36.5,
+          "엉덩이단면": 55.0,
+          "허벅지단면": 37.5,
+          "밑위": 37.5,
+          "밑단단면": 28.0
+        }
+      },
+      {
+        "size": "Free / 여름용",
+        "sequence": 19,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 34.0,
+          "엉덩이단면": 53.0,
+          "허벅지단면": 34.5,
+          "밑위": 35.5,
+          "밑단단면": 25.0
+        }
+      },
+      {
+        "size": "Wide / 여름용",
+        "sequence": 20,
+        "measurements": {
+          "총장": 110.0,
+          "허리단면": 35.0,
+          "엉덩이단면": 54.5,
+          "허벅지단면": 38.0,
+          "밑위": 39.0,
+          "밑단단면": 29.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈 / 원단 옵션",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "XS",
+          "code": "XS",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S",
+          "code": "S",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Free",
+          "code": "Free",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Wide",
+          "code": "Wide",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XS / 기모",
+          "code": "XS / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S / 기모",
+          "code": "S / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M / 기모",
+          "code": "M / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L / 기모",
+          "code": "L / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL / 기모",
+          "code": "XL / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Free / 기모",
+          "code": "Free / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Wide / 기모",
+          "code": "Wide / 기모",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XS / 여름용",
+          "code": "XS / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "S / 여름용",
+          "code": "S / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "M / 여름용",
+          "code": "M / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L / 여름용",
+          "code": "L / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL / 여름용",
+          "code": "XL / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Free / 여름용",
+          "code": "Free / 여름용",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "Wide / 여름용",
+          "code": "Wide / 여름용",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 5777676,
+      "managed_code": "Free",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Free"
+      ]
+    },
+    {
+      "id": 5777677,
+      "managed_code": "Free / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Free / 기모"
+      ]
+    },
+    {
+      "id": 5777678,
+      "managed_code": "Free / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Free / 여름용"
+      ]
+    },
+    {
+      "id": 5777679,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 5777680,
+      "managed_code": "L / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L / 기모"
+      ]
+    },
+    {
+      "id": 5777681,
+      "managed_code": "L / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L / 여름용"
+      ]
+    },
+    {
+      "id": 5777682,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 5777683,
+      "managed_code": "M / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M / 기모"
+      ]
+    },
+    {
+      "id": 5777684,
+      "managed_code": "M / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M / 여름용"
+      ]
+    },
+    {
+      "id": 5777685,
+      "managed_code": "S",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S"
+      ]
+    },
+    {
+      "id": 5777686,
+      "managed_code": "S / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S / 기모"
+      ]
+    },
+    {
+      "id": 5777687,
+      "managed_code": "S / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "S / 여름용"
+      ]
+    },
+    {
+      "id": 5777688,
+      "managed_code": "XL / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL / 여름용"
+      ]
+    },
+    {
+      "id": 5777689,
+      "managed_code": "XS",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS"
+      ]
+    },
+    {
+      "id": 5777690,
+      "managed_code": "XS / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS / 기모"
+      ]
+    },
+    {
+      "id": 5777691,
+      "managed_code": "XS / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XS / 여름용"
+      ]
+    },
+    {
+      "id": 20065473,
+      "managed_code": "XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL"
+      ]
+    },
+    {
+      "id": 20140350,
+      "managed_code": "Wide",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Wide"
+      ]
+    },
+    {
+      "id": 20253946,
+      "managed_code": "XL / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL / 기모"
+      ]
+    },
+    {
+      "id": 20253947,
+      "managed_code": "Wide / 기모",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Wide / 기모"
+      ]
+    },
+    {
+      "id": 20253948,
+      "managed_code": "Wide / 여름용",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "Wide / 여름용"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 143773
+  },
+  "dataset": {
+    "logical_category": "하의",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 1551840,
+      "color_raw": "Grey",
+      "image_url": "https://image.msscdn.net/images/goods_img/20200818/1551840/1551840_1_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 6058312,
+      "color_raw": "Vintage Brown",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260226/6058312/6058312_17726047322349_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4894207,
+      "color_raw": "Olive",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250313/4894207/4894207_17421793577533_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4894206,
+      "color_raw": "Sage Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250313/4894206/4894206_17421794087920_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4894205,
+      "color_raw": "Khaki Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250313/4894205/4894205_17421793867720_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3516446,
+      "color_raw": "2 Colors",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230831/3516446/3516446_16941338556122_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2222281,
+      "color_raw": "Charcoal",
+      "image_url": "https://image.msscdn.net/images/goods_img/20211108/2222281/2222281_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2222275,
+      "color_raw": "Navy",
+      "image_url": "https://image.msscdn.net/images/goods_img/20211108/2222275/2222275_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1769063,
+      "color_raw": "Khaki",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210129/1769063/1769063_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1769061,
+      "color_raw": "Light Navy",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210129/1769061/1769061_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1769056,
+      "color_raw": "Dark Cloud",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210129/1769056/1769056_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1736562,
+      "color_raw": "White Grey",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210105/1736562/1736562_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1736561,
+      "color_raw": "Oatmeal",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210105/1736561/1736561_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1551839,
+      "color_raw": "Black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20200818/1551839/1551839_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1551838,
+      "color_raw": "Light Khaki",
+      "image_url": "https://image.msscdn.net/images/goods_img/20200818/1551838/1551838_1_500.jpg",
+      "brand_id": "xero",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

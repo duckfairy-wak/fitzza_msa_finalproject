@@ -1,0 +1,196 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/5061858",
+  "product_id": 5061858,
+  "name": "스페셜 후드 바람막이_Black",
+  "name_en": "",
+  "style_no": "스페셜 후드 바람막이_Black",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "maninstore",
+    "name": "무드인사이드",
+    "name_en": "MOOD INSIDE"
+  },
+  "category": {
+    "categoryDepth1Code": "002",
+    "categoryDepth1Title": "아우터",
+    "categoryDepth1Name": "아우터",
+    "categoryDepth2Code": "002006",
+    "categoryDepth2Title": "나일론/코치 재킷",
+    "categoryDepth2Name": "나일론/코치 재킷",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": 2024,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 79900,
+    "sale": 34900,
+    "discount_rate": 56,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20250424/5061858/5061858_17748572064887_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572166711_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572198712_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572225650_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572251425_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572278312_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572315991_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17748572346461_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17745087131407_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20250424/5061858/detail_5061858_17745087166039_500.jpg"
+  ],
+  "features": {},
+  "material": "나일론 100",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "나일론 100",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "점퍼",
+    "type_number": 7,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711340900000003694.png",
+    "measurements": [
+      {
+        "size": "FREE",
+        "sequence": 0,
+        "measurements": {
+          "총장": 67.5,
+          "어깨너비": 58.0,
+          "가슴단면": 73.0,
+          "소매길이": 61.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "컬러",
+      "display_type": "COLOR_CHIP",
+      "values": [
+        {
+          "name": "화이트",
+          "code": "화이트",
+          "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/37e3a49f2c8a4cacb5c83185f5a1847e.jpg",
+          "color": {
+            "colorCode": "1",
+            "colorType": "MUSINSA"
+          }
+        },
+        {
+          "name": "블랙",
+          "code": "블랙",
+          "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/8a0634af545247119b1e32077f347634.jpg",
+          "color": {
+            "colorCode": "25",
+            "colorType": "MUSINSA"
+          }
+        },
+        {
+          "name": "그레이",
+          "code": "그레이",
+          "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/8121e0555967464ca8f9fb99c2bddb20.jpg",
+          "color": {
+            "colorCode": "3",
+            "colorType": "MUSINSA"
+          }
+        }
+      ]
+    },
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 23245651,
+      "managed_code": "블랙^FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "블랙",
+        "FREE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 193
+  },
+  "dataset": {
+    "logical_category": "아우터",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 5061858,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/8121e0555967464ca8f9fb99c2bddb20.jpg",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    },
+    {
+      "product_id": 5061858,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/8a0634af545247119b1e32077f347634.jpg",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    },
+    {
+      "product_id": 5061858,
+      "color_raw": "화이트",
+      "image_url": "https://image.msscdn.net/thumbnails/images/2026/10/08/37e3a49f2c8a4cacb5c83185f5a1847e.jpg",
+      "evidence": "Options.basic.optionValues.imageUrl"
+    }
+  ],
+  "related_color_products": [],
+  "color_collection": {
+    "priority": 2,
+    "reason": "complete_color_dropdown_images",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

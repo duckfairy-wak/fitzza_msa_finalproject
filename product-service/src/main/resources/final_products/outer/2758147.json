@@ -1,0 +1,196 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/2758147",
+  "product_id": 2758147,
+  "name": "465-3 비건레더 오버핏 빈티지자켓_그레이",
+  "name_en": "465-3 VEGAN LEATHER OVERSIZED FIT VINTAGE JACKET_GRAY",
+  "style_no": "5000358396",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "v2",
+    "name": "브이투",
+    "name_en": "VTWO"
+  },
+  "category": {
+    "categoryDepth1Code": "002",
+    "categoryDepth1Title": "아우터",
+    "categoryDepth1Name": "아우터",
+    "categoryDepth2Code": "002002",
+    "categoryDepth2Title": "레더/라이더스 재킷",
+    "categoryDepth2Name": "레더/라이더스 재킷",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "가을",
+    "collection": {
+      "type": "FW",
+      "year": 2022,
+      "raw_code": "2",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "가을",
+      "겨울"
+    ]
+  },
+  "price": {
+    "normal": 89900,
+    "sale": 69500,
+    "discount_rate": 23,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20220831/2758147/2758147_3_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220831/2758147/detail_2758147_3_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220831/2758147/detail_2758147_4_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220831/2758147/detail_2758147_5_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220831/2758147/detail_2758147_6_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20220831/2758147/detail_2758147_7_500.jpg"
+  ],
+  "features": {},
+  "material": "합성피혁 PU 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "합성피혁 PU 100%",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "점퍼",
+    "type_number": 7,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711340900000003694.png",
+    "measurements": [
+      {
+        "size": "M",
+        "sequence": 0,
+        "measurements": {
+          "총장": 69.0,
+          "어깨너비": 58.0,
+          "가슴단면": 62.0,
+          "소매길이": 59.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 1,
+        "measurements": {
+          "총장": 71.0,
+          "어깨너비": 60.0,
+          "가슴단면": 64.0,
+          "소매길이": 60.0,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "S",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 11331118,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 11331119,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 31
+  },
+  "dataset": {
+    "logical_category": "아우터",
+    "primary_season": "가을",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 2758147,
+      "color_raw": "그레이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220831/2758147/2758147_3_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 2290182,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220104/2290182/2290182_3_500.jpg",
+      "brand_id": "v2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2093254,
+      "color_raw": "BLACK",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210827/2093254/2093254_1_500.jpg",
+      "brand_id": "v2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2758148,
+      "color_raw": "크림",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220831/2758148/2758148_3_500.jpg",
+      "brand_id": "v2",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

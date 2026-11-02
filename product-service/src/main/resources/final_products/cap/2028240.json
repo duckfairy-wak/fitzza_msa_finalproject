@@ -1,0 +1,286 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/2028240",
+  "product_id": 2028240,
+  "name": "Typeservice Web Cap [Green]",
+  "name_en": "Typeservice Web Cap [Green]",
+  "style_no": "COTA01GNF",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "typeservice",
+    "name": "타입서비스",
+    "name_en": "TYPESERVICE"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": "0",
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 39000,
+    "sale": 23400,
+    "discount_rate": 40,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20210713/2028240/2028240_4_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210713/2028240/detail_2028240_16943993908811_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210713/2028240/detail_2028240_16943993915753_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210713/2028240/detail_2028240_16943993922937_500.jpg"
+  ],
+  "features": {},
+  "material": "Cotton 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "Cotton 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "none",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 58.0,
+          "챙길이": 7.5,
+          "깊이": 16.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "NONE",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "none",
+          "code": "none",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 7992859,
+      "managed_code": "none",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "none"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 4838
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 2028240,
+      "color_raw": "Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210713/2028240/2028240_4_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3455593,
+      "color_raw": "Light Gray",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230809/3455593/3455593_17791623966564_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3455592,
+      "color_raw": "Cream",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230809/3455592/3455592_17791622574242_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3455591,
+      "color_raw": "Light Pink",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230809/3455591/3455591_16927841771594_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3455590,
+      "color_raw": "Purple",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230809/3455590/3455590_16927842304643_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3039062,
+      "color_raw": "Light Yellow",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230125/3039062/3039062_16753217498144_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3039061,
+      "color_raw": "Dark Blue",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230125/3039061/3039061_16753216841058_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2507080,
+      "color_raw": "Light Green",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220421/2507080/2507080_1_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2356714,
+      "color_raw": "Off White",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220213/2356714/2356714_17791625851450_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2356713,
+      "color_raw": "Beige Gray",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220213/2356713/2356713_2_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2356693,
+      "color_raw": "Pink",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220213/2356693/2356693_2_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2356692,
+      "color_raw": "Red",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220213/2356692/2356692_17791626927123_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2134295,
+      "color_raw": "Light Beige",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210915/2134295/2134295_3_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2134140,
+      "color_raw": "Dark Gray",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210915/2134140/2134140_17782300773042_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1920896,
+      "color_raw": "Ivory",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210426/1920896/1920896_17782292082192_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1920840,
+      "color_raw": "Light Orange",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210426/1920840/1920840_5_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3455586,
+      "color_raw": "Brown",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230809/3455586/3455586_17791622296362_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2720086,
+      "color_raw": "Stone Gray",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220816/2720086/2720086_17791628364023_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2720084,
+      "color_raw": "Azure Blue",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220816/2720084/2720084_1_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2356711,
+      "color_raw": "Black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220213/2356711/2356711_17791620571117_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2134158,
+      "color_raw": "Navy",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210915/2134158/2134158_17791625552203_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1920929,
+      "color_raw": "Sky Blue",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210426/1920929/1920929_17782293305784_500.jpg",
+      "brand_id": "typeservice",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

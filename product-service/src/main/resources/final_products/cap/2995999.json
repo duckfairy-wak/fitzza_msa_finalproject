@@ -1,0 +1,224 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/2995999",
+  "product_id": 2995999,
+  "name": "B LOGO 볼캡 [카모 블랙]",
+  "name_en": "",
+  "style_no": "BF23AUCBL10",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "lauf",
+    "name": "바우프",
+    "name_en": "BAUF"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": "0",
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 55000,
+    "sale": 46750,
+    "discount_rate": 15,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20221225/2995999/2995999_16726306302557_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20221225/2995999/detail_2995999_16726312205618_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20221225/2995999/detail_2995999_16729413393138_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20221225/2995999/detail_2995999_16729413459670_500.jpg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "보통",
+      "넒음"
+    ]
+  },
+  "material": "cotton 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "cotton 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "FREE",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 62.0,
+          "챙길이": 8.0,
+          "깊이": 16.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 12489874,
+      "managed_code": "FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "FREE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 435
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 2995999,
+      "color_raw": "카모 블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221225/2995999/2995999_16726306302557_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 6397273,
+      "color_raw": "민트 브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260429/6397273/6397273_17782119752458_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 6055285,
+      "color_raw": "민트 블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260225/6055285/6055285_17727825598666_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5995261,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260209/5995261/5995261_17720059525715_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5995260,
+      "color_raw": "카모",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260209/5995260/5995260_17720059212646_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5995258,
+      "color_raw": "차콜",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260209/5995258/5995258_17721812738973_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3941779,
+      "color_raw": "블랙 카모",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240312/3941779/3941779_17104805986203_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2996001,
+      "color_raw": "카모 브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221225/2996001/2996001_16726313279949_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2995998,
+      "color_raw": "올 블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221225/2995998/2995998_16726305642617_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2879419,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221020/2879419/2879419_1_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5995257,
+      "color_raw": "빈티지 퍼플",
+      "image_url": "https://image.msscdn.net/images/goods_img/20260209/5995257/5995257_17721812410008_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2879417,
+      "color_raw": "브라운",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221020/2879417/2879417_1_500.jpg",
+      "brand_id": "lauf",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

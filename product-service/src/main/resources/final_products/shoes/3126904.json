@@ -1,0 +1,302 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3126904",
+  "product_id": 3126904,
+  "name": "샨티 슬라이드 Taupe",
+  "name_en": "샨티 슬라이드 Taupe",
+  "style_no": "KNSO6ET09I1",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "keen",
+    "name": "킨",
+    "name_en": "KEEN"
+  },
+  "category": {
+    "categoryDepth1Code": "103",
+    "categoryDepth1Title": "신발",
+    "categoryDepth1Name": "신발",
+    "categoryDepth2Code": "103003",
+    "categoryDepth2Title": "샌들/슬리퍼",
+    "categoryDepth2Name": "샌들/슬리퍼",
+    "categoryDepth3Code": "103003007",
+    "categoryDepth3Title": "슬라이드",
+    "categoryDepth3Name": "슬라이드",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": "sneaker"
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": "0",
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 99000,
+    "sale": 99000,
+    "discount_rate": 0,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20230307/3126904/3126904_16835085353878_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230307/3126904/detail_3126904_16835200661504_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230307/3126904/detail_3126904_16835200670475_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230307/3126904/detail_3126904_16835200683300_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230307/3126904/detail_3126904_16835200695621_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20230307/3126904/detail_3126904_16835200714946_500.jpg"
+  ],
+  "features": {},
+  "material": "상피재료-나일론,폴리우레탄 창재료-합성고무",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "상피재료-나일론,폴리우레탄 창재료-합성고무",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "신발",
+    "type_number": 17,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711452700000040310.png",
+    "measurements": [
+      {
+        "size": "230",
+        "sequence": 0,
+        "measurements": {
+          "발길이": 23.0,
+          "발볼": 10.95,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      },
+      {
+        "size": "240",
+        "sequence": 1,
+        "measurements": {
+          "발길이": 24.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      },
+      {
+        "size": "250",
+        "sequence": 2,
+        "measurements": {
+          "발길이": 25.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      },
+      {
+        "size": "260",
+        "sequence": 3,
+        "measurements": {
+          "발길이": 26.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      },
+      {
+        "size": "270",
+        "sequence": 4,
+        "measurements": {
+          "발길이": 27.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      },
+      {
+        "size": "280",
+        "sequence": 5,
+        "measurements": {
+          "발길이": 28.0,
+          "발볼": 11.0,
+          "발목높이": 0.0,
+          "굽높이": 3.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "230",
+          "code": "230",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "240",
+          "code": "240",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "250",
+          "code": "250",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "260",
+          "code": "260",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "270",
+          "code": "270",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "280",
+          "code": "280",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 13071453,
+      "managed_code": "230",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "230"
+      ]
+    },
+    {
+      "id": 13071454,
+      "managed_code": "240",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "240"
+      ]
+    },
+    {
+      "id": 13071455,
+      "managed_code": "250",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "250"
+      ]
+    },
+    {
+      "id": 13071456,
+      "managed_code": "260",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "260"
+      ]
+    },
+    {
+      "id": 13071457,
+      "managed_code": "270",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "270"
+      ]
+    },
+    {
+      "id": 13071458,
+      "managed_code": "280",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "280"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 337
+  },
+  "dataset": {
+    "logical_category": "신발",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3126904,
+      "color_raw": "Taupe",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230307/3126904/3126904_16835085353878_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3126907,
+      "color_raw": "Merlot",
+      "image_url": "https://image.msscdn.net/images/goods_img/20230307/3126907/3126907_16835108122423_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2383245,
+      "color_raw": "Black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220224/2383245/2383245_16835085001303_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3974543,
+      "color_raw": "Classic Taupe",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240321/3974543/3974543_17109843791362_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2451601,
+      "color_raw": "Black Iris",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220329/2451601/2451601_16835108289288_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2435822,
+      "color_raw": "White",
+      "image_url": "https://image.msscdn.net/images/goods_img/20220322/2435822/2435822_16835085252642_500.jpg",
+      "brand_id": "keen",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/1771133",
+  "product_id": 1771133,
+  "name": "스몰 트위치로고 코튼 커브 볼캡 네이비",
+  "name_en": "SMALL TWITCH LOGO COTTON CURVE BALL CAP NAVY",
+  "style_no": "LE2501CA01NA",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "lee",
+    "name": "리",
+    "name_en": "LEE"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 39000,
+    "sale": 35100,
+    "discount_rate": 10,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20210201/1771133/1771133_17424359986337_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210201/1771133/detail_1771133_17424360000097_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210201/1771133/detail_1771133_17424360003438_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210201/1771133/detail_1771133_17424360008187_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20210201/1771133/detail_1771133_4_500.jpg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "보통"
+    ]
+  },
+  "material": null,
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "상세페이지 참조",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": false
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "FREE",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 57.0,
+          "챙길이": 7.0,
+          "깊이": 16.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 6833461,
+      "managed_code": "FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "FREE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.9,
+    "count": 7702
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 1771133,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210201/1771133/1771133_17424359986337_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4680362,
+      "color_raw": "화이트",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241224/4680362/4680362_17350251569669_500.jpg",
+      "brand_id": "lee",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2998516,
+      "color_raw": "핑크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20221227/2998516/2998516_17430383310171_500.jpg",
+      "brand_id": "lee",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4680363,
+      "color_raw": "라이트 블루",
+      "image_url": "https://image.msscdn.net/images/goods_img/20241224/4680363/4680363_17350251644706_500.jpg",
+      "brand_id": "lee",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 2280751,
+      "color_raw": "다크",
+      "image_url": "https://image.msscdn.net/images/goods_img/20211223/2280751/2280751_17430540702093_500.jpg",
+      "brand_id": "lee",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 1771137,
+      "color_raw": "베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20210201/1771137/1771137_17430383390393_500.jpg",
+      "brand_id": "lee",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

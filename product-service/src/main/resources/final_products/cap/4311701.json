@@ -1,0 +1,146 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4311701",
+  "product_id": 4311701,
+  "name": "(공용) 리믹스 대드 햇 - 라이 / FOS90122030W",
+  "name_en": "(U) REMIX DAD HAT - RYE / FOS90122030W",
+  "style_no": "FOS90122030W",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "oakley",
+    "name": "오클리",
+    "name_en": "OAKLEY"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": null,
+      "raw_code": null,
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 43000,
+    "sale": 43000,
+    "discount_rate": 0,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240808/4311701/4311701_17234367358983_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240808/4311701/detail_4311701_17234367426248_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240808/4311701/detail_4311701_17234367435222_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240808/4311701/detail_4311701_17234367445128_500.jpg"
+  ],
+  "features": {},
+  "material": "면 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "면 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "FREE",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 66.0,
+          "챙길이": 7.0,
+          "깊이": 16.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 18470725,
+      "managed_code": "FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "FREE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 5,
+    "count": 41
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4311701,
+      "color_raw": "라이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240808/4311701/4311701_17234367358983_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4311700,
+      "color_raw": "블랙아웃",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240808/4311700/4311700_17234367735282_500.jpg",
+      "brand_id": "oakley",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

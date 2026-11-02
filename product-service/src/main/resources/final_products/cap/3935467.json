@@ -1,0 +1,192 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3935467",
+  "product_id": 3935467,
+  "name": "Poser Vintage Cap, Navy",
+  "name_en": "",
+  "style_no": "gv24ssac03",
+  "gender": {
+    "raw": [
+      "남성",
+      "여성"
+    ],
+    "normalized": "UNISEX"
+  },
+  "brand": {
+    "id": "guvo",
+    "name": "구보",
+    "name_en": "GUVO"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": 2024,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 49000,
+    "sale": 36900,
+    "discount_rate": 25,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240308/3935467/3935467_17737977960354_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240308/3935467/detail_3935467_17737978076227_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240308/3935467/detail_3935467_17737978082685_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240308/3935467/detail_3935467_17737978088729_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240308/3935467/detail_3935467_17737978094026_500.jpg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "보통"
+    ]
+  },
+  "material": "Cotton 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "Cotton 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "NONE",
+        "sequence": 0,
+        "measurements": {
+          "머리둘레": 60.0,
+          "챙길이": 8.0,
+          "깊이": 16.5
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "NONE",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "NONE",
+          "code": "NONE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 16591396,
+      "managed_code": "NONE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "NONE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.8,
+    "count": 332
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3935467,
+      "color_raw": "Navy",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240308/3935467/3935467_17737977960354_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 5477521,
+      "color_raw": "maroon",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250917/5477521/5477521_17737984542575_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3776272,
+      "color_raw": "black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240104/3776272/3776272_17737976537327_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3776247,
+      "color_raw": "white&black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240104/3776247/3776247_17737986635405_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5479226,
+      "color_raw": "white",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250917/5479226/5479226_17737985752679_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 5476983,
+      "color_raw": "khaki",
+      "image_url": "https://image.msscdn.net/images/goods_img/20250917/5476983/5476983_17737983231584_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4148990,
+      "color_raw": "Beige",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240522/4148990/4148990_17784852598186_500.jpg",
+      "brand_id": "guvo",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

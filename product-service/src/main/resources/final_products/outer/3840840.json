@@ -1,0 +1,212 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/3840840",
+  "product_id": 3840840,
+  "name": "24ss utility hood jacket grey",
+  "name_en": "24ss utility hood jacket grey",
+  "style_no": "UB2412JK031MGY",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "uniformbridge",
+    "name": "유니폼브릿지",
+    "name_en": "UNIFORM BRIDGE"
+  },
+  "category": {
+    "categoryDepth1Code": "002",
+    "categoryDepth1Title": "아우터",
+    "categoryDepth1Name": "아우터",
+    "categoryDepth2Code": "002006",
+    "categoryDepth2Title": "나일론/코치 재킷",
+    "categoryDepth2Name": "나일론/코치 재킷",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": "봄",
+    "collection": {
+      "type": "SS",
+      "year": 2024,
+      "raw_code": "1",
+      "source": "official"
+    },
+    "primary_source": "collection_fallback",
+    "primary_candidates": [
+      "봄",
+      "여름"
+    ]
+  },
+  "price": {
+    "normal": 219000,
+    "sale": 54750,
+    "discount_rate": 75,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240201/3840840/3840840_17169496991027_500.jpg"
+  ],
+  "features": {},
+  "material": null,
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "상세페이지 참조",
+      "name": "제품 소재",
+      "source": "goodsEssential",
+      "usable": false
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "점퍼",
+    "type_number": 7,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711340900000003694.png",
+    "measurements": [
+      {
+        "size": "M",
+        "sequence": 0,
+        "measurements": {
+          "총장": 69.5,
+          "어깨너비": 67.0,
+          "가슴단면": 67.0,
+          "소매길이": 60.5,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "L",
+        "sequence": 1,
+        "measurements": {
+          "총장": 71.5,
+          "어깨너비": 69.0,
+          "가슴단면": 69.5,
+          "소매길이": 61.5,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      },
+      {
+        "size": "XL",
+        "sequence": 2,
+        "measurements": {
+          "총장": 73.5,
+          "어깨너비": 71.0,
+          "가슴단면": 72.0,
+          "소매길이": 62.5,
+          "밑단단면": 0.0,
+          "소매부리단면": 0.0,
+          "암홀": 0.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "M",
+          "code": "M",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "L",
+          "code": "L",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "XL",
+          "code": "XL",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 16123800,
+      "managed_code": "L",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "L"
+      ]
+    },
+    {
+      "id": 16123801,
+      "managed_code": "M",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "M"
+      ]
+    },
+    {
+      "id": 16123802,
+      "managed_code": "XL",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "XL"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 5,
+    "count": 11
+  },
+  "dataset": {
+    "logical_category": "아우터",
+    "primary_season": "봄",
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 3840840,
+      "color_raw": "grey",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240201/3840840/3840840_17169496991027_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 3840838,
+      "color_raw": "black",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240201/3840838/3840838_17169497091623_500.jpg",
+      "brand_id": "uniformbridge",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 3840844,
+      "color_raw": "mustard",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240201/3840844/3840844_17169496893060_500.jpg",
+      "brand_id": "uniformbridge",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}

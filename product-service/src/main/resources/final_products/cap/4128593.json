@@ -1,0 +1,252 @@
+{
+  "source": "musinsa",
+  "source_url": "https://www.musinsa.com/products/4128593",
+  "product_id": 4128593,
+  "name": "뉴로고 코튼 볼캡 / 블랙",
+  "name_en": "New Logo Cotton Ball Cap / Black",
+  "style_no": "5000848217",
+  "gender": {
+    "raw": [
+      "남성"
+    ],
+    "normalized": "MALE"
+  },
+  "brand": {
+    "id": "vabeu",
+    "name": "노밍",
+    "name_en": "NOMING"
+  },
+  "category": {
+    "categoryDepth1Code": "120",
+    "categoryDepth1Title": "모자",
+    "categoryDepth1Name": "모자",
+    "categoryDepth2Code": "120001",
+    "categoryDepth2Title": "캡/야구모자",
+    "categoryDepth2Name": "캡/야구모자",
+    "categoryDepth3Code": "",
+    "categoryDepth3Title": "",
+    "categoryDepth3Name": "",
+    "categoryDepth4Code": "",
+    "categoryDepth4Title": "",
+    "categoryDepth4Name": "",
+    "storeCode": ""
+  },
+  "season": {
+    "original": [],
+    "primary": null,
+    "collection": {
+      "type": null,
+      "year": 2024,
+      "raw_code": "0",
+      "source": null
+    },
+    "primary_source": null,
+    "primary_candidates": []
+  },
+  "price": {
+    "normal": 39900,
+    "sale": 9900,
+    "discount_rate": 75,
+    "currency": "KRW"
+  },
+  "images": [
+    "https://image.msscdn.net/images/goods_img/20240514/4128593/4128593_17156545965613_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240514/4128593/detail_4128593_17156546033528_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240514/4128593/detail_4128593_17156546087763_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240514/4128593/detail_4128593_17156546109891_500.jpg",
+    "https://image.msscdn.net/images/prd_img/20240514/4128593/detail_4128593_17156546098725_500.jpg"
+  ],
+  "features": {
+    "깊이": [
+      "깊음"
+    ],
+    "챙 넓이": [
+      "넒음"
+    ]
+  },
+  "material": "Cotton 100%",
+  "fit_type": null,
+  "attribute_evidence": {
+    "material": {
+      "raw": "Cotton 100%",
+      "name": "소재",
+      "source": "goodsEssential",
+      "usable": true
+    },
+    "fit": null
+  },
+  "size": {
+    "available": true,
+    "type_name": "캡/야구모자",
+    "type_number": 15,
+    "unit": "cm",
+    "description": "측정 방법에 따라 약 2cm 정도의 오차가 있을 수 있습니다.",
+    "guide_image": "https://image.musinsa.com/images/size_type/detail_img/2026090711463200000000138.png",
+    "measurements": [
+      {
+        "size": "BLACK-FREE",
+        "sequence": 1,
+        "measurements": {
+          "머리둘레": 60.0,
+          "챙길이": 7.5,
+          "깊이": 17.0
+        }
+      },
+      {
+        "size": "BEIGE-FREE",
+        "sequence": 2,
+        "measurements": {
+          "머리둘레": 60.0,
+          "챙길이": 7.5,
+          "깊이": 17.0
+        }
+      },
+      {
+        "size": "SKY-FREE",
+        "sequence": 3,
+        "measurements": {
+          "머리둘레": 60.0,
+          "챙길이": 7.5,
+          "깊이": 17.0
+        }
+      },
+      {
+        "size": "NAVY-FREE",
+        "sequence": 4,
+        "measurements": {
+          "머리둘레": 60.0,
+          "챙길이": 7.5,
+          "깊이": 17.0
+        }
+      }
+    ]
+  },
+  "options": [
+    {
+      "name": "사이즈",
+      "display_type": "DROPDOWN",
+      "values": [
+        {
+          "name": "FREE",
+          "code": "FREE",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "BLACK-FREE",
+          "code": "BLACK-FREE",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "BEIGE-FREE",
+          "code": "BEIGE-FREE",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "SKY-FREE",
+          "code": "SKY-FREE",
+          "image_url": "",
+          "color": null
+        },
+        {
+          "name": "NAVY-FREE",
+          "code": "NAVY-FREE",
+          "image_url": "",
+          "color": null
+        }
+      ]
+    }
+  ],
+  "option_items": [
+    {
+      "id": 17416766,
+      "managed_code": "BEIGE-FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "BEIGE-FREE"
+      ]
+    },
+    {
+      "id": 17416767,
+      "managed_code": "BLACK-FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "BLACK-FREE"
+      ]
+    },
+    {
+      "id": 17416769,
+      "managed_code": "NAVY-FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "NAVY-FREE"
+      ]
+    },
+    {
+      "id": 17416770,
+      "managed_code": "SKY-FREE",
+      "price_delta": 0,
+      "activated": true,
+      "values": [
+        "SKY-FREE"
+      ]
+    }
+  ],
+  "review": {
+    "rating": 4.6,
+    "count": 189
+  },
+  "dataset": {
+    "logical_category": "모자",
+    "primary_season": null,
+    "gender_scope": "MALE_AND_UNISEX"
+  },
+  "color_image_mappings": [
+    {
+      "product_id": 4128593,
+      "color_raw": "블랙",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240514/4128593/4128593_17156545965613_500.jpg",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "related_color_products": [
+    {
+      "product_id": 4128721,
+      "color_raw": "멀티",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240514/4128721/4128721_17165272004186_500.jpg",
+      "brand_id": "vabeu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4128696,
+      "color_raw": "네이비",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240514/4128696/4128696_17156556910833_500.jpg",
+      "brand_id": "vabeu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4128683,
+      "color_raw": "베이지",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240514/4128683/4128683_17156554847235_500.jpg",
+      "brand_id": "vabeu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    },
+    {
+      "product_id": 4128663,
+      "color_raw": "스카이",
+      "image_url": "https://image.msscdn.net/images/goods_img/20240514/4128663/4128663_17156552750567_500.jpg",
+      "brand_id": "vabeu",
+      "evidence": "OtherColorGoods.OTHER_COLOR"
+    }
+  ],
+  "color_collection": {
+    "priority": 3,
+    "reason": "same_brand_linked_color_products",
+    "image_verified_by": "GET_response_and_file_signature"
+  }
+}
