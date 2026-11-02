@@ -1,7 +1,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: fitzza-spring-services
+  name: gateway-service
   namespace: fitzza-monitoring
   labels:
     release: fitzza-monitoring

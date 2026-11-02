@@ -53,6 +53,12 @@ management:
     web:
       exposure:
         include: prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      slo:
+        http.server.requests: 25ms,50ms,100ms,250ms,500ms,1s,2500ms,5s,10s
 
 springdoc:
   swagger-ui:
