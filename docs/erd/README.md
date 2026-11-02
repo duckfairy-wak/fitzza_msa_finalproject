@@ -33,3 +33,16 @@
 - [vton-service](images/vton-service.png)
 
 Rendered with Mermaid CLI 12.0.0 using `--size 4800 -s 2 -b white`.
+
+## SVG images
+
+- [community-service](images/community-service.svg)
+- [notification-service](images/notification-service.svg)
+- [order-service](images/order-service.svg)
+- [product-service](images/product-service.svg)
+- [recommendation-service](images/recommendation-service.svg)
+- [review-service](images/review-service.svg)
+- [user-service](images/user-service.svg)
+- [vton-service](images/vton-service.svg)
+
+Rendered with Mermaid CLI 12.0.0 using `-b white`.
