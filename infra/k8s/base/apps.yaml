@@ -89,7 +89,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gateway-service
-  labels: { app.kubernetes.io/name: gateway-service }
+  labels: { app.kubernetes.io/name: gateway-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: gateway-service }
   ports:
@@ -114,7 +114,9 @@ spec:
         - name: user-service
           image: fitzza/user-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8081 }]
+          ports:
+            - { name: http, containerPort: 8081 }
+            - { name: metrics, containerPort: 9081 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: USER_SERVICE_DB_USER } }
@@ -128,9 +130,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: user-service
+  labels: { app.kubernetes.io/name: user-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: user-service }
-  ports: [{ name: http, port: 8081, targetPort: http }]
+  ports:
+    - { name: http, port: 8081, targetPort: http }
+    - { name: metrics, port: 9081, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -150,7 +155,9 @@ spec:
         - name: product-service
           image: fitzza/product-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8082 }]
+          ports:
+            - { name: http, containerPort: 8082 }
+            - { name: metrics, containerPort: 9082 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: PRODUCT_SERVICE_DB_USER } }
@@ -164,9 +171,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: product-service
+  labels: { app.kubernetes.io/name: product-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: product-service }
-  ports: [{ name: http, port: 8082, targetPort: http }]
+  ports:
+    - { name: http, port: 8082, targetPort: http }
+    - { name: metrics, port: 9082, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -186,7 +196,9 @@ spec:
         - name: order-service
           image: fitzza/order-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8083 }]
+          ports:
+            - { name: http, containerPort: 8083 }
+            - { name: metrics, containerPort: 9083 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: ORDER_SERVICE_DB_USER } }
@@ -200,9 +212,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: order-service
+  labels: { app.kubernetes.io/name: order-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: order-service }
-  ports: [{ name: http, port: 8083, targetPort: http }]
+  ports:
+    - { name: http, port: 8083, targetPort: http }
+    - { name: metrics, port: 9083, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -222,7 +237,9 @@ spec:
         - name: community-service
           image: fitzza/community-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8084 }]
+          ports:
+            - { name: http, containerPort: 8084 }
+            - { name: metrics, containerPort: 9084 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: COMMUNITY_SERVICE_DB_USER } }
@@ -236,9 +253,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: community-service
+  labels: { app.kubernetes.io/name: community-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: community-service }
-  ports: [{ name: http, port: 8084, targetPort: http }]
+  ports:
+    - { name: http, port: 8084, targetPort: http }
+    - { name: metrics, port: 9084, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -258,7 +278,9 @@ spec:
         - name: review-service
           image: fitzza/review-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8085 }]
+          ports:
+            - { name: http, containerPort: 8085 }
+            - { name: metrics, containerPort: 9085 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: REVIEW_SERVICE_DB_USER } }
@@ -272,9 +294,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: review-service
+  labels: { app.kubernetes.io/name: review-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: review-service }
-  ports: [{ name: http, port: 8085, targetPort: http }]
+  ports:
+    - { name: http, port: 8085, targetPort: http }
+    - { name: metrics, port: 9085, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -294,7 +319,9 @@ spec:
         - name: notification-service
           image: fitzza/notification-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8086 }]
+          ports:
+            - { name: http, containerPort: 8086 }
+            - { name: metrics, containerPort: 9086 }
           env:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: NOTIFICATION_SERVICE_DB_USER } }
@@ -308,9 +335,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: notification-service
+  labels: { app.kubernetes.io/name: notification-service, fitzza.io/metrics-type: spring }
 spec:
   selector: { app.kubernetes.io/name: notification-service }
-  ports: [{ name: http, port: 8086, targetPort: http }]
+  ports:
+    - { name: http, port: 8086, targetPort: http }
+    - { name: metrics, port: 9086, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -332,7 +362,9 @@ spec:
         - name: recommendation-service
           image: fitzza/recommendation-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8000 }]
+          ports:
+            - { name: http, containerPort: 8000 }
+            - { name: metrics, containerPort: 9092 }
           env:
             - name: REDIS_URL
               valueFrom:
@@ -345,9 +377,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: recommendation-service
+  labels: { app.kubernetes.io/name: recommendation-service, fitzza.io/metrics-type: fastapi }
 spec:
   selector: { app.kubernetes.io/name: recommendation-service }
-  ports: [{ name: http, port: 8000, targetPort: http }]
+  ports:
+    - { name: http, port: 8000, targetPort: http }
+    - { name: metrics, port: 9092, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -367,7 +402,9 @@ spec:
         - name: vton-service
           image: fitzza/vton-service:latest
           imagePullPolicy: Always
-          ports: [{ name: http, containerPort: 8000 }]
+          ports:
+            - { name: http, containerPort: 8000 }
+            - { name: metrics, containerPort: 9091 }
           env:
             - name: REDIS_URL
               valueFrom:
@@ -380,9 +417,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vton-service
+  labels: { app.kubernetes.io/name: vton-service, fitzza.io/metrics-type: fastapi }
 spec:
   selector: { app.kubernetes.io/name: vton-service }
-  ports: [{ name: http, port: 8000, targetPort: http }]
+  ports:
+    - { name: http, port: 8000, targetPort: http }
+    - { name: metrics, port: 9091, targetPort: metrics }
 ---
 apiVersion: apps/v1
 kind: Deployment
