@@ -20,3 +20,16 @@
 원본에 없는 관계는 추가하지 않았습니다. `category`는 독립 테이블로 표시하고, `reviews.order_item_id`의 UK와 원본의 1:N 관계선 간 불일치는 원본 표기를 유지했습니다. `wishlist.item_id` 등의 다형 참조 대상이나 댓글의 자기 참조도 원본에 관계선이 없어 추가하지 않았습니다.
 
 미구현·미사용 표시는 원본 기준입니다. `user_preferences`, 추천 영역, `fitting_job`은 미구현이며 `notification_channel`은 미사용으로 표시되어 있습니다. 현재 구현이나 마이그레이션 상태를 확정하는 문서는 아닙니다.
+
+## PNG images
+
+- [community-service](images/community-service.png)
+- [notification-service](images/notification-service.png)
+- [order-service](images/order-service.png)
+- [product-service](images/product-service.png)
+- [recommendation-service](images/recommendation-service.png)
+- [review-service](images/review-service.png)
+- [user-service](images/user-service.png)
+- [vton-service](images/vton-service.png)
+
+Rendered with Mermaid CLI 12.0.0 using `--size 4800 -s 2 -b white`.
