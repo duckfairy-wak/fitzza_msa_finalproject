@@ -802,6 +802,23 @@ def get_internal_fitting(
     user_id: Annotated[int, Query(alias="userId", gt=0, description="소유권 확인할 사용자 ID")],
     x_service_token: Annotated[str | None, Header(alias="X-Service-Token")] = None,
 ) -> InternalFittingResponse:
+    """커뮤니티 공유 유효성 검증 및 피팅 결과 상세를 조회합니다.
+
+    community-service 전용 내부 통신 API로, X-Service-Token 헤더를 검증하고
+    요청 사용자의 피팅 소유권 여부와 상품 목록, S3 Pre-signed URL로 변환된
+    피팅 결과 이미지 주소를 반환합니다.
+
+    Args:
+        fitting_id: 조회할 가상 피팅 ID.
+        user_id: 소유권을 확인할 사용자 ID.
+        x_service_token: 내부 서비스 통신 인증 토큰 (community 서비스 토큰 검증).
+
+    Returns:
+        InternalFittingResponse: 피팅 소유권, 상태, Pre-signed 결과 이미지 URL, 상품 목록.
+
+    Raises:
+        HTTPException: 토큰이 유효하지 않거나(401), 피팅 정보가 존재하지 않는 경우(404).
+    """
     settings = get_settings()
     if not settings.verify_service_token(x_service_token, allowed_callers=["community"]):
         raise HTTPException(
@@ -818,12 +835,25 @@ def get_internal_fitting(
         )
 
     is_owned = (detail["userId"] == user_id)
+    storage = get_storage_client()
+
+    raw_res_url = detail.get("resultImageUrl")
+    if detail.get("status") == "COMPLETED" and raw_res_url:
+        target_key = (
+            f"fittings/{fitting_id}.png"
+            if storage.is_s3 and raw_res_url.startswith("/api/vton/")
+            else raw_res_url
+        )
+        result_img_url = storage.get_presigned_url(target_key)
+    else:
+        result_img_url = None
+
     products_for_community = [
         {
             "productId": p["productId"],
             "productName": p["productName"],
             "price": p["price"],
-            "imageUrl": p["imageUrl"],
+            "imageUrl": storage.get_presigned_url(p.get("imageUrl")) if p.get("imageUrl") else p.get("imageUrl", ""),
         }
         for p in detail.get("products", [])
     ]
@@ -831,7 +861,7 @@ def get_internal_fitting(
     return InternalFittingResponse(
         owned=is_owned,
         status=detail["status"],
-        resultImageUrl=detail["resultImageUrl"] if detail["status"] == "COMPLETED" else None,
+        resultImageUrl=result_img_url,
         products=products_for_community,
     )
 
