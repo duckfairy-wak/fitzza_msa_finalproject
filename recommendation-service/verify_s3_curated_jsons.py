@@ -39,6 +39,8 @@ def inspect_single_object(s3, bucket, key):
         resp = s3.get_object(Bucket=bucket, Key=key)
         body = resp["Body"].read().decode("utf-8")
         data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError(f"최상위 JSON 구조가 객체(dict)가 아닙니다: {type(data).__name__}")
 
         top_keys = tuple(sorted(data.keys()))
         raw_product_id = data.get("product_id")
@@ -69,11 +71,13 @@ def inspect_single_object(s3, bucket, key):
             cat_depth1_str
             or _valid_str(cat.get("categoryDepth1Title"))
         )
+        raw_cat_depth2_code = _valid_str(cat.get("categoryDepth2Code"))
+        cat_depth2_name_str = _valid_str(cat.get("categoryDepth2Name"))
         cat_depth2_str = (
-            _valid_str(cat.get("categoryDepth2Name"))
+            cat_depth2_name_str
             or _valid_str(cat.get("categoryDepth2Title"))
         )
-        cat_depth2_valid = cat_depth2_str is not None
+        cat_depth2_valid = (raw_cat_depth2_code is None) or (cat_depth2_name_str is not None)
         cat_depth2 = cat_depth2_str
 
         price_obj = data.get("price")

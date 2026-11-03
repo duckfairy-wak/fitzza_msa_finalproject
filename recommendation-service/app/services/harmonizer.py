@@ -637,7 +637,7 @@ class OutfitHarmonizer:
         )
 
         def _pick_diverse_outfits(outfits_list: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
-            """상품 중복 상한(MAX_OVERLAP_ITEMS)을 준수하며 상위 코디를 최대 limit개 선발한다."""
+            """중복 상한을 우선 적용해 상위 코디를 최대 limit개 선발하고, 부족하면 최소 중복 후보로 보충한다."""
             selected_outfits: list[dict[str, Any]] = []
             for outfit in outfits_list:
                 o_pids = _extract_product_ids(outfit["items"])
