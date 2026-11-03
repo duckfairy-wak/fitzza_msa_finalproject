@@ -70,7 +70,11 @@ the only successful result:
 kubectl -n fitzza get secret fitzza-community-jev -o go-template='{{if index .data "TYPESAFE_API_KEY"}}PRESENT_NONEMPTY{{else}}ABSENT_OR_EMPTY{{end}}{{"\n"}}'
 kubectl -n fitzza rollout restart deployment/community-service
 kubectl -n fitzza rollout status deployment/community-service --timeout=15m
-$communityPod = kubectl -n fitzza get pods -l app.kubernetes.io/name=community-service -o jsonpath='{.items[0].metadata.name}'
+$deploymentUid = kubectl -n fitzza get deployment community-service -o jsonpath='{.metadata.uid}'
+$replicaSets = kubectl -n fitzza get replicasets -l app.kubernetes.io/name=community-service -o json | ConvertFrom-Json
+$currentReplicaSet = $replicaSets.items | Where-Object { $_.metadata.ownerReferences.uid -contains $deploymentUid -and $_.spec.replicas -gt 0 } | Sort-Object { [int]$_.metadata.annotations.'deployment.kubernetes.io/revision' } -Descending | Select-Object -First 1
+$currentPodHash = $currentReplicaSet.metadata.labels.'pod-template-hash'
+$communityPod = kubectl -n fitzza get pods -l "app.kubernetes.io/name=community-service,pod-template-hash=$currentPodHash" -o jsonpath='{.items[0].metadata.name}'
 kubectl -n fitzza exec $communityPod -- sh -c 'if [ -n "$TYPESAFE_API_KEY" ]; then echo PRESENT_NONEMPTY; else echo ABSENT_OR_EMPTY; fi'
 ```
 
