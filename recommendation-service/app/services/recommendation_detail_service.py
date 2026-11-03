@@ -36,7 +36,8 @@ class RecommendationDetailService:
         return self.storage.get_presigned_url(str(raw_url_or_key).strip()) or None
 
     def _resolve_item_dict(self, item_data: dict[str, Any]) -> dict[str, Any]:
-        """단일 아이템 딕셔너리의 이미지 URL을 해결한 복사본을 반환합니다."""
+        """단일 아이템 딕셔너리의 이미지 URL 및 색상을 해결한 복사본을 반환합니다."""
+        item_copy = dict(item_data)
         raw = (
             item_data.get("imageKey")
             or item_data.get("image_key")
@@ -44,10 +45,15 @@ class RecommendationDetailService:
             or item_data.get("image_url")
         )
         if raw:
-            item_copy = dict(item_data)
             item_copy["imageUrl"] = self.resolve_image_url(raw)
-            return item_copy
-        return item_data
+
+        if not item_copy.get("color"):
+            color_val = item_data.get("color_raw") or item_data.get("color_normalized")
+            if isinstance(color_val, list):
+                color_val = ", ".join(str(c) for c in color_val if c)
+            item_copy["color"] = color_val
+
+        return item_copy
 
     def build_detail_response(self, record: dict[str, Any]) -> RecommendationDetailResponse:
         """저장소의 추천 레코드를 RecommendationDetailResponse DTO로 변환합니다."""

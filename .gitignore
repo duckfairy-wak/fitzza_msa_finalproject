@@ -85,6 +85,7 @@ logs/
 *.dump
 *.backup
 vton-service/data/
+product-service/src/main/resources/final_products/
 
 
 .run/

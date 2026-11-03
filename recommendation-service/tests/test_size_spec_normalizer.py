@@ -12,29 +12,36 @@ from app.services.size_resolver import SizeCalculator
 
 class TestMusinsaCategorySpecFields:
     def test_category_spec_fields_exact_match(self):
-        """무신사 4대 표준 카테고리별 실측 필드가 정확히 정의되어 있는지 확인"""
-        assert MUSINSA_CATEGORY_SPEC_FIELDS["top"] == [
+        """무신사 5대 표준 한글 카테고리별 실측 필드가 정확히 정의되어 있는지 확인"""
+        assert MUSINSA_CATEGORY_SPEC_FIELDS["상의"] == [
             "총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"
         ]
-        assert MUSINSA_CATEGORY_SPEC_FIELDS["outer"] == [
+        assert MUSINSA_CATEGORY_SPEC_FIELDS["아우터"] == [
             "총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"
         ]
-        assert MUSINSA_CATEGORY_SPEC_FIELDS["bottom"] == [
+        assert MUSINSA_CATEGORY_SPEC_FIELDS["하의"] == [
             "총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"
         ]
-        assert MUSINSA_CATEGORY_SPEC_FIELDS["shoes"] == [
+        assert MUSINSA_CATEGORY_SPEC_FIELDS["신발"] == [
             "발길이", "발볼", "발목높이", "굽높이"
         ]
-        assert MUSINSA_CATEGORY_SPEC_FIELDS["hat"] == [
+        assert MUSINSA_CATEGORY_SPEC_FIELDS["모자"] == [
             "머리둘레", "챙길이", "깊이"
         ]
 
     def test_get_musinsa_spec_fields(self):
-        assert get_musinsa_spec_fields("top") == MUSINSA_CATEGORY_SPEC_FIELDS["top"]
-        assert get_musinsa_spec_fields("TOP") == MUSINSA_CATEGORY_SPEC_FIELDS["top"]
-        assert get_musinsa_spec_fields("bottom") == MUSINSA_CATEGORY_SPEC_FIELDS["bottom"]
-        assert get_musinsa_spec_fields("shoes") == MUSINSA_CATEGORY_SPEC_FIELDS["shoes"]
-        assert get_musinsa_spec_fields("hat") == MUSINSA_CATEGORY_SPEC_FIELDS["hat"]
+        # 한글 카테고리 직접 조회
+        assert get_musinsa_spec_fields("상의") == MUSINSA_CATEGORY_SPEC_FIELDS["상의"]
+        assert get_musinsa_spec_fields("아우터") == MUSINSA_CATEGORY_SPEC_FIELDS["아우터"]
+        assert get_musinsa_spec_fields("하의") == MUSINSA_CATEGORY_SPEC_FIELDS["하의"]
+        assert get_musinsa_spec_fields("신발") == MUSINSA_CATEGORY_SPEC_FIELDS["신발"]
+        assert get_musinsa_spec_fields("모자") == MUSINSA_CATEGORY_SPEC_FIELDS["모자"]
+        # 영문 레거시 호환성 지원
+        assert get_musinsa_spec_fields("top") == MUSINSA_CATEGORY_SPEC_FIELDS["상의"]
+        assert get_musinsa_spec_fields("TOP") == MUSINSA_CATEGORY_SPEC_FIELDS["상의"]
+        assert get_musinsa_spec_fields("bottom") == MUSINSA_CATEGORY_SPEC_FIELDS["하의"]
+        assert get_musinsa_spec_fields("shoes") == MUSINSA_CATEGORY_SPEC_FIELDS["신발"]
+        assert get_musinsa_spec_fields("hat") == MUSINSA_CATEGORY_SPEC_FIELDS["모자"]
         assert get_musinsa_spec_fields("unknown") == []
 
 
@@ -126,15 +133,16 @@ class TestNormalizeMeasurementSpec:
 class TestMusinsaSizeSpecResolverClass:
     def test_resolver_facade(self):
         categories = MusinsaSizeSpecResolver.get_supported_categories()
-        assert "top" in categories
-        assert "bottom" in categories
-        assert "shoes" in categories
-        assert "hat" in categories
+        assert "상의" in categories
+        assert "아우터" in categories
+        assert "하의" in categories
+        assert "신발" in categories
+        assert "모자" in categories
 
-        fields = MusinsaSizeSpecResolver.get_spec_fields("top")
+        fields = MusinsaSizeSpecResolver.get_spec_fields("상의")
         assert "총장" in fields
 
-        norm = MusinsaSizeSpecResolver.normalize({"총장": "70"}, category="top")
+        norm = MusinsaSizeSpecResolver.normalize({"총장": "70"}, category="상의")
         assert norm == {"총장": 70.0}
 
 

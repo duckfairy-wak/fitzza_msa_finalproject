@@ -2,6 +2,7 @@ import hashlib
 import io
 import logging
 import os
+import time
 from typing import Any, Optional
 
 from PIL import Image
@@ -129,6 +130,14 @@ class FashionSearchEngine:
         self.model.eval()
         self._category_vectors: dict[str, list[float]] = {}
         self._color_vectors: dict[str, list[float]] = {}
+        self.last_clip_latency: float = 0.0
+        self.last_qdrant_latency: float = 0.0
+        self.last_scoring_latency: float = 0.0
+
+    def reset_latencies(self) -> None:
+        self.last_clip_latency = 0.0
+        self.last_qdrant_latency = 0.0
+        self.last_scoring_latency = 0.0
 
     def _normalize(self, tensor: torch.Tensor) -> torch.Tensor:
         """임베딩 벡터 L2 정규화."""
@@ -380,7 +389,10 @@ class FashionSearchEngine:
             if cached_results is not None:
                 return cached_results
 
+        t_clip = time.perf_counter()
         query_vector = self.encode_text(clip_query_en)
+        self.last_clip_latency += time.perf_counter() - t_clip
+
         top_results = self._query_and_rank_points(
             query_vector=query_vector,
             category=category,
@@ -587,6 +599,7 @@ class FashionSearchEngine:
         )
 
         # 2. 후보 조회: 우선 top_k * 5개 유지
+        t_qdrant = time.perf_counter()
         response = self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
@@ -595,7 +608,9 @@ class FashionSearchEngine:
             with_payload=True,
             with_vectors=True,
         )
+        self.last_qdrant_latency += time.perf_counter() - t_qdrant
 
+        t_scoring = time.perf_counter()
         results: list[dict[str, Any]] = []
 
         for hit in response.points:
@@ -695,5 +710,6 @@ class FashionSearchEngine:
             reverse=True,
         )
 
+        self.last_scoring_latency += time.perf_counter() - t_scoring
         return results[:top_k]
 

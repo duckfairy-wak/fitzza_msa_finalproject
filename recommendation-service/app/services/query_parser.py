@@ -128,6 +128,7 @@ class QueryParser:
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
+        self.last_prompt_build_latency: float = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
@@ -177,6 +178,7 @@ class QueryParser:
         if not user_query or not user_query.strip():
             raise ValueError("사용자 질의는 비어 있을 수 없습니다.")
 
+        t_build_start = time.perf_counter()
         client = self._get_client()
 
         current_month = datetime.datetime.now(
@@ -412,7 +414,7 @@ class QueryParser:
             - 스키니핏 -> 스키니
             - 슬림핏 -> 슬림
             - 정핏, 기본 핏 -> 의미가 명확할 때만 레귤러
-            - 루즈핏 -> 루즈
+            - 루즈핏, 와이드, 와이드핏 -> 루즈
             - 오버핏, 오버사이즈핏 -> 오버 사이즈
 
             핏을 명시하지 않았다면 null입니다.
@@ -795,6 +797,7 @@ class QueryParser:
             "content": user_query,
         })
 
+        self.last_prompt_build_latency = time.perf_counter() - t_build_start
         start_time = time.perf_counter() # 측정 시작
 
         completion = client.beta.chat.completions.parse(
