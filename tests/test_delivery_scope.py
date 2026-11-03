@@ -261,6 +261,14 @@ def test_delivery_overlay_excludes_operator_owned_resources():
     assert openai_env["valueFrom"]["secretKeyRef"] == {
         "name": "fitzza-app-secrets", "key": "OPENAI_API_KEY"
     }
+    community = next(d for d in deployments if d["metadata"]["name"] == "community-service")
+    community_container = community["spec"]["template"]["spec"]["containers"][0]
+    typesafe_env = next(
+        env for env in community_container["env"] if env["name"] == "TYPESAFE_API_KEY"
+    )
+    assert typesafe_env["valueFrom"]["secretKeyRef"] == {
+        "name": "fitzza-community-jev", "key": "TYPESAFE_API_KEY", "optional": True
+    }
     assert all(d["spec"]["progressDeadlineSeconds"] == 900 for d in deployments)
     assert all(d["kind"] in {"Deployment", "Service", "ConfigMap", "Ingress"}
                for d in documents)

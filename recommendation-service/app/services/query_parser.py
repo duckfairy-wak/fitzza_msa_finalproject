@@ -125,24 +125,30 @@ class ParsedIntent(BaseModel):
 
 class QueryParser:
     def __init__(self, model_name: str = "gpt-6.1-sol"):
+        """LLM 기반 자연어 질의 파서를 초기화한다."""
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
+        self.last_prompt_build_latency: float = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
+        """최근 파싱 호출에서 사용된 프롬프트 토큰 수를 반환한다."""
         return _parser_prompt_tokens_ctx.get()
 
     @last_prompt_tokens.setter
     def last_prompt_tokens(self, val: int) -> None:
+        """프롬프트 토큰 수를 컨텍스트 변수에 기록한다."""
         _parser_prompt_tokens_ctx.set(int(val or 0))
 
     @property
     def last_completion_tokens(self) -> int:
+        """최근 파싱 호출에서 사용된 완성 토큰 수를 반환한다."""
         return _parser_completion_tokens_ctx.get()
 
     @last_completion_tokens.setter
     def last_completion_tokens(self, val: int) -> None:
+        """완성 토큰 수를 컨텍스트 변수에 기록한다."""
         _parser_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
@@ -161,6 +167,7 @@ class QueryParser:
 
     @staticmethod
     def _get_current_season(month: int) -> str:
+        """월(1~12)을 기준으로 대한민국 표준 계절명을 반환한다."""
         if month in (3, 4, 5):
             return "봄"
         if month in (6, 7, 8):
@@ -171,12 +178,15 @@ class QueryParser:
 
     @staticmethod
     def _example_json(data: dict) -> str:
+        """Few-shot 예시 딕셔너리를 JSON 문자열로 직렬화한다."""
         return json.dumps(data, ensure_ascii=False)
 
     def parse(self, user_query: str) -> ParsedIntent:
+        """사용자 자연어 질의를 분석하여 구조화된 ParsedIntent 객체를 반환한다."""
         if not user_query or not user_query.strip():
             raise ValueError("사용자 질의는 비어 있을 수 없습니다.")
 
+        t_build_start = time.perf_counter()
         client = self._get_client()
 
         current_month = datetime.datetime.now(
@@ -412,7 +422,7 @@ class QueryParser:
             - 스키니핏 -> 스키니
             - 슬림핏 -> 슬림
             - 정핏, 기본 핏 -> 의미가 명확할 때만 레귤러
-            - 루즈핏 -> 루즈
+            - 루즈핏, 와이드, 와이드핏 -> 루즈
             - 오버핏, 오버사이즈핏 -> 오버 사이즈
 
             핏을 명시하지 않았다면 null입니다.
@@ -795,6 +805,7 @@ class QueryParser:
             "content": user_query,
         })
 
+        self.last_prompt_build_latency = time.perf_counter() - t_build_start
         start_time = time.perf_counter() # 측정 시작
 
         completion = client.beta.chat.completions.parse(

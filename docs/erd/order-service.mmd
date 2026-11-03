@@ -1,0 +1,100 @@
+erDiagram
+    %% Central service: order-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: orders, order_item, cart
+    %% External table: product_option (product-service)
+    %% External table: reviews (review-service)
+    %% External table: size_surveys (review-service)
+    %% External table: users (user-service)
+
+    %% Internal and directly connected external relationships
+    orders ||--|{ order_item : "order_id"
+    users ||..o{ orders : "user_id"
+    users ||..o{ cart : "user_id"
+    product_option ||..o{ order_item : "option_id"
+    product_option ||..o{ cart : "option_id"
+    order_item |o..o| reviews : "order_item_id"
+    order_item ||..o{ size_surveys : "order_item_id"
+
+    orders {
+        bigint order_id PK
+        varchar order_num UK
+        bigint user_id
+        bigint total_price
+        varchar order_status
+        varchar recipient_name
+        varchar recipient_phone
+        varchar shipping_address
+        datetime created_at
+        datetime updated_at
+    }
+
+    order_item {
+        bigint order_item_id PK
+        bigint order_id FK
+        bigint option_id
+        int order_qty
+        int unit_price
+    }
+
+    cart {
+        bigint cart_id PK
+        bigint user_id UK
+        bigint option_id UK
+        int quantity
+        datetime created_at
+        datetime updated_at
+    }
+
+    product_option {
+        bigint option_id PK
+        bigint product_id FK
+        bigint source_option_id UK
+        varchar managed_code
+        varchar color
+        varchar size
+        int additional_price
+        varchar image_url
+    }
+
+    reviews {
+        bigint review_id PK
+        varchar source UK
+        bigint source_review_id UK
+        bigint user_id
+        bigint product_id
+        bigint order_item_id UK
+        int rating
+        text content
+        varchar image_url
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id UK
+        bigint product_id
+        bigint option_id
+        bigint order_item_id UK
+        varchar size_feedback
+        datetime feedback_sent_at
+        datetime feedback_claimed_at
+        datetime created_at
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        varchar role
+        datetime created_at
+        datetime updated_at
+    }

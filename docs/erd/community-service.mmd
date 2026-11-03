@@ -1,0 +1,111 @@
+erDiagram
+    %% Central service: community-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: posts, post_shared_items, comments, post_likes, comment_likes, vote_options, votes
+    %% External table: users (user-service)
+
+    %% Internal and directly connected external relationships
+    users ||..o{ posts : "user_id"
+    posts ||--o{ post_shared_items : "post_id"
+    posts ||..o{ comments : "post_id"
+    comments |o..o{ comments : "parent_comment_id"
+    posts ||..o{ post_likes : "post_id"
+    posts ||..o{ vote_options : "post_id"
+    posts ||..o{ votes : "post_id"
+    vote_options ||..o{ votes : "vote_option_id"
+    comments ||..o{ comment_likes : "comment_id"
+
+    posts {
+        bigint post_id PK
+        bigint user_id
+        varchar post_type
+        varchar category
+        varchar title
+        text content
+        bigint view_count
+        varchar shared_type
+        bigint shared_id
+        bigint shared_product_id
+        varchar shared_brand_name
+        varchar shared_product_name
+        int shared_price
+        text shared_image_url
+        text shared_summary
+        datetime vote_end_at
+        boolean vote_closed
+        boolean vote_close_notification_pending
+        datetime vote_close_notify_failed_at
+        datetime deleted_at
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    post_shared_items {
+        bigint post_id PK, FK
+        int item_order PK
+        bigint product_id
+        varchar product_name
+        int price
+        text image_url
+    }
+
+    comments {
+        bigint comment_id PK
+        bigint post_id
+        bigint user_id
+        text content
+        bigint parent_comment_id
+        boolean is_deleted
+        bigint supported_option_id
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    post_likes {
+        bigint post_id PK
+        bigint user_id PK
+        datetime created_at
+    }
+
+    comment_likes {
+        bigint comment_id PK
+        bigint user_id PK
+        datetime created_at
+    }
+
+    vote_options {
+        bigint vote_option_id PK
+        bigint post_id UK
+        varchar item_id UK
+        varchar item_type UK
+        varchar source
+        varchar image_url
+        varchar snapshot_name
+        int snapshot_price
+        int display_order
+    }
+
+    votes {
+        varchar vote_id PK
+        bigint post_id UK
+        bigint user_id UK
+        bigint vote_option_id
+        datetime created_at
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        varchar role
+        datetime created_at
+        datetime updated_at
+    }

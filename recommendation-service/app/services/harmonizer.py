@@ -19,10 +19,45 @@ _harmonizer_prompt_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_prompt_t
 _harmonizer_completion_tokens_ctx: ContextVar[int] = ContextVar("harmonizer_completion_tokens_ctx", default=0)
 
 # 후보 조합 중 Vision LLM 검수 대상의 최대 개수
-MAX_CANDIDATES_TO_REVIEW = 9
+MAX_CANDIDATES_TO_REVIEW = 4
 
 # 최종 응답에 포함할 통과 코디의 최대 개수
 DEFAULT_TOP_K = 2
+
+# 최종 추천 코디 세트 간 허용되는 최대 동일 상품(productId) 중복 개수 (다양성 필터)
+MAX_OVERLAP_ITEMS = 1
+
+# 카테고리 고정 노출 순서: 아우터 -> 상의 -> 하의 -> 모자 -> 신발 (없는 카테고리는 건너뜀)
+CATEGORY_DISPLAY_ORDER = {
+    "아우터": 1,
+    "outer": 1,
+    "상의": 2,
+    "top": 2,
+    "하의": 3,
+    "bottom": 3,
+    "모자": 4,
+    "hat": 4,
+    "신발": 5,
+    "shoes": 5,
+}
+
+def sort_items_by_standard_category(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """코디 아이템 목록을 표준 카테고리 순서(아우터->상의->하의->모자->신발)로 정렬한다."""
+    return sorted(
+        items,
+        key=lambda item: CATEGORY_DISPLAY_ORDER.get(
+            str(item.get("category", "")).lower().strip(), 99
+        ),
+    )
+
+
+def _extract_product_ids(items: list[dict[str, Any]]) -> set[str]:
+    """아이템 목록에서 유효한 상품 ID(product_id 또는 productId) 집합을 추출합니다."""
+    return {
+        str(pid)
+        for item in items
+        if (pid := item.get("product_id") or item.get("productId")) is not None
+    }
 
 
 SYSTEM_PROMPT = """
@@ -146,28 +181,46 @@ class OutfitHarmonizer:
     BUDGET_PENALTY_WEIGHT = 0.1
 
     def __init__(self, search_engine, model_name: str = "gpt-6-astra"):
+        """검색 엔진과 Vision LLM 모델명을 설정하여 코디 조화도 평가기를 초기화한다."""
         self.engine = search_engine
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
+        self.last_combo_latency: float = 0.0
+        self.last_s3_latency: float = 0.0
+        self.last_llm_latency: float = 0.0
+        self.last_total_latency: float = 0.0
+
+    def reset_latencies(self) -> None:
+        """측정된 구간별 지연 시간을 모두 0으로 초기화한다."""
+        self.last_latency = 0.0
+        self.last_combo_latency = 0.0
+        self.last_s3_latency = 0.0
+        self.last_llm_latency = 0.0
+        self.last_total_latency = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
+        """최근 실행에서 소비된 프롬프트 토큰 수를 반환한다."""
         return _harmonizer_prompt_tokens_ctx.get()
 
     @last_prompt_tokens.setter
     def last_prompt_tokens(self, val: int) -> None:
+        """프롬프트 토큰 수를 컨텍스트 변수에 기록한다."""
         _harmonizer_prompt_tokens_ctx.set(int(val or 0))
 
     @property
     def last_completion_tokens(self) -> int:
+        """최근 실행에서 소비된 완성 토큰 수를 반환한다."""
         return _harmonizer_completion_tokens_ctx.get()
 
     @last_completion_tokens.setter
     def last_completion_tokens(self, val: int) -> None:
+        """완성 토큰 수를 컨텍스트 변수에 기록한다."""
         _harmonizer_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
+        """지연 초기화된 OpenAI 클라이언트 인스턴스를 반환한다."""
         if self._client is None:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
@@ -181,6 +234,7 @@ class OutfitHarmonizer:
             self,
             items: list[dict[str, Any]],
     ) -> float:
+        """코디 내 아이템 임베딩 벡터 간의 평균 코사인 유사도를 20~100점 척도로 환산한다."""
         vectors = []
         for item in items:
             vec = item.get("vector")
@@ -213,6 +267,7 @@ class OutfitHarmonizer:
     def calculate_avg_search_score(
             items: list[dict[str, Any]],
     ) -> float:
+        """코디 아이템들의 검색 점수 평균을 100점 만점 기준으로 계산한다."""
         if not items:
             return 0.0
 
@@ -232,6 +287,7 @@ class OutfitHarmonizer:
             total_price: int,
             budget_limit: int | None,
     ) -> float:
+        """코디 총액이 예산 상한을 초과한 비율에 따라 감점 점수를 계산한다."""
         if budget_limit is None or budget_limit <= 0:
             return 0.0
 
@@ -247,6 +303,7 @@ class OutfitHarmonizer:
             items: list[dict[str, Any]],
             tpo_context: str,
     ) -> dict[str, Any]:
+        """Vision LLM을 호출하여 단일 코디 후보의 시각적 조화도와 TPO 적합성을 심사한다."""
         items_desc_parts = []
         image_count = 0
 
@@ -304,7 +361,9 @@ class OutfitHarmonizer:
             if not raw_image_url:
                 continue
 
+            s3_start = time.perf_counter()
             image_url = get_storage_client().get_presigned_url(raw_image_url)
+            self.last_s3_latency += (time.perf_counter() - s3_start)
             if not image_url or not image_url.startswith(("http://", "https://")):
                 continue
 
@@ -345,7 +404,9 @@ class OutfitHarmonizer:
 
         end_time = time.perf_counter()
 
-        self.last_latency = end_time - start_time
+        duration = end_time - start_time
+        self.last_latency = duration
+        self.last_llm_latency += duration
         usage = getattr(completion, "usage", None)
         p_tok = int(getattr(usage, "prompt_tokens", 0) or 0)
         c_tok = int(getattr(usage, "completion_tokens", 0) or 0)
@@ -385,23 +446,31 @@ class OutfitHarmonizer:
             total_budget: int | None = None,
             pre_filtered_combos: list[tuple] | None = None,
     ) -> list[dict[str, Any]]:
+        """슬롯별 후보 상품들의 조합을 구성하고 다양성 필터 및 Vision LLM 검수를 거쳐 최적 코디 세트를 반환한다."""
+        start_total = time.perf_counter()
+        self.reset_latencies()
         self.last_prompt_tokens = 0
         self.last_completion_tokens = 0
 
         if top_k < 1:
+            self.last_total_latency = time.perf_counter() - start_total
             raise ValueError("top_k는 1 이상이어야 합니다.")
 
+        start_combo = time.perf_counter()
         if pre_filtered_combos is not None:
             all_combos = pre_filtered_combos
         else:
             if not slot_candidates:
+                self.last_total_latency = time.perf_counter() - start_total
                 return []
 
-            slots = [
-                slot for slot, items in slot_candidates.items() if items
-            ]
+            slots = sorted(
+                [slot for slot, items in slot_candidates.items() if items],
+                key=lambda s: CATEGORY_DISPLAY_ORDER.get(str(s).lower().strip(), 99),
+            )
 
             if not slots:
+                self.last_total_latency = time.perf_counter() - start_total
                 return []
 
             all_combos = list(
@@ -409,12 +478,13 @@ class OutfitHarmonizer:
             )
 
         if not all_combos:
+            self.last_total_latency = time.perf_counter() - start_total
             return []
 
         ranked: list[dict[str, Any]] = []
 
         for combo in all_combos:
-            items = list(combo)
+            items = sort_items_by_standard_category(list(combo))
 
             total_price = sum(
                 int(item.get("price") or 0)
@@ -481,8 +551,41 @@ class OutfitHarmonizer:
             key=lambda candidate: candidate["composite_score"],
             reverse=True,
         )
+        self.last_combo_latency = time.perf_counter() - start_combo
 
-        candidates_to_review = ranked[:MAX_CANDIDATES_TO_REVIEW]
+        # 1차: 모든 기선발 후보와 중복 상품이 MAX_OVERLAP_ITEMS 이하인 후보 선발
+        candidates_to_review: list[dict[str, Any]] = []
+        for cand in ranked:
+            c_pids = _extract_product_ids(cand["items"])
+            is_too_similar = False
+            for picked in candidates_to_review:
+                p_pids = _extract_product_ids(picked["items"])
+                if len(c_pids & p_pids) > MAX_OVERLAP_ITEMS:
+                    is_too_similar = True
+                    break
+            if not is_too_similar:
+                candidates_to_review.append(cand)
+            if len(candidates_to_review) == MAX_CANDIDATES_TO_REVIEW:
+                break
+
+        # 2차 (보충): 후보가 부족할 경우 1등 후보와의 중복이 MAX_OVERLAP_ITEMS 이하인 후보 우선 보충
+        if len(candidates_to_review) < MAX_CANDIDATES_TO_REVIEW and candidates_to_review:
+            first_pids = _extract_product_ids(candidates_to_review[0]["items"])
+            for cand in ranked:
+                if cand not in candidates_to_review:
+                    c_pids = _extract_product_ids(cand["items"])
+                    if len(c_pids & first_pids) <= MAX_OVERLAP_ITEMS:
+                        candidates_to_review.append(cand)
+                    if len(candidates_to_review) == MAX_CANDIDATES_TO_REVIEW:
+                        break
+
+        # 3차 (Fallback): 상품 풀이 매우 작을 때만 최소 중복 후보 추가
+        if len(candidates_to_review) < MAX_CANDIDATES_TO_REVIEW:
+            for cand in ranked:
+                if cand not in candidates_to_review:
+                    candidates_to_review.append(cand)
+                if len(candidates_to_review) == MAX_CANDIDATES_TO_REVIEW:
+                    break
 
         passed_outfits: list[dict[str, Any]] = []
         rejected_outfits: list[dict[str, Any]] = []
@@ -507,7 +610,7 @@ class OutfitHarmonizer:
             final_score = round(
                 gate_result["harmony_score"] - candidate["budget_penalty"],
                 2,
-                )
+            )
 
             outfit_data = {
                 "harmony_score": gate_result["harmony_score"],
@@ -533,12 +636,49 @@ class OutfitHarmonizer:
             reverse=True,
         )
 
+        def _pick_diverse_outfits(outfits_list: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+            """중복 상한을 우선 적용해 상위 코디를 최대 limit개 선발하고, 부족하면 최소 중복 후보로 보충한다."""
+            selected_outfits: list[dict[str, Any]] = []
+            for outfit in outfits_list:
+                o_pids = _extract_product_ids(outfit["items"])
+                is_overlap = False
+                for sel in selected_outfits:
+                    s_pids = _extract_product_ids(sel["items"])
+                    if len(o_pids & s_pids) > MAX_OVERLAP_ITEMS:
+                        is_overlap = True
+                        break
+                if not is_overlap:
+                    selected_outfits.append(outfit)
+                if len(selected_outfits) == limit:
+                    break
+
+            # MAX_OVERLAP_ITEMS 조건을 충족하는 코디가 부족한 경우 최소 중복 후보 우선 보충
+            if len(selected_outfits) < limit:
+                remaining = [o for o in outfits_list if o not in selected_outfits]
+                if selected_outfits and remaining:
+                    def _max_overlap(o: dict[str, Any]) -> int:
+                        """기선발된 코디들과의 최대 상품 중복 개수를 계산한다."""
+                        pids = _extract_product_ids(o["items"])
+                        return max(
+                            len(pids & _extract_product_ids(s["items"]))
+                            for s in selected_outfits
+                        )
+                    remaining.sort(key=_max_overlap)
+                for outfit in remaining:
+                    selected_outfits.append(outfit)
+                    if len(selected_outfits) == limit:
+                        break
+            return selected_outfits
+
+        self.last_total_latency = time.perf_counter() - start_total
+
         if not passed_outfits and rejected_outfits:
             logger.info("모든 후보가 Vision Gate 기준을 통과하지 못해 차선책 후보를 반환합니다.")
             rejected_outfits.sort(
                 key=lambda outfit: outfit["final_score"],
                 reverse=True,
             )
-            return rejected_outfits[:top_k]
+            return _pick_diverse_outfits(rejected_outfits, top_k)
 
-        return passed_outfits[:top_k]
+        return _pick_diverse_outfits(passed_outfits, top_k)
+

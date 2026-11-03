@@ -1,5 +1,6 @@
 import logging
-from typing import Any
+import time
+from typing import Any, Optional
 from app.services.query_parser import QueryParser, SlotQuery
 from app.services.search_engine import FashionSearchEngine
 from app.services.harmonizer import OutfitHarmonizer
@@ -17,6 +18,7 @@ class FashionPipelineCoordinator:
         repository: Any = None,
         product_client: Any = None,
     ):
+        """패션 추천 파이프라인의 파서, 검색 엔진, 사이즈 리졸버, 하모나이저, 응답 생성기를 초기화한다."""
         logger.info("패션 추천 파이프라인 컴포넌트 초기화 중...")
         self.cache_service = cache_service
         self.repository = repository
@@ -29,11 +31,66 @@ class FashionPipelineCoordinator:
 
         logger.info("전체 파이프라인 준비 완료")
 
+    def _collect_latencies(self, total_duration: float) -> dict[str, Any]:
+        """파이프라인 각 단계별 소요 시간 지표를 수집해 딕셔너리로 반환한다."""
+        parser_build = getattr(self.parser, "last_prompt_build_latency", 0.0)
+        parser_llm = getattr(self.parser, "last_latency", 0.0)
+
+        search_clip = getattr(self.engine, "last_clip_latency", 0.0)
+        search_qdrant = getattr(self.engine, "last_qdrant_latency", 0.0)
+        search_scoring = getattr(self.engine, "last_scoring_latency", 0.0)
+        search_url = getattr(self.engine, "last_url_latency", 0.0)
+
+        size_resolve = getattr(self.size_resolver, "last_resolve_latency", 0.0)
+        size_calc = getattr(self.size_resolver, "last_calc_latency", 0.0)
+        size_total = getattr(self.size_resolver, "last_total_latency", 0.0)
+
+        harm_combo = getattr(self.harmonizer, "last_combo_latency", 0.0)
+        harm_s3 = getattr(self.harmonizer, "last_s3_latency", 0.0)
+        harm_llm = getattr(self.harmonizer, "last_llm_latency", 0.0)
+        harm_total = getattr(self.harmonizer, "last_total_latency", 0.0)
+
+        resp_build = getattr(self.responder, "last_prompt_build_latency", 0.0)
+        resp_llm = getattr(self.responder, "last_latency", 0.0)
+
+        return {
+            "query_parser": {
+                "prompt_build": parser_build,
+                "llm_api": parser_llm,
+                "total": parser_build + parser_llm,
+            },
+            "search_engine": {
+                "clip_embedding": search_clip,
+                "qdrant_search": search_qdrant,
+                "scoring_and_sort": search_scoring,
+                "s3_presigned_url": search_url,
+                "total": search_clip + search_qdrant + search_scoring + search_url,
+            },
+            "size_resolver": {
+                "baseline_resolve": size_resolve,
+                "size_calc": size_calc,
+                "total": size_total,
+            },
+            "harmonizer": {
+                "cartesian_and_vector": harm_combo,
+                "s3_presigned_url": harm_s3,
+                "vision_llm_api": harm_llm,
+                "total": harm_total,
+            },
+            "response_generator": {
+                "prompt_build": resp_build,
+                "llm_api": resp_llm,
+                "total": resp_build + resp_llm,
+            },
+            "total_pipeline": total_duration,
+        }
+
     def _attach_size_info(
             self,
             items: list[dict[str, Any]],
             slot: SlotQuery,
             user_id: str,
+            user_body: Optional[dict[str, Any]] = None,
     ) -> list[dict[str, Any]]:
         """검색된 상품 후보군에 대해 SizeProfileResolver를 통해 최적 사이즈를 산출하고 부착한다.
 
@@ -41,6 +98,7 @@ class FashionPipelineCoordinator:
             items: Qdrant 벡터 검색을 통해 선정된 상품 후보군 목록.
             slot: 사용자의 검색 요청 슬롯 쿼리.
             user_id: 요청 사용자 ID.
+            user_body: 사용자 신체 치수 프로필.
 
         Returns:
             각 상품에 추천 사이즈 및 산출 근거가 부착된 평가 결과 목록.
@@ -68,6 +126,7 @@ class FashionPipelineCoordinator:
                 fit_type=slot.fit_type,
                 candidate_products=[item],
                 category_type=slot.category,
+                user_body=user_body,
                 learned_preference=learned_pref,
             )
 
@@ -102,7 +161,18 @@ class FashionPipelineCoordinator:
             top_k=top_k,
         )
 
-    def run(self, user_query: str, user_id: str = "user_001") -> dict[str, Any]:
+    def run(self, user_query: str, user_id: str = "user_001", user_body: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+        """사용자 자연어 질의와 신체 정보를 받아 단품 또는 코디 추천 파이프라인을 실행한다."""
+        pipeline_start = time.perf_counter()
+        if hasattr(self.engine, "reset_latencies"):
+            self.engine.reset_latencies()
+        if hasattr(self.size_resolver, "reset_latencies"):
+            self.size_resolver.reset_latencies()
+        if hasattr(self.harmonizer, "reset_latencies"):
+            self.harmonizer.reset_latencies()
+        if hasattr(self.responder, "reset_latencies"):
+            self.responder.reset_latencies()
+
         logger.info("파이프라인 실행 시작 (query=%s, user_id=%s)", user_query, user_id)
 
         # [1단계] LLM 질의 파싱
@@ -143,6 +213,7 @@ class FashionPipelineCoordinator:
                 "excluded_categories": [],
                 "comment": "요청에서 검색할 상품을 찾지 못했습니다.",
                 "results": [],
+                "latencies": self._collect_latencies(time.perf_counter() - pipeline_start),
             }
 
         if intent.search_type == "single" or len(intent.slots) == 1:
@@ -159,6 +230,7 @@ class FashionPipelineCoordinator:
                 items=items,
                 slot=slot,
                 user_id=user_id,
+                user_body=user_body,
             )
 
             comment = self.responder.generate_single_response(user_query, intent.tpo_summary, evaluated_items)
@@ -180,6 +252,7 @@ class FashionPipelineCoordinator:
                 "results": evaluated_items,
                 "prompt_tokens": total_prompt_tokens,
                 "completion_tokens": total_completion_tokens,
+                "latencies": self._collect_latencies(time.perf_counter() - pipeline_start),
             }
 
         # [2단계 - 코디 검색] 슬롯이 2개 이상 복합으로 들어온 경우
@@ -198,6 +271,7 @@ class FashionPipelineCoordinator:
                 items=items,
                 slot=slot,
                 user_id=user_id,
+                user_body=user_body,
             )
 
             logger.info("검색 엔진 결과: 슬롯 '%s' -> %d개 후보 찾음", slot.category, len(evaluated_slot_items))
@@ -226,6 +300,7 @@ class FashionPipelineCoordinator:
                 "outfits": [],
                 "prompt_tokens": int(getattr(self.parser, "last_prompt_tokens", 0) or 0),
                 "completion_tokens": int(getattr(self.parser, "last_completion_tokens", 0) or 0),
+                "latencies": self._collect_latencies(time.perf_counter() - pipeline_start),
             }
 
         # 일부 슬롯이 제외된 경우, 살아남은 슬롯들의 slot_budget 합계를 반영해 유효 예산 산출
@@ -275,4 +350,5 @@ class FashionPipelineCoordinator:
             "outfits": best_outfits,
             "prompt_tokens": total_prompt_tokens,
             "completion_tokens": total_completion_tokens,
+            "latencies": self._collect_latencies(time.perf_counter() - pipeline_start),
         }

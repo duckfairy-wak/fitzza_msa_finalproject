@@ -23,7 +23,7 @@ public class VoteOption {
     public static final int MIN_OPTIONS = 2;
     public static final int MAX_OPTIONS = 4;
     public static final int ITEM_ID_MAX_LENGTH = 100;
-    public static final int IMAGE_URL_MAX_LENGTH = 1000;
+    public static final int IMAGE_URL_MAX_LENGTH = 3000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

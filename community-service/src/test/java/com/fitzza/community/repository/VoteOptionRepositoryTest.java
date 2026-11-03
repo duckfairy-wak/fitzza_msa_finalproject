@@ -82,13 +82,13 @@ class VoteOptionRepositoryTest {
                         new PostImage(OTHER_POST_ID, "https://cdn.example.com/other.png", VoteItemType.PRODUCT, "1"));
     }
 
-    // 선택지 이미지도 S3 Presigned URL이라 500자를 넘을 수 있다. 1000자까지 저장한다.
+    // 선택지 이미지도 S3 Presigned URL이라 운영에서 2000자를 넘는 경우가 많다. 3000자까지 저장한다.
     @Test
-    void anOptionKeepsPresignedImageUrlsLongerThanFiveHundredCharacters() {
-        String longImageUrl = "https://bucket.s3.ap-northeast-2.amazonaws.com/product.jpg?" + "signature".repeat(100);
+    void anOptionKeepsPresignedImageUrlsLongerThanTwoThousandCharacters() {
+        String longImageUrl = "https://bucket.s3.ap-northeast-2.amazonaws.com/product.jpg?" + "signature".repeat(300);
         VoteOption saved = voteOptionRepository.saveAndFlush(option(POST_ID, 1, longImageUrl));
 
-        assertThat(longImageUrl.length()).isBetween(501, VoteOption.IMAGE_URL_MAX_LENGTH);
+        assertThat(longImageUrl.length()).isBetween(2001, VoteOption.IMAGE_URL_MAX_LENGTH);
         assertThat(voteOptionRepository.findById(saved.getId()).orElseThrow().getImageUrl()).isEqualTo(longImageUrl);
     }
 

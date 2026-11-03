@@ -13,25 +13,36 @@ _responder_prompt_tokens_ctx: ContextVar[int] = ContextVar("responder_prompt_tok
 _responder_completion_tokens_ctx: ContextVar[int] = ContextVar("responder_completion_tokens_ctx", default=0)
 
 class ResponseGenerator:
-    def __init__(self, model_name: str = "gpt-6-luna"):
+    def __init__(self, model_name: str = "gpt-6-sol"):
+        """LLM 기반 추천 응답 코멘트 생성기를 초기화한다."""
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
+        self.last_prompt_build_latency: float = 0.0
+
+    def reset_latencies(self) -> None:
+        """측정된 프롬프트 조립 및 LLM 호출 지연 시간을 0으로 초기화한다."""
+        self.last_latency = 0.0
+        self.last_prompt_build_latency = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
+        """최근 응답 생성 호출에서 소비된 프롬프트 토큰 수를 반환한다."""
         return _responder_prompt_tokens_ctx.get()
 
     @last_prompt_tokens.setter
     def last_prompt_tokens(self, val: int) -> None:
+        """프롬프트 토큰 수를 컨텍스트 변수에 기록한다."""
         _responder_prompt_tokens_ctx.set(int(val or 0))
 
     @property
     def last_completion_tokens(self) -> int:
+        """최근 응답 생성 호출에서 소비된 완성 토큰 수를 반환한다."""
         return _responder_completion_tokens_ctx.get()
 
     @last_completion_tokens.setter
     def last_completion_tokens(self, val: int) -> None:
+        """완성 토큰 수를 컨텍스트 변수에 기록한다."""
         _responder_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
@@ -62,6 +73,7 @@ class ResponseGenerator:
 
     def generate_single_response(self, query: str, tpo: str, items: list) -> str:
         """단일 상품 추천 결과에 대한 매니저 코멘트 생성"""
+        build_start = time.perf_counter()
         item_summaries = []
         for item in items:
             brand = item.get("brand_name", "브랜드")
@@ -84,6 +96,7 @@ class ResponseGenerator:
         1. 반드시 위 '추천된 단품 목록'에 실제로 포함된 상품명과 브랜드만 언급하세요. 목록에 없는 상품을 임의로 지어내거나 추천하지 마세요.
         2. 위 상품들을 바탕으로 사용자의 요청에 딱 맞춘 추천 코멘트를 정중하고 센스 있는 패션 매니저 말투(한국어)로 2~3문장 작성하세요.
         """
+        self.last_prompt_build_latency = time.perf_counter() - build_start
 
         client = self._get_client()
 
@@ -105,6 +118,7 @@ class ResponseGenerator:
 
     def generate_coordination_response(self, query: str, tpo: str, outfits: list) -> str:
         """코디 세트 추천 결과에 대한 패션 에디터 코멘트 생성"""
+        build_start = time.perf_counter()
         outfit_summaries = []
         for idx, outfit in enumerate(outfits, 1):
             total_price = outfit.get("total_price")
@@ -121,8 +135,10 @@ class ResponseGenerator:
                 display_cat = subcat if subcat and subcat != "정보없음" else category
                 price = item.get("price")
                 item_price_str = f", {price:,}원" if price is not None else ""
+                color_val = item.get("color_raw") or item.get("color_normalized")
+                color_str = f", 색상: {color_val}" if color_val else ""
 
-                outfit_text += f"- [{display_cat}] {brand} {name} ({item_price_str.lstrip(', ')})\n"
+                outfit_text += f"- [{display_cat}] {brand} {name} ({item_price_str.lstrip(', ')}{color_str})\n"
 
             verdict = outfit.get("verdict", "톤과 실루엣이 자연스럽게 어우러지는 조합입니다.")
             outfit_text += f"* AI 에디터 평가 및 스타일링 팁: {verdict}\n"
@@ -138,11 +154,14 @@ class ResponseGenerator:
         {summary_text}
 
         [엄격한 제약 사항]:
-        1. 반드시 위 '추천 코디 세트 정보'에 명시된 실제 상품들(브랜드명, 상품명, 카테고리, 가격)만 정확히 인용하세요. 목록에 없는 아이템을 임의로 지어내어 추천하지 마세요.
+        1. 반드시 위 '추천 코디 세트 정보'에 명시된 실제 상품들(브랜드명, 상품명, 카테고리, 가격, 색상)만 정확히 인용하세요. 목록에 없는 아이템을 임의로 지어내어 추천하지 마세요.
         2. AI 에디터 평가 포인트에 기반하여 각 코디 세트의 매력을 설명하되, 존재하지 않는 스펙이나 가격을 만들어내지 마세요.
+        3. 각 코디 세트의 상품을 나열할 때는 반드시 [아우터 -> 상의 -> 하의 -> 모자 -> 신발] 순서로 기재하세요. (해당 카테고리가 없으면 건너뜀)
+        4. 각 아이템의 색상 조화(예: 네이비 자켓과 베이지 슬랙스, 블랙 로퍼 등)를 자연스럽게 짚어주세요.
 
         당신은 최고의 패션 매거진 에디터입니다. 위 제약 사항을 준수하며 각 코디 세트의 매력과 TPO 적합성을 설명하는 추천 코멘트를 매끄럽고 세련되게 작성하세요.
         """
+        self.last_prompt_build_latency = time.perf_counter() - build_start
 
         client = self._get_client()
 

@@ -596,7 +596,7 @@ def test_coordinator_empty_coordination_fallback_logic(monkeypatch: pytest.Monke
         return []
 
     coordinator._search_slot_items = MagicMock(side_effect=search_side_effect)
-    coordinator._attach_size_info = MagicMock(side_effect=lambda items, slot, user_id: items)
+    coordinator._attach_size_info = MagicMock(side_effect=lambda items, *args, **kwargs: items)
 
     result = coordinator.run("상의 하의 신발 코디해줘", user_id="1")
     assert result["type"] == "coordination"
@@ -1025,6 +1025,7 @@ def test_coordinator_attach_size_info_uses_learned_preference_from_repository() 
         fit_type="오버 사이즈",
         candidate_products=[{"product_id": 999, "name": "오버핏 셔츠", "size_recommendation": {"size": "L"}, "fit_source_type": "learned_preference"}],
         category_type="top",
+        user_body=None,
         learned_preference={"총장": 73.0, "어깨너비": 52.0, "가슴단면": 60.0},
     )
     assert result[0]["size_recommendation"] == {"size": "L"}

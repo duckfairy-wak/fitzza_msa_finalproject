@@ -1,0 +1,133 @@
+erDiagram
+    %% Central service: recommendation-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: recommendation_requests, recommendation_combos, user_size_preferences, size_feedback_logs
+    %% External table: fittings (vton-service)
+    %% External table: product (product-service)
+    %% External table: product_option (product-service)
+    %% External table: users (user-service)
+
+    %% Internal and directly connected external relationships
+    recommendation_requests ||--o{ recommendation_combos : "request_id"
+    users ||..o{ recommendation_requests : "user_id"
+    users ||..o{ recommendation_combos : "user_id"
+    users ||..o{ user_size_preferences : "user_id"
+    users ||..o{ size_feedback_logs : "user_id"
+    product ||..o{ size_feedback_logs : "product_id"
+    product_option ||..o{ size_feedback_logs : "option_id"
+    recommendation_requests |o..o{ fittings : "request_id"
+
+    recommendation_requests {
+        bigint request_id PK
+        bigint user_id
+        text query_text
+        varchar status
+        varchar search_type
+        text tpo_summary
+        text items_json
+        text message
+        int prompt_tokens
+        int completion_tokens
+        datetime created_at
+    }
+
+    recommendation_combos {
+        bigint combo_id PK
+        bigint request_id FK
+        bigint user_id
+        int rank_order
+        int total_price
+        varchar pass_status
+        float harmony_score
+        text feedback_summary
+        int budget_exceeded
+        text items_json
+        datetime created_at
+    }
+
+    user_size_preferences {
+        bigint user_id PK
+        varchar subcategory PK
+        varchar fit_type
+        text preference_spec_json
+        int sample_count
+        datetime updated_at
+    }
+
+    size_feedback_logs {
+        bigint feedback_id PK
+        bigint user_id
+        bigint product_id
+        bigint option_id
+        varchar size_feedback
+        datetime created_at
+    }
+
+    fittings {
+        bigint fitting_id PK
+        bigint user_id
+        bigint photo_id
+        bigint request_id
+        varchar status
+        text result_image_url
+        text error_message
+        text warnings
+        int prompt_tokens
+        int completion_tokens
+        boolean is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        json color_image_mappings
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    product_option {
+        bigint option_id PK
+        bigint product_id FK
+        bigint source_option_id UK
+        varchar managed_code
+        varchar color
+        varchar size
+        int additional_price
+        varchar image_url
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        varchar role
+        datetime created_at
+        datetime updated_at
+    }

@@ -1,0 +1,105 @@
+erDiagram
+    %% Central service: vton-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: fittings, fitting_products, user_photos
+    %% External table: product (product-service)
+    %% External table: recommendation_requests (recommendation-service)
+    %% External table: users (user-service)
+
+    %% Internal and directly connected external relationships
+    users ||..o{ fittings : "user_id"
+    users ||..o{ user_photos : "user_id"
+    fittings ||--o{ fitting_products : "fitting_id"
+    user_photos |o..o{ fittings : "photo_id"
+    recommendation_requests |o..o{ fittings : "request_id"
+    product ||..o{ fitting_products : "product_id"
+
+    fittings {
+        bigint fitting_id PK
+        bigint user_id
+        bigint photo_id
+        bigint request_id
+        varchar status
+        text result_image_url
+        text error_message
+        text warnings
+        int prompt_tokens
+        int completion_tokens
+        boolean is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    fitting_products {
+        bigint id PK
+        bigint fitting_id FK
+        bigint product_id
+        text product_name
+        int price
+        text image_url
+        varchar category_name
+    }
+
+    user_photos {
+        bigint photo_id PK
+        bigint user_id
+        text file_path
+        boolean is_deleted
+        datetime created_at
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        json color_image_mappings
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    recommendation_requests {
+        bigint request_id PK
+        bigint user_id
+        text query_text
+        varchar status
+        varchar search_type
+        text tpo_summary
+        text items_json
+        text message
+        int prompt_tokens
+        int completion_tokens
+        datetime created_at
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        varchar role
+        datetime created_at
+        datetime updated_at
+    }
