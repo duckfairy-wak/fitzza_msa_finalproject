@@ -11,6 +11,7 @@ This directory contains the local, credential-free Kubernetes deployment baselin
 - Kubernetes Secrets populated from the approved secret store:
   - `fitzza-app-secrets`: 13 application-wide values — PostgreSQL bootstrap credentials, Redis password and URLs, JWT, service tokens, and the OpenAI API key.
   - `fitzza-db-secrets`: 12 service-specific database credentials (`USER_SERVICE_DB_*`, `PRODUCT_SERVICE_DB_*`, `ORDER_SERVICE_DB_*`, `COMMUNITY_SERVICE_DB_*`, `REVIEW_SERVICE_DB_*`, and `NOTIFICATION_SERVICE_DB_*`).
+  - `fitzza-community-jev`: the community-only `TYPESAFE_API_KEY` used to classify which poll option a comment supports.
   The SSM transition is tracked in FITZZA-251; the existing RDS password still uses Secrets Manager until that transition is verified.
 
 Do not apply `base/secret.example.yaml` or `base/db-secret.example.yaml`. They document required keys only and are intentionally excluded from Kustomize.
@@ -28,6 +29,58 @@ After changing `fitzza-app-secrets`, restart every consuming Pod because environ
 variables sourced with `envFrom` are captured only when a Pod starts. In particular,
 restart and wait for both `vton-service` and `vton-worker`; verify only the presence of
 the `OPENAI_API_KEY` variable and never print its value.
+
+### Community Jev Secret
+
+Provision `fitzza-community-jev` out of band. The reference is optional so
+`community-service` keeps running with Jev classification disabled until the Secret
+exists. Never put the key in this repository, a shell command argument, a log, or a ticket.
+The following PowerShell keeps the input out of command history and sends the generated
+Secret manifest to `kubectl` over standard input:
+
+```powershell
+$secureKey = Read-Host "TYPESAFE_API_KEY" -AsSecureString
+$keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
+try {
+    $plainKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer)
+    if ([string]::IsNullOrWhiteSpace($plainKey)) { throw "TYPESAFE_API_KEY must not be blank." }
+    $encodedKey = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($plainKey))
+    $manifest = @{
+        apiVersion = "v1"
+        kind = "Secret"
+        metadata = @{ name = "fitzza-community-jev"; namespace = "fitzza" }
+        type = "Opaque"
+        data = @{ TYPESAFE_API_KEY = $encodedKey }
+    } | ConvertTo-Json -Depth 5 -Compress
+    $manifest | kubectl apply -f -
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
+    $plainKey = $null
+    $encodedKey = $null
+    $manifest = $null
+    $secureKey = $null
+}
+```
+
+Verify presence without decoding or printing the value, restart `community-service` so
+the environment variable is captured, and then check the new Pod. `PRESENT_NONEMPTY` is
+the only successful result:
+
+```powershell
+kubectl -n fitzza get secret fitzza-community-jev -o go-template='{{if index .data "TYPESAFE_API_KEY"}}PRESENT_NONEMPTY{{else}}ABSENT_OR_EMPTY{{end}}{{"\n"}}'
+kubectl -n fitzza rollout restart deployment/community-service
+kubectl -n fitzza rollout status deployment/community-service --timeout=15m
+$deploymentUid = kubectl -n fitzza get deployment community-service -o jsonpath='{.metadata.uid}'
+$replicaSets = kubectl -n fitzza get replicasets -l app.kubernetes.io/name=community-service -o json | ConvertFrom-Json
+$currentReplicaSet = $replicaSets.items | Where-Object { $_.metadata.ownerReferences.uid -contains $deploymentUid -and $_.spec.replicas -gt 0 } | Sort-Object { [int]$_.metadata.annotations.'deployment.kubernetes.io/revision' } -Descending | Select-Object -First 1
+$currentPodHash = $currentReplicaSet.metadata.labels.'pod-template-hash'
+$communityPod = kubectl -n fitzza get pods -l "app.kubernetes.io/name=community-service,pod-template-hash=$currentPodHash" -o jsonpath='{.items[0].metadata.name}'
+kubectl -n fitzza exec $communityPod -- sh -c 'if [ -n "$TYPESAFE_API_KEY" ]; then echo PRESENT_NONEMPTY; else echo ABSENT_OR_EMPTY; fi'
+```
+
+To disable Jev classification without deploying code, remove the operator-owned Secret
+and restart `community-service`. Deleting the Secret is destructive; retain the source
+value in the approved secret store if rollback may be required.
 
 ## Distributed tracing (FITZZA-303)
 
