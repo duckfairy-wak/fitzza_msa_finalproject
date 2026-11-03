@@ -338,8 +338,11 @@ class OutfitHarmonizer:
                 str(season) for season in seasons
             ) or "정보없음"
 
+            price_val = item.get("price")
+            price_text = f"{int(price_val):,}원" if price_val is not None and isinstance(price_val, (int, float)) else "가격 정보 없음"
+
             items_desc_parts.append(
-                f"- 상품 {index}: [{category} - {subcategory}] {brand_name} {product_name}\n"
+                f"- 상품 {index}: [{category} - {subcategory}] {brand_name} {product_name} (가격: {price_text})\n"
                 f"  색상 메타데이터: {color_text}\n"
                 f"  계절 정보: {season_text}"
             )
