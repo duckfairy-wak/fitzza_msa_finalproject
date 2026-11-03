@@ -29,28 +29,49 @@ def inspect_single_object(s3, bucket, key):
         resp = s3.get_object(Bucket=bucket, Key=key)
         body = resp["Body"].read().decode("utf-8")
         data = json.loads(body)
-        
+
         top_keys = tuple(sorted(data.keys()))
-        has_product_id = bool(data.get("product_id"))
-        has_name = bool(data.get("name"))
-        has_price = bool(data.get("price"))
-        
-        cat = data.get("category") or {}
-        cat_depth1 = cat.get("categoryDepth1Title") or cat.get("categoryDepth1Name") or "NONE"
-        cat_depth2 = cat.get("categoryDepth2Title") or cat.get("categoryDepth2Name") or "NONE"
-        
+        has_product_id = data.get("product_id") is not None
+        has_name = bool(str(data.get("name") or "").strip())
+
+        brand = data.get("brand") if isinstance(data.get("brand"), dict) else {}
+        brand_valid = bool(str(brand.get("name") or "").strip())
+
+        cat = data.get("category") if isinstance(data.get("category"), dict) else {}
+        cat_depth1_code_valid = bool(str(cat.get("categoryDepth1Code") or "").strip())
+        cat_depth1_name_valid = bool(str(cat.get("categoryDepth1Name") or "").strip())
+        cat_depth1 = (
+            cat.get("categoryDepth1Name")
+            or cat.get("categoryDepth1Title")
+            or "NONE"
+        )
+        cat_depth2 = (
+            cat.get("categoryDepth2Name")
+            or cat.get("categoryDepth2Title")
+            or "NONE"
+        )
+
         price_obj = data.get("price")
-        price_valid = isinstance(price_obj, dict) and "current" in price_obj
-        
+        has_price = isinstance(price_obj, dict)
+        sale_val = price_obj.get("sale") if isinstance(price_obj, dict) else None
+        price_valid = (
+            isinstance(sale_val, (int, float))
+            and not isinstance(sale_val, bool)
+            and sale_val > 0
+        )
+
         size_obj = data.get("size")
         size_valid = size_obj is not None
-        
+
         return {
             "status": "OK",
             "key": key,
             "top_keys": top_keys,
             "has_product_id": has_product_id,
             "has_name": has_name,
+            "brand_valid": brand_valid,
+            "cat_depth1_code_valid": cat_depth1_code_valid,
+            "cat_depth1_name_valid": cat_depth1_name_valid,
             "has_price": has_price,
             "price_valid": price_valid,
             "cat_depth1": cat_depth1,
@@ -91,7 +112,7 @@ def main():
         return
 
     print(f"\n[2] {total_files:,}개 파일 고속 병렬 다운로드 & 스키마 검증 중 (MaxWorkers=50)...", flush=True)
-    
+
     results = []
     schema_patterns = Counter()
     cat_depth1_dist = Counter()
@@ -109,7 +130,7 @@ def main():
             done_count += 1
             if done_count % 300 == 0 or done_count == total_files:
                 print(f"   - 진행도: {done_count:,} / {total_files:,} ({done_count/total_files*100:.1f}%)", flush=True)
-            
+
             res = future.result()
             results.append(res)
             if res["status"] == "ERROR":
@@ -122,10 +143,16 @@ def main():
                     missing_fields["product_id"] += 1
                 if not res["has_name"]:
                     missing_fields["name"] += 1
+                if not res["brand_valid"]:
+                    missing_fields["brand.name"] += 1
+                if not res["cat_depth1_code_valid"]:
+                    missing_fields["category.categoryDepth1Code"] += 1
+                if not res["cat_depth1_name_valid"]:
+                    missing_fields["category.categoryDepth1Name"] += 1
                 if not res["has_price"]:
                     missing_fields["price"] += 1
                 if not res["price_valid"]:
-                    missing_fields["price.current"] += 1
+                    missing_fields["price.sale (> 0)"] += 1
 
     elapsed = time.perf_counter() - start_time
 
@@ -162,7 +189,7 @@ def main():
 
     print(f"\n⚠️ [필수 필드 결측치(Missing) 현황]", flush=True)
     if not missing_fields:
-        print("   ✅ 모든 파일에서 product_id, name, price, price.current 등 핵심 필드 결측 0건 (완벽!)", flush=True)
+        print("   ✅ 모든 파일에서 product_id, name, brand.name, categoryDepth1Code/Name, price.sale(>0) 등 핵심 필드 결측 0건 (완벽!)", flush=True)
     else:
         for f, cnt in missing_fields.items():
             print(f"   - {f}: {cnt:,}건 누락", flush=True)

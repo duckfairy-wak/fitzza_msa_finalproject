@@ -87,12 +87,23 @@ def is_general_fit(fit: Optional[str]) -> bool:
 
 
 class SizeProfileResolver:
-    def __init__(self, data_path: Optional[str] = None):
+    def __init__(self, data_path: Optional[str] = None, enable_mock_data: Optional[bool] = None):
+        explicit_data_path = data_path is not None
         if data_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
             data_path = os.path.abspath(os.path.join(base_dir, "../../data/mock_size_data.json"))
 
+        if enable_mock_data is None:
+            from app.core.config import get_settings
+
+            enable_mock_data = bool(
+                explicit_data_path
+                or get_settings().enable_dev_mock_size_data
+                or os.environ.get("PYTEST_CURRENT_TEST")
+            )
+
         self.data_path = data_path
+        self.enable_mock_data = enable_mock_data
         self._load_mock_data()
         self.last_resolve_latency: float = 0.0
         self.last_calc_latency: float = 0.0
@@ -101,10 +112,19 @@ class SizeProfileResolver:
     def reset_latencies(self) -> None:
         self.last_resolve_latency = 0.0
         self.last_calc_latency = 0.0
-        self.last_total_latency = 0.0
+        self.last_total_latency: float = 0.0
 
     def _load_mock_data(self):
-        """테스트용 Mock JSON 데이터를 메모리에 로드한다."""
+        """로컬/개발/테스트 전용 Mock JSON 데이터를 메모리에 로드한다 (운영 환경에서는 비활성화)."""
+        if not self.enable_mock_data:
+            self.mock_db = {
+                "users": [],
+                "user_preferences": [],
+                "orders_and_surveys": [],
+                "other_users_fits": []
+            }
+            return
+
         if os.path.exists(self.data_path):
             with open(self.data_path, "r", encoding="utf-8") as f:
                 self.mock_db = json.load(f)
@@ -195,16 +215,19 @@ class SizeProfileResolver:
         has_specific_fit = bool(target_fit and not is_general_fit(fit_type))
 
         # 사용자 신체 프로필 파싱 (키, 몸무게, 발사이즈)
+        # 의류는 키/몸무게(t_height, t_weight)를 사용하고, 신발은 발사이즈(shoe_size)를 독립적으로 사용하므로
+        # 키/몸무게가 없다고 해서 전달된 프로필(shoe_size 포함)을 버리지 않는다.
         target_user = None
         if user_body is not None and isinstance(user_body, dict):
             target_user = parse_user_body(user_body)
-            if target_user and target_user.get("height") is None and target_user.get("weight") is None:
-                target_user = None
+        stored_user = next(
+            (u for u in self.mock_db.get("users", []) if str(u.get("user_id")) == str(user_id)),
+            None
+        )
         if target_user is None:
-            target_user = next(
-                (u for u in self.mock_db.get("users", []) if str(u.get("user_id")) == str(user_id)),
-                None
-            )
+            target_user = stored_user
+        elif stored_user and target_user.get("height") is None and target_user.get("weight") is None:
+            target_user = {**stored_user, **target_user}
 
         t_height: Optional[float] = None
         t_weight: Optional[float] = None
@@ -381,6 +404,7 @@ class SizeProfileResolver:
                         p for p in prefs
                         if str(p.get("user_id")) == str(user_id)
                         and p.get("subcategory") == subcategory
+                        and is_general_fit(p.get("fit_type"))
                     ),
                     None
                 )
@@ -596,6 +620,7 @@ def sync_user_size_preference(
                     for p in prefs
                     if str(p.get("user_id")) == str(user_id)
                     and p.get("subcategory") == subcategory
+                    and is_general_fit(p.get("fit_type"))
                 ),
                 None,
             )

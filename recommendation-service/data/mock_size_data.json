@@ -117,7 +117,7 @@
     {
       "preference_id": 8,
       "user_id": "1",
-      "subcategory": "코트",
+      "subcategory": "겨울 싱글 코트",
       "fit_type": "레귤러",
       "preference_spec": {
         "총장": 108.0,
@@ -130,7 +130,7 @@
     {
       "preference_id": 9,
       "user_id": "1",
-      "subcategory": "코트",
+      "subcategory": "겨울 싱글 코트",
       "fit_type": "오버사이즈",
       "preference_spec": {
         "총장": 115.0,
@@ -182,7 +182,7 @@
     {
       "preference_id": 13,
       "user_id": "1",
-      "subcategory": "맨투맨/스웨트셔츠",
+      "subcategory": "맨투맨/스웨트",
       "fit_type": "레귤러",
       "preference_spec": {
         "총장": 71.0,
@@ -195,7 +195,7 @@
     {
       "preference_id": 14,
       "user_id": "1",
-      "subcategory": "맨투맨/스웨트셔츠",
+      "subcategory": "맨투맨/스웨트",
       "fit_type": "오버사이즈",
       "preference_spec": {
         "총장": 75.0,
@@ -432,7 +432,7 @@
     {
       "preference_id": 31,
       "user_id": "1",
-      "subcategory": "로퍼",
+      "subcategory": "구두",
       "fit_type": "레귤러",
       "preference_spec": {
         "발길이": 270.0,
@@ -445,19 +445,6 @@
     {
       "preference_id": 32,
       "user_id": "1",
-      "subcategory": "구두",
-      "fit_type": "레귤러",
-      "preference_spec": {
-        "발길이": 270.0,
-        "발볼": 10.0,
-        "굽높이": 3.5,
-        "shoe_size": 270.0
-      },
-      "sample_count": 2
-    },
-    {
-      "preference_id": 33,
-      "user_id": "1",
       "subcategory": "스니커즈",
       "fit_type": "레귤러",
       "preference_spec": {
@@ -469,9 +456,9 @@
       "sample_count": 8
     },
     {
-      "preference_id": 34,
+      "preference_id": 33,
       "user_id": "1",
-      "subcategory": "더비/옥스퍼드",
+      "subcategory": "부츠/워커",
       "fit_type": "레귤러",
       "preference_spec": {
         "발길이": 270.0,
@@ -482,7 +469,7 @@
       "sample_count": 2
     },
     {
-      "preference_id": 35,
+      "preference_id": 34,
       "user_id": "1",
       "subcategory": "캡/야구모자",
       "fit_type": "레귤러",
@@ -494,7 +481,7 @@
       "sample_count": 4
     },
     {
-      "preference_id": 36,
+      "preference_id": 35,
       "user_id": "1",
       "subcategory": "버킷/사파리햇",
       "fit_type": "레귤러",
@@ -547,7 +534,7 @@
     {
       "order_id": "order_mock_004",
       "user_id": "1",
-      "subcategory": "로퍼",
+      "subcategory": "구두",
       "fit_type": "레귤러",
       "measurement_spec": {
         "발길이": 270.0,
@@ -675,7 +662,7 @@
       "fit_id": "fit_other_009",
       "height": 178.0,
       "weight": 72.0,
-      "subcategory": "로퍼",
+      "subcategory": "구두",
       "fit_type": "레귤러",
       "fit_feedback": "FIT",
       "measurement_spec": {

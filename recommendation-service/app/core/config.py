@@ -109,6 +109,9 @@ class Settings:
     enable_dev_mock_history: bool = field(
         default_factory=lambda: os.getenv("ENABLE_DEV_MOCK_HISTORY", "false").strip().lower() in ("true", "1", "yes")
     )
+    enable_dev_mock_size_data: bool = field(
+        default_factory=lambda: os.getenv("ENABLE_DEV_MOCK_SIZE_DATA", "false").strip().lower() in ("true", "1", "yes")
+    )
     enable_lifespan_warmup: bool = field(
         default_factory=lambda: os.getenv("ENABLE_LIFESPAN_WARMUP", "true").strip().lower() in ("true", "1", "yes")
     )

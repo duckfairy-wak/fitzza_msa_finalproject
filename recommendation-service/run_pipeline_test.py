@@ -113,18 +113,18 @@ def main():
     # 2. User-Service 클라이언트 및 신체 정보 연동 확인
     print("\n[1단계] User-Service (Spring Boot, 포트 8081) 연동 확인 중...")
     user_client = UserServiceClient()
-    user_body = None
-    try:
-        user_body = user_client.get_user_body(DEFAULT_USER_ID)
+    user_body = user_client.get_user_body(DEFAULT_USER_ID) or None
+    if user_body:
         print(f"✅ User-Service 통신 성공! [user_id={DEFAULT_USER_ID}] 신체 프로필 로드 완료:")
         print(f"   - 키: {user_body.get('height')}cm, 몸무게: {user_body.get('weight')}kg, 발: {user_body.get('shoeSize')}mm")
         print(f"   - 선호 핏: {user_body.get('preferredFit')}, 선호 스타일: {user_body.get('preferredStyles')}")
-    except Exception as e:
-        print(f"⚠️ User-Service 연동 실패 (기본 Mock 모드로 대체 진행): {e}")
+    else:
+        print("⚠️ User-Service 신체 정보를 가져오지 못했습니다. 신체 정보 없이 진행합니다.")
 
     # 3. 코디네이터 초기화
     print("\n[2단계] 파이프라인 코디네이터 로드 중 (CLIP 모델 & Qdrant 연결)...")
     try:
+        os.environ.setdefault("ENABLE_DEV_MOCK_SIZE_DATA", "true")
         coordinator = FashionPipelineCoordinator()
         print("✅ 코디네이터 준비 완료!")
         print(f"   - QueryParser 모델     : {coordinator.parser.model_name}")
@@ -243,6 +243,8 @@ def main():
             import traceback
             traceback.print_exc()
             print("\n" + "=" * 80 + "\n")
+            if once_mode:
+                break
 
 
 if __name__ == "__main__":

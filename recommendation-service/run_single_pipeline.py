@@ -15,28 +15,28 @@ from app.services.coordinator import FashionPipelineCoordinator
 import app.services.harmonizer as harmonizer_module
 from run_pipeline_test import print_latency_report
 
-TEST_QUERY = (
-    sys.argv[1]
-    if len(sys.argv) > 1
-    else "주말 데이트용 미니멀 캐주얼룩 추천해줘. 가디건이나 자켓, 티셔츠, 와이드 팬츠, 스니커즈 조합으로 25만원 이하로 부탁해."
+DEFAULT_TEST_QUERY = (
+    "주말 데이트용 미니멀 캐주얼룩 추천해줘. 가디건이나 자켓, 티셔츠, 와이드 팬츠, 스니커즈 조합으로 25만원 이하로 부탁해."
 )
 USER_ID = 1
 
+
 def main():
+    test_query = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TEST_QUERY
     print("=" * 80)
     print("✨ [실시간 파이프라인 정밀 테스트 - 추출 내용 상세 출력]")
     print("=" * 80)
 
     # 1. User-Service 신체 데이터
     user_client = UserServiceClient()
-    try:
-        user_body = user_client.get_user_body(USER_ID)
+    user_body = user_client.get_user_body(USER_ID) or None
+    if user_body:
         print(f"✅ User-Service 신체 데이터 로드 성공: 키 {user_body.get('height')}cm, 몸무게 {user_body.get('weight')}kg, 발 {user_body.get('shoeSize')}mm")
-    except Exception as e:
-        print(f"⚠️ User-Service 연동 실패: {e}")
-        user_body = None
+    else:
+        print("⚠️ User-Service 신체 정보를 가져오지 못했습니다. 신체 정보 없이 진행합니다.")
 
     # 2. 코디네이터 초기화
+    os.environ.setdefault("ENABLE_DEV_MOCK_SIZE_DATA", "true")
     coordinator = FashionPipelineCoordinator()
     print("✅ 코디네이터 초기화 완료!")
     print(f"   - QueryParser 모델      : {coordinator.parser.model_name}")
@@ -44,12 +44,12 @@ def main():
     print(f"   - ResponseGenerator 모델: {coordinator.responder.model_name}")
 
     print("\n" + "#" * 80)
-    print(f"📌 [테스트 질의]: \"{TEST_QUERY}\"")
+    print(f"📌 [테스트 질의]: \"{test_query}\"")
     print("#" * 80)
 
     # 3. 파이프라인 구동
     result = coordinator.run(
-        user_query=TEST_QUERY,
+        user_query=test_query,
         user_id=str(USER_ID),
         user_body=user_body,
     )

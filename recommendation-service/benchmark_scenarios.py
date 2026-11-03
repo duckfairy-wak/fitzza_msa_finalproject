@@ -73,15 +73,15 @@ def run_benchmark():
     # 1. User-Service HTTP 통신으로 신체 정보 로드
     print("\n[Step 1] User-Service (http://localhost:8081/users/1/body) 신체 데이터 연동...")
     user_client = UserServiceClient()
-    try:
-        user_body = user_client.get_user_body(USER_ID)
+    user_body = user_client.get_user_body(USER_ID) or None
+    if user_body:
         print(f"✅ 유저 신체 정보 로드 성공: 키 {user_body.get('height')}cm, 몸무게 {user_body.get('weight')}kg, 발 {user_body.get('shoeSize')}mm")
-    except Exception as e:
-        print(f"⚠️ User-Service 연동 실패: {e}")
-        user_body = None
+    else:
+        print("⚠️ User-Service 신체 정보를 가져오지 못했습니다. 신체 정보 없이 진행합니다.")
 
     # 2. 파이프라인 코디네이터 초기화
     print("\n[Step 2] FashionPipelineCoordinator 초기화 (CLIP 모델 / Qdrant 준비)...")
+    os.environ.setdefault("ENABLE_DEV_MOCK_SIZE_DATA", "true")
     coordinator = FashionPipelineCoordinator()
     print("✅ 준비 완료!")
 
