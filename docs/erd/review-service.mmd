@@ -1,0 +1,98 @@
+erDiagram
+    %% Central service: review-service
+    %% Source: ../entity-relationship-diagram.mmd
+    %% Original columns, cardinalities and line styles preserved.
+    %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
+    %% Edge labels name the referencing column in the child table.
+    %% Cross-service edges are logical references, not cross-schema FK or direct access.
+    %% Owned tables: reviews, size_surveys
+    %% External table: order_item (order-service)
+    %% External table: product (product-service)
+    %% External table: product_option (product-service)
+    %% External table: users (user-service)
+    %% reviews.order_item_id is UK, but the original 1:N edge is preserved.
+
+    %% Internal and directly connected external relationships
+    users ||..o{ reviews : "user_id"
+    product ||..o{ reviews : "product_id"
+    order_item ||..o{ reviews : "order_item_id"
+    users ||..o{ size_surveys : "user_id"
+    product_option ||..o{ size_surveys : "option_id"
+    order_item ||..o{ size_surveys : "order_item_id"
+
+    reviews {
+        bigint review_id PK
+        bigint user_id
+        bigint product_id
+        bigint order_item_id UK
+        int rating
+        text content
+        varchar image_url
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id
+        bigint option_id
+        bigint order_item_id
+        varchar size_feedback
+        datetime created_at
+    }
+
+    order_item {
+        bigint order_item_id PK
+        bigint order_id FK
+        bigint option_id
+        int order_qty
+        int unit_price
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    product_option {
+        bigint option_id PK
+        bigint product_id FK
+        bigint source_option_id UK
+        varchar managed_code
+        varchar color
+        varchar size
+        int additional_price
+        varchar image_url
+    }
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }

@@ -1,0 +1,395 @@
+erDiagram
+%% ===== user (구현) + preferences (미구현) =====
+    users ||--o| user_body : ""
+    users ||--o{ user_preferences : "미구현"
+
+    users {
+        bigint user_id PK
+        varchar email UK
+        varchar password
+        varchar nickname UK
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    user_body {
+        bigint user_id PK
+        float height
+        float weight
+        char gender
+        varchar preferred_styles
+        varchar preferred_fit
+        int shoe_size
+        datetime updated_at
+    }
+
+    user_preferences {
+        int preference_id PK
+        int user_id FK
+        varchar subcategory
+        varchar fit_type
+        json preference_spec
+        int sample_count
+        datetime created_at
+        datetime updated_at
+    }
+
+%% ===== product (구현) =====
+    brand ||--o{ product : ""
+    product ||--o{ product_option : ""
+    product ||--o{ product_image : ""
+    product ||--o| product_size_guide : ""
+    product_option ||--o| option_measurement : ""
+    product ||--o{ worldcup_history : ""
+    users ||..o{ wishlist : ""
+    users ||..o{ worldcup_history : ""
+
+    brand {
+        bigint brand_id PK
+        varchar brand_name UK
+        varchar brand_name_en
+        varchar brand_code UK
+    }
+
+    category {
+        varchar category_code PK
+        varchar category_name
+        varchar parent_code
+        int depth
+    }
+
+    product {
+        bigint product_id PK "무신사 상품번호 (자동 번호 아님)"
+        bigint brand_id FK
+        varchar source
+        varchar source_url
+        varchar product_name
+        varchar product_name_en
+        varchar style_no
+        varchar gender
+        varchar category_1
+        varchar category_2
+        varchar subcategory
+        int price
+        int normal_price
+        int discount_rate
+        varchar material
+        varchar season
+        varchar fit_type
+        json features
+        text description
+        varchar image_url
+        varchar status
+        datetime created_at
+        datetime updated_at
+    }
+
+    product_option {
+        bigint option_id PK
+        bigint product_id FK
+        bigint source_option_id UK
+        varchar managed_code
+        varchar color
+        varchar size
+        int additional_price
+        varchar image_url
+    }
+
+    option_measurement {
+        bigint option_id PK, FK
+        varchar size_label
+        int sequence
+        json measurement_spec
+    }
+
+    product_image {
+        bigint image_id PK
+        bigint product_id FK
+        varchar image_url
+        int sequence
+    }
+
+    product_size_guide {
+        bigint product_id PK, FK
+        varchar type_name
+        varchar unit
+        varchar description
+        varchar guide_image_url
+    }
+
+    wishlist {
+        bigint wishlist_id PK
+        bigint user_id
+        varchar item_id
+        varchar item_type
+        datetime created_at
+    }
+
+    worldcup_history {
+        bigint worldcup_history_id PK
+        bigint user_id
+        bigint winner_product_id FK
+        datetime completed_at
+    }
+
+%% ===== order / cart (구현) =====
+    users ||..o{ orders : ""
+    users ||..o{ cart : ""
+    orders ||--|{ order_item : ""
+    product_option ||..o{ order_item : ""
+    product_option ||..o{ cart : ""
+
+    orders {
+        bigint order_id PK
+        varchar order_num UK
+        bigint user_id
+        bigint total_price
+        varchar order_status
+        varchar recipient_name
+        varchar recipient_phone
+        varchar shipping_address
+        datetime created_at
+        datetime updated_at
+    }
+
+    order_item {
+        bigint order_item_id PK
+        bigint order_id FK
+        bigint option_id
+        int order_qty
+        int unit_price
+    }
+
+    cart {
+        bigint cart_id PK
+        bigint user_id
+        bigint option_id
+        int quantity
+        datetime created_at
+        datetime updated_at
+    }
+
+%% ===== review / survey (구현) =====
+    users ||..o{ reviews : ""
+    product ||..o{ reviews : ""
+    order_item ||..o{ reviews : ""
+    users ||..o{ size_surveys : ""
+    product_option ||..o{ size_surveys : ""
+    order_item ||..o{ size_surveys : ""
+
+    reviews {
+        bigint review_id PK
+        bigint user_id
+        bigint product_id
+        bigint order_item_id UK
+        int rating
+        text content
+        varchar image_url
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id
+        bigint option_id
+        bigint order_item_id
+        varchar size_feedback
+        datetime created_at
+    }
+
+%% ===== recommendation (미구현) =====
+    recommendation_request ||--o{ recommendation_slot : ""
+    recommendation_request ||--o{ outfit_combo : ""
+    recommendation_request ||--o{ recommendation_message : ""
+    recommendation_slot ||--o{ slot_candidate : ""
+    outfit_combo ||--o{ combo_candidate : ""
+    slot_candidate ||--o{ combo_candidate : ""
+    users ||..o{ recommendation_request : ""
+    product ||..o{ slot_candidate : ""
+
+    recommendation_request {
+        varchar request_id PK
+        int user_id
+        varchar guest_id
+        text query_text
+        varchar tpo_summary
+        varchar search_type
+        varchar season
+        int total_max_price
+        datetime created_at
+        varchar status
+    }
+
+    recommendation_slot {
+        varchar slot_id PK
+        varchar request_id FK
+        varchar category
+        text clip_query_en
+        varchar color
+        int max_price
+        varchar fit_type
+    }
+
+    slot_candidate {
+        varchar candidate_id PK
+        varchar slot_id FK
+        int product_id
+        float vec_score
+        varchar reco_size
+        float fit_score
+        int rank_no
+    }
+
+    outfit_combo {
+        varchar combo_id PK
+        varchar request_id FK
+        int total_price
+        boolean pass_status
+        float harmony_score
+        text feedback_summary
+        boolean budget_exceeded
+    }
+
+    recommendation_message {
+        varchar message_id PK
+        varchar request_id FK
+        varchar sender_type
+        text content
+        datetime created_at
+    }
+
+    combo_candidate {
+        varchar combo_id PK, FK
+        varchar candidate_id PK, FK
+    }
+
+%% ===== notification (로그=구현, 채널=미사용) =====
+    users ||..o{ notification_logs : ""
+    users ||..o{ notification_channel : "미사용"
+
+    notification_channel {
+        varchar channel_id PK
+        int user_id
+        varchar channel_type
+        boolean enabled
+        varchar push_token UK
+        datetime updated_at
+    }
+
+    notification_logs {
+        varchar log_id PK
+        bigint user_id
+        varchar type
+        text content
+        varchar target_id
+        varchar event_id UK
+        boolean is_read
+        datetime created_at
+    }
+
+%% ===== community (구현) =====
+    users ||..o{ posts : ""
+    posts ||--o{ post_shared_items : ""
+    posts ||--o{ comments : ""
+    posts ||--o{ post_likes : ""
+    posts ||--o{ vote_options : ""
+    posts ||--o{ votes : ""
+    comments ||--o{ comment_likes : ""
+
+    posts {
+        bigint post_id PK
+        bigint user_id
+        varchar post_type
+        varchar category
+        varchar title
+        text content
+        varchar image_url
+        bigint view_count
+        varchar shared_type
+        bigint shared_id
+        bigint shared_product_id
+        varchar shared_brand_name
+        varchar shared_product_name
+        int shared_price
+        varchar shared_image_url
+        text shared_summary
+        datetime vote_end_at
+        boolean vote_closed
+        boolean vote_close_notification_pending
+        datetime vote_close_notify_failed_at
+        datetime deleted_at
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    post_shared_items {
+        bigint post_id FK
+        int item_order
+        bigint product_id
+        varchar product_name
+        int price
+        varchar image_url
+    }
+
+    comments {
+        bigint comment_id PK
+        bigint post_id
+        bigint user_id
+        text content
+        bigint parent_comment_id
+        boolean is_deleted
+        bigint version
+        datetime created_at
+        datetime updated_at
+    }
+
+    post_likes {
+        bigint post_id PK
+        bigint user_id PK
+        datetime created_at
+    }
+
+    comment_likes {
+        bigint comment_id PK
+        bigint user_id PK
+        datetime created_at
+    }
+
+    vote_options {
+        bigint vote_option_id PK
+        bigint post_id
+        varchar item_id
+        varchar item_type
+        varchar source
+        varchar image_url
+        varchar snapshot_name
+        int snapshot_price
+        int display_order
+    }
+
+    votes {
+        varchar vote_id PK
+        bigint post_id
+        bigint user_id
+        bigint vote_option_id
+        datetime created_at
+    }
+
+%% ===== fitting (미구현) =====
+    users ||..o{ fitting_job : ""
+    outfit_combo ||..o{ fitting_job : ""
+
+    fitting_job {
+        int fitting_id PK
+        int user_id
+        varchar combo_id
+        varchar result_image_url
+        varchar job_status
+        text error_message
+        datetime created_at
+        datetime completed_at
+    }
