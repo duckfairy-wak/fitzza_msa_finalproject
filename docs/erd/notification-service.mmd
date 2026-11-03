@@ -5,20 +5,16 @@ erDiagram
     %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
     %% Edge labels name the referencing column in the child table.
     %% Cross-service edges are logical references, not cross-schema FK or direct access.
-    %% Owned tables: notification_channel, notification_logs
+    %% Owned tables: device_tokens, notification_logs
     %% External table: users (user-service)
-    %% notification_channel is marked unused in the original ERD.
 
     %% Internal and directly connected external relationships
     users ||..o{ notification_logs : "user_id"
-    users ||..o{ notification_channel : "user_id (미사용)"
+    users ||..o{ device_tokens : "user_id"
 
-    notification_channel {
-        varchar channel_id PK
-        int user_id
-        varchar channel_type
-        boolean enabled
-        varchar push_token UK
+    device_tokens {
+        varchar token PK
+        bigint user_id
         datetime updated_at
     }
 
@@ -39,6 +35,7 @@ erDiagram
         varchar password
         varchar nickname UK
         varchar status
+        varchar role
         datetime created_at
         datetime updated_at
     }

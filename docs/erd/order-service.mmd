@@ -10,7 +10,6 @@ erDiagram
     %% External table: reviews (review-service)
     %% External table: size_surveys (review-service)
     %% External table: users (user-service)
-    %% reviews.order_item_id is UK, but the original 1:N edge is preserved.
 
     %% Internal and directly connected external relationships
     orders ||--|{ order_item : "order_id"
@@ -18,7 +17,7 @@ erDiagram
     users ||..o{ cart : "user_id"
     product_option ||..o{ order_item : "option_id"
     product_option ||..o{ cart : "option_id"
-    order_item ||..o{ reviews : "order_item_id"
+    order_item |o..o| reviews : "order_item_id"
     order_item ||..o{ size_surveys : "order_item_id"
 
     orders {
@@ -44,8 +43,8 @@ erDiagram
 
     cart {
         bigint cart_id PK
-        bigint user_id
-        bigint option_id
+        bigint user_id UK
+        bigint option_id UK
         int quantity
         datetime created_at
         datetime updated_at
@@ -64,6 +63,8 @@ erDiagram
 
     reviews {
         bigint review_id PK
+        varchar source UK
+        bigint source_review_id UK
         bigint user_id
         bigint product_id
         bigint order_item_id UK
@@ -77,10 +78,13 @@ erDiagram
 
     size_surveys {
         bigint survey_id PK
-        bigint user_id
+        bigint user_id UK
+        bigint product_id
         bigint option_id
-        bigint order_item_id
+        bigint order_item_id UK
         varchar size_feedback
+        datetime feedback_sent_at
+        datetime feedback_claimed_at
         datetime created_at
     }
 
@@ -90,6 +94,7 @@ erDiagram
         varchar password
         varchar nickname UK
         varchar status
+        varchar role
         datetime created_at
         datetime updated_at
     }

@@ -1,7 +1,6 @@
 erDiagram
-%% ===== user (구현) + preferences (미구현) =====
-    users ||--o| user_body : ""
-    users ||--o{ user_preferences : "미구현"
+%% ===== user (구현) =====
+    users ||..o| user_body : ""
 
     users {
         bigint user_id PK
@@ -9,6 +8,7 @@ erDiagram
         varchar password
         varchar nickname UK
         varchar status
+        varchar role
         datetime created_at
         datetime updated_at
     }
@@ -24,17 +24,6 @@ erDiagram
         datetime updated_at
     }
 
-    user_preferences {
-        int preference_id PK
-        int user_id FK
-        varchar subcategory
-        varchar fit_type
-        json preference_spec
-        int sample_count
-        datetime created_at
-        datetime updated_at
-    }
-
 %% ===== product (구현) =====
     brand ||--o{ product : ""
     product ||--o{ product_option : ""
@@ -42,6 +31,7 @@ erDiagram
     product ||--o| product_size_guide : ""
     product_option ||--o| option_measurement : ""
     product ||--o{ worldcup_history : ""
+    category |o..o{ category : ""
     users ||..o{ wishlist : ""
     users ||..o{ worldcup_history : ""
 
@@ -78,6 +68,7 @@ erDiagram
         varchar season
         varchar fit_type
         json features
+        json color_image_mappings
         text description
         varchar image_url
         varchar status
@@ -105,9 +96,9 @@ erDiagram
 
     product_image {
         bigint image_id PK
-        bigint product_id FK
+        bigint product_id FK, UK
         varchar image_url
-        int sequence
+        int sequence UK
     }
 
     product_size_guide {
@@ -120,9 +111,9 @@ erDiagram
 
     wishlist {
         bigint wishlist_id PK
-        bigint user_id
-        varchar item_id
-        varchar item_type
+        bigint user_id UK
+        varchar item_id UK
+        varchar item_type UK
         datetime created_at
     }
 
@@ -163,23 +154,26 @@ erDiagram
 
     cart {
         bigint cart_id PK
-        bigint user_id
-        bigint option_id
+        bigint user_id UK
+        bigint option_id UK
         int quantity
         datetime created_at
         datetime updated_at
     }
 
 %% ===== review / survey (구현) =====
-    users ||..o{ reviews : ""
+    users |o..o{ reviews : ""
     product ||..o{ reviews : ""
-    order_item ||..o{ reviews : ""
+    order_item |o..o| reviews : ""
     users ||..o{ size_surveys : ""
+    product |o..o{ size_surveys : ""
     product_option ||..o{ size_surveys : ""
     order_item ||..o{ size_surveys : ""
 
     reviews {
         bigint review_id PK
+        varchar source UK
+        bigint source_review_id UK
         bigint user_id
         bigint product_id
         bigint order_item_id UK
@@ -193,89 +187,78 @@ erDiagram
 
     size_surveys {
         bigint survey_id PK
-        bigint user_id
+        bigint user_id UK
+        bigint product_id
         bigint option_id
-        bigint order_item_id
+        bigint order_item_id UK
+        varchar size_feedback
+        datetime feedback_sent_at
+        datetime feedback_claimed_at
+        datetime created_at
+    }
+
+%% ===== recommendation (구현) =====
+    users ||..o{ recommendation_requests : ""
+    users ||..o{ recommendation_combos : ""
+    recommendation_requests ||--o{ recommendation_combos : ""
+    users ||..o{ user_size_preferences : ""
+    users ||..o{ size_feedback_logs : ""
+    product ||..o{ size_feedback_logs : ""
+    product_option ||..o{ size_feedback_logs : ""
+
+    recommendation_requests {
+        bigint request_id PK
+        bigint user_id
+        text query_text
+        varchar status
+        varchar search_type
+        text tpo_summary
+        text items_json
+        text message
+        int prompt_tokens
+        int completion_tokens
+        datetime created_at
+    }
+
+    recommendation_combos {
+        bigint combo_id PK
+        bigint request_id FK
+        bigint user_id
+        int rank_order
+        int total_price
+        varchar pass_status
+        float harmony_score
+        text feedback_summary
+        int budget_exceeded
+        text items_json
+        datetime created_at
+    }
+
+    user_size_preferences {
+        bigint user_id PK
+        varchar subcategory PK
+        varchar fit_type
+        text preference_spec_json
+        int sample_count
+        datetime updated_at
+    }
+
+    size_feedback_logs {
+        bigint feedback_id PK
+        bigint user_id
+        bigint product_id
+        bigint option_id
         varchar size_feedback
         datetime created_at
     }
 
-%% ===== recommendation (미구현) =====
-    recommendation_request ||--o{ recommendation_slot : ""
-    recommendation_request ||--o{ outfit_combo : ""
-    recommendation_request ||--o{ recommendation_message : ""
-    recommendation_slot ||--o{ slot_candidate : ""
-    outfit_combo ||--o{ combo_candidate : ""
-    slot_candidate ||--o{ combo_candidate : ""
-    users ||..o{ recommendation_request : ""
-    product ||..o{ slot_candidate : ""
-
-    recommendation_request {
-        varchar request_id PK
-        int user_id
-        varchar guest_id
-        text query_text
-        varchar tpo_summary
-        varchar search_type
-        varchar season
-        int total_max_price
-        datetime created_at
-        varchar status
-    }
-
-    recommendation_slot {
-        varchar slot_id PK
-        varchar request_id FK
-        varchar category
-        text clip_query_en
-        varchar color
-        int max_price
-        varchar fit_type
-    }
-
-    slot_candidate {
-        varchar candidate_id PK
-        varchar slot_id FK
-        int product_id
-        float vec_score
-        varchar reco_size
-        float fit_score
-        int rank_no
-    }
-
-    outfit_combo {
-        varchar combo_id PK
-        varchar request_id FK
-        int total_price
-        boolean pass_status
-        float harmony_score
-        text feedback_summary
-        boolean budget_exceeded
-    }
-
-    recommendation_message {
-        varchar message_id PK
-        varchar request_id FK
-        varchar sender_type
-        text content
-        datetime created_at
-    }
-
-    combo_candidate {
-        varchar combo_id PK, FK
-        varchar candidate_id PK, FK
-    }
-
-%% ===== notification (로그=구현, 채널=미사용) =====
+%% ===== notification (구현) =====
     users ||..o{ notification_logs : ""
-    users ||..o{ notification_channel : "미사용"
+    users ||..o{ device_tokens : ""
 
-    notification_channel {
-        varchar channel_id PK
-        int user_id
-        varchar channel_type
-        boolean enabled
-        varchar push_token UK
+    device_tokens {
+        varchar token PK
+        bigint user_id
         datetime updated_at
     }
 
@@ -293,11 +276,13 @@ erDiagram
 %% ===== community (구현) =====
     users ||..o{ posts : ""
     posts ||--o{ post_shared_items : ""
-    posts ||--o{ comments : ""
-    posts ||--o{ post_likes : ""
-    posts ||--o{ vote_options : ""
-    posts ||--o{ votes : ""
-    comments ||--o{ comment_likes : ""
+    posts ||..o{ comments : ""
+    comments |o..o{ comments : ""
+    posts ||..o{ post_likes : ""
+    posts ||..o{ vote_options : ""
+    posts ||..o{ votes : ""
+    vote_options ||..o{ votes : ""
+    comments ||..o{ comment_likes : ""
 
     posts {
         bigint post_id PK
@@ -306,7 +291,6 @@ erDiagram
         varchar category
         varchar title
         text content
-        varchar image_url
         bigint view_count
         varchar shared_type
         bigint shared_id
@@ -314,7 +298,7 @@ erDiagram
         varchar shared_brand_name
         varchar shared_product_name
         int shared_price
-        varchar shared_image_url
+        text shared_image_url
         text shared_summary
         datetime vote_end_at
         boolean vote_closed
@@ -327,12 +311,12 @@ erDiagram
     }
 
     post_shared_items {
-        bigint post_id FK
-        int item_order
+        bigint post_id PK, FK
+        int item_order PK
         bigint product_id
         varchar product_name
         int price
-        varchar image_url
+        text image_url
     }
 
     comments {
@@ -342,6 +326,7 @@ erDiagram
         text content
         bigint parent_comment_id
         boolean is_deleted
+        bigint supported_option_id
         bigint version
         datetime created_at
         datetime updated_at
@@ -361,9 +346,9 @@ erDiagram
 
     vote_options {
         bigint vote_option_id PK
-        bigint post_id
-        varchar item_id
-        varchar item_type
+        bigint post_id UK
+        varchar item_id UK
+        varchar item_type UK
         varchar source
         varchar image_url
         varchar snapshot_name
@@ -373,23 +358,50 @@ erDiagram
 
     votes {
         varchar vote_id PK
-        bigint post_id
-        bigint user_id
+        bigint post_id UK
+        bigint user_id UK
         bigint vote_option_id
         datetime created_at
     }
 
-%% ===== fitting (미구현) =====
-    users ||..o{ fitting_job : ""
-    outfit_combo ||..o{ fitting_job : ""
+%% ===== fitting (구현) =====
+    users ||..o{ fittings : ""
+    users ||..o{ user_photos : ""
+    fittings ||--o{ fitting_products : ""
+    user_photos |o..o{ fittings : ""
+    recommendation_requests |o..o{ fittings : ""
+    product ||..o{ fitting_products : ""
 
-    fitting_job {
-        int fitting_id PK
-        int user_id
-        varchar combo_id
-        varchar result_image_url
-        varchar job_status
+    fittings {
+        bigint fitting_id PK
+        bigint user_id
+        bigint photo_id
+        bigint request_id
+        varchar status
+        text result_image_url
         text error_message
+        text warnings
+        int prompt_tokens
+        int completion_tokens
+        boolean is_deleted
         datetime created_at
-        datetime completed_at
+        datetime updated_at
+    }
+
+    fitting_products {
+        bigint id PK
+        bigint fitting_id FK
+        bigint product_id
+        text product_name
+        int price
+        text image_url
+        varchar category_name
+    }
+
+    user_photos {
+        bigint photo_id PK
+        bigint user_id
+        text file_path
+        boolean is_deleted
+        datetime created_at
     }

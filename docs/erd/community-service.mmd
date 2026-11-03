@@ -9,13 +9,15 @@ erDiagram
     %% External table: users (user-service)
 
     %% Internal and directly connected external relationships
-    posts ||--o{ post_shared_items : "post_id"
-    posts ||--o{ comments : "post_id"
-    posts ||--o{ post_likes : "post_id"
-    posts ||--o{ vote_options : "post_id"
-    posts ||--o{ votes : "post_id"
-    comments ||--o{ comment_likes : "comment_id"
     users ||..o{ posts : "user_id"
+    posts ||--o{ post_shared_items : "post_id"
+    posts ||..o{ comments : "post_id"
+    comments |o..o{ comments : "parent_comment_id"
+    posts ||..o{ post_likes : "post_id"
+    posts ||..o{ vote_options : "post_id"
+    posts ||..o{ votes : "post_id"
+    vote_options ||..o{ votes : "vote_option_id"
+    comments ||..o{ comment_likes : "comment_id"
 
     posts {
         bigint post_id PK
@@ -24,7 +26,6 @@ erDiagram
         varchar category
         varchar title
         text content
-        varchar image_url
         bigint view_count
         varchar shared_type
         bigint shared_id
@@ -32,7 +33,7 @@ erDiagram
         varchar shared_brand_name
         varchar shared_product_name
         int shared_price
-        varchar shared_image_url
+        text shared_image_url
         text shared_summary
         datetime vote_end_at
         boolean vote_closed
@@ -45,12 +46,12 @@ erDiagram
     }
 
     post_shared_items {
-        bigint post_id FK
-        int item_order
+        bigint post_id PK, FK
+        int item_order PK
         bigint product_id
         varchar product_name
         int price
-        varchar image_url
+        text image_url
     }
 
     comments {
@@ -60,6 +61,7 @@ erDiagram
         text content
         bigint parent_comment_id
         boolean is_deleted
+        bigint supported_option_id
         bigint version
         datetime created_at
         datetime updated_at
@@ -79,9 +81,9 @@ erDiagram
 
     vote_options {
         bigint vote_option_id PK
-        bigint post_id
-        varchar item_id
-        varchar item_type
+        bigint post_id UK
+        varchar item_id UK
+        varchar item_type UK
         varchar source
         varchar image_url
         varchar snapshot_name
@@ -91,8 +93,8 @@ erDiagram
 
     votes {
         varchar vote_id PK
-        bigint post_id
-        bigint user_id
+        bigint post_id UK
+        bigint user_id UK
         bigint vote_option_id
         datetime created_at
     }
@@ -103,6 +105,7 @@ erDiagram
         varchar password
         varchar nickname UK
         varchar status
+        varchar role
         datetime created_at
         datetime updated_at
     }

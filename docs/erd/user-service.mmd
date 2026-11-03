@@ -5,34 +5,40 @@ erDiagram
     %% || = exactly one; o| = zero or one; o{ = zero or more; |{ = one or more.
     %% Edge labels name the referencing column in the child table.
     %% Cross-service edges are logical references, not cross-schema FK or direct access.
-    %% Owned tables: users, user_body, user_preferences
+    %% Owned tables: users, user_body
     %% External table: cart (order-service)
-    %% External table: fitting_job (vton-service)
-    %% External table: notification_channel (notification-service)
+    %% External table: device_tokens (notification-service)
+    %% External table: fittings (vton-service)
     %% External table: notification_logs (notification-service)
     %% External table: orders (order-service)
     %% External table: posts (community-service)
-    %% External table: recommendation_request (recommendation-service)
+    %% External table: recommendation_combos (recommendation-service)
+    %% External table: recommendation_requests (recommendation-service)
     %% External table: reviews (review-service)
+    %% External table: size_feedback_logs (recommendation-service)
     %% External table: size_surveys (review-service)
+    %% External table: user_photos (vton-service)
+    %% External table: user_size_preferences (recommendation-service)
     %% External table: wishlist (product-service)
     %% External table: worldcup_history (product-service)
-    %% user_preferences is marked unimplemented in the original ERD.
 
     %% Internal and directly connected external relationships
-    users ||--o| user_body : "user_id"
-    users ||--o{ user_preferences : "user_id (미구현)"
+    users ||..o| user_body : "user_id"
     users ||..o{ wishlist : "user_id"
     users ||..o{ worldcup_history : "user_id"
     users ||..o{ orders : "user_id"
     users ||..o{ cart : "user_id"
-    users ||..o{ reviews : "user_id"
+    users |o..o{ reviews : "user_id"
     users ||..o{ size_surveys : "user_id"
-    users ||..o{ recommendation_request : "user_id"
+    users ||..o{ recommendation_requests : "user_id"
+    users ||..o{ recommendation_combos : "user_id"
+    users ||..o{ user_size_preferences : "user_id"
+    users ||..o{ size_feedback_logs : "user_id"
     users ||..o{ notification_logs : "user_id"
-    users ||..o{ notification_channel : "user_id (미사용)"
+    users ||..o{ device_tokens : "user_id"
     users ||..o{ posts : "user_id"
-    users ||..o{ fitting_job : "user_id"
+    users ||..o{ fittings : "user_id"
+    users ||..o{ user_photos : "user_id"
 
     users {
         bigint user_id PK
@@ -40,6 +46,7 @@ erDiagram
         varchar password
         varchar nickname UK
         varchar status
+        varchar role
         datetime created_at
         datetime updated_at
     }
@@ -55,43 +62,34 @@ erDiagram
         datetime updated_at
     }
 
-    user_preferences {
-        int preference_id PK
-        int user_id FK
-        varchar subcategory
-        varchar fit_type
-        json preference_spec
-        int sample_count
-        datetime created_at
-        datetime updated_at
-    }
-
     cart {
         bigint cart_id PK
-        bigint user_id
-        bigint option_id
+        bigint user_id UK
+        bigint option_id UK
         int quantity
         datetime created_at
         datetime updated_at
     }
 
-    fitting_job {
-        int fitting_id PK
-        int user_id
-        varchar combo_id
-        varchar result_image_url
-        varchar job_status
-        text error_message
-        datetime created_at
-        datetime completed_at
+    device_tokens {
+        varchar token PK
+        bigint user_id
+        datetime updated_at
     }
 
-    notification_channel {
-        varchar channel_id PK
-        int user_id
-        varchar channel_type
-        boolean enabled
-        varchar push_token UK
+    fittings {
+        bigint fitting_id PK
+        bigint user_id
+        bigint photo_id
+        bigint request_id
+        varchar status
+        text result_image_url
+        text error_message
+        text warnings
+        int prompt_tokens
+        int completion_tokens
+        boolean is_deleted
+        datetime created_at
         datetime updated_at
     }
 
@@ -126,7 +124,6 @@ erDiagram
         varchar category
         varchar title
         text content
-        varchar image_url
         bigint view_count
         varchar shared_type
         bigint shared_id
@@ -134,7 +131,7 @@ erDiagram
         varchar shared_brand_name
         varchar shared_product_name
         int shared_price
-        varchar shared_image_url
+        text shared_image_url
         text shared_summary
         datetime vote_end_at
         boolean vote_closed
@@ -146,21 +143,38 @@ erDiagram
         datetime updated_at
     }
 
-    recommendation_request {
-        varchar request_id PK
-        int user_id
-        varchar guest_id
-        text query_text
-        varchar tpo_summary
-        varchar search_type
-        varchar season
-        int total_max_price
+    recommendation_combos {
+        bigint combo_id PK
+        bigint request_id FK
+        bigint user_id
+        int rank_order
+        int total_price
+        varchar pass_status
+        float harmony_score
+        text feedback_summary
+        int budget_exceeded
+        text items_json
         datetime created_at
+    }
+
+    recommendation_requests {
+        bigint request_id PK
+        bigint user_id
+        text query_text
         varchar status
+        varchar search_type
+        text tpo_summary
+        text items_json
+        text message
+        int prompt_tokens
+        int completion_tokens
+        datetime created_at
     }
 
     reviews {
         bigint review_id PK
+        varchar source UK
+        bigint source_review_id UK
         bigint user_id
         bigint product_id
         bigint order_item_id UK
@@ -172,20 +186,49 @@ erDiagram
         datetime updated_at
     }
 
-    size_surveys {
-        bigint survey_id PK
+    size_feedback_logs {
+        bigint feedback_id PK
         bigint user_id
+        bigint product_id
         bigint option_id
-        bigint order_item_id
         varchar size_feedback
         datetime created_at
     }
 
+    size_surveys {
+        bigint survey_id PK
+        bigint user_id UK
+        bigint product_id
+        bigint option_id
+        bigint order_item_id UK
+        varchar size_feedback
+        datetime feedback_sent_at
+        datetime feedback_claimed_at
+        datetime created_at
+    }
+
+    user_photos {
+        bigint photo_id PK
+        bigint user_id
+        text file_path
+        boolean is_deleted
+        datetime created_at
+    }
+
+    user_size_preferences {
+        bigint user_id PK
+        varchar subcategory PK
+        varchar fit_type
+        text preference_spec_json
+        int sample_count
+        datetime updated_at
+    }
+
     wishlist {
         bigint wishlist_id PK
-        bigint user_id
-        varchar item_id
-        varchar item_type
+        bigint user_id UK
+        varchar item_id UK
+        varchar item_type UK
         datetime created_at
     }
 
