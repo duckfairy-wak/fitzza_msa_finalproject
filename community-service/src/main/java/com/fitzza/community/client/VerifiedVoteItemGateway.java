@@ -2,6 +2,7 @@ package com.fitzza.community.client;
 
 import com.fitzza.community.client.ComboResults.ComboResult;
 import com.fitzza.community.domain.VoteItemType;
+import com.fitzza.community.domain.VoteOption;
 import com.fitzza.community.domain.VoteOptionSource;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
@@ -83,10 +84,7 @@ public class VerifiedVoteItemGateway implements VoteItemGateway {
         if (items.isEmpty()) {
             throw new CommunityApiException(ErrorCode.INVALID_VOTE_OPTIONS);
         }
-        // 첫 상품 이미지가 없을 때만 요청에 온 이미지를 쓴다.
-        String firstImage = items.get(0).imageUrl();
-        String snapshotImage = firstImage == null || firstImage.isBlank() ? imageUrl : firstImage;
-        return new VoteItemSnapshot(snapshotImage, null, combo.totalPrice());
+        return new VoteItemSnapshot(storableImage(items.get(0).imageUrl(), imageUrl), null, combo.totalPrice());
     }
 
     private VoteItemSnapshot resolveRecommendedProduct(long productId, String imageUrl) {
@@ -104,9 +102,18 @@ public class VerifiedVoteItemGateway implements VoteItemGateway {
         if (product == null || HIDDEN_STATUS.equals(product.status())) {
             throw new CommunityApiException(ErrorCode.INVALID_VOTE_OPTIONS);
         }
-        // 대표 이미지가 없는 상품만 요청에 온 이미지를 쓴다.
-        String snapshotImage =
-                product.imageUrl() == null || product.imageUrl().isBlank() ? imageUrl : product.imageUrl();
-        return new VoteItemSnapshot(snapshotImage, product.productName(), product.price());
+        return new VoteItemSnapshot(
+                storableImage(product.imageUrl(), imageUrl), product.productName(), product.price());
+    }
+
+    // 서비스가 준 이미지를 우선 쓰되, 없거나 컬럼 길이를 넘으면 요청에 온 이미지를 쓴다.
+    // 요청 이미지는 VoteOptionRequest에서 같은 길이 제한을 통과했고, Presigned URL은 자르면 서명이 깨진다.
+    private static String storableImage(String serviceImage, String requestImage) {
+        if (serviceImage == null
+                || serviceImage.isBlank()
+                || serviceImage.length() > VoteOption.IMAGE_URL_MAX_LENGTH) {
+            return requestImage;
+        }
+        return serviceImage;
     }
 }
