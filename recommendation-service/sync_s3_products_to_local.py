@@ -28,6 +28,7 @@ BASE_LOCAL_DIR = os.path.abspath(
 )
 
 def get_all_s3_objects(s3, bucket, prefix):
+    """지정된 S3 버킷과 프리픽스 하위에서 모든 상품 JSON 객체 목록을 수집한다."""
     paginator = s3.get_paginator("list_objects_v2")
     objects = []
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -42,10 +43,12 @@ def get_all_s3_objects(s3, bucket, prefix):
     return objects
 
 def download_file(s3, bucket, key, local_path):
+    """단일 S3 객체를 지정된 로컬 파일 경로로 다운로드한다."""
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     s3.download_file(bucket, key, local_path)
 
 def main():
+    """S3 curated 상품 JSON 파일들을 로컬 final_products 디렉토리로 병렬 동기화한다."""
     print("=" * 80)
     print("🚀 [AWS S3 -> Local] 3,000개 상품 JSON 로컬 동기화 시작")
     print(f"   - S3 버킷: {BUCKET}")
@@ -88,6 +91,7 @@ def main():
     synced_paths: set[str] = set()
 
     def worker_task(item):
+        """개별 S3 상품 JSON 항목의 경로 유효성을 검증하고 다운로드를 수행한다."""
         key, cat_ko, filename = item
         if cat_ko not in CATEGORY_FOLDER_MAP:
             raise ValueError(f"허용되지 않은 S3 카테고리 폴더: {cat_ko} (key={key})")
@@ -124,9 +128,9 @@ def main():
                 fail_count += 1
                 print(f"🚨 다운로드 실패: {exc}", flush=True)
 
-    # 모든 파일이 실패 없이 다운로드된 경우에만 S3 목록에 없는 기존 잔여 JSON 파일 정리
+    # 모든 파일이 실패 없이 다운로드되고 전체 목록(3,000개)이 완전한 경우에만 잔여 JSON 파일 정리
     removed_stale_count = 0
-    if fail_count == 0 and synced_paths:
+    if fail_count == 0 and synced_paths and total_files == 3000:
         for folder in CATEGORY_FOLDER_MAP.values():
             folder_dir = os.path.join(BASE_LOCAL_DIR, folder)
             if not os.path.isdir(folder_dir):

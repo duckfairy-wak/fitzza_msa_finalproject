@@ -42,6 +42,7 @@ CATEGORY_DISPLAY_ORDER = {
 }
 
 def sort_items_by_standard_category(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """코디 아이템 목록을 표준 카테고리 순서(아우터->상의->하의->모자->신발)로 정렬한다."""
     return sorted(
         items,
         key=lambda item: CATEGORY_DISPLAY_ORDER.get(
@@ -180,6 +181,7 @@ class OutfitHarmonizer:
     BUDGET_PENALTY_WEIGHT = 0.1
 
     def __init__(self, search_engine, model_name: str = "gpt-6-astra"):
+        """검색 엔진과 Vision LLM 모델명을 설정하여 코디 조화도 평가기를 초기화한다."""
         self.engine = search_engine
         self.model_name = model_name
         self._client: OpenAI | None = None
@@ -190,6 +192,7 @@ class OutfitHarmonizer:
         self.last_total_latency: float = 0.0
 
     def reset_latencies(self) -> None:
+        """측정된 구간별 지연 시간을 모두 0으로 초기화한다."""
         self.last_latency = 0.0
         self.last_combo_latency = 0.0
         self.last_s3_latency = 0.0
@@ -198,21 +201,26 @@ class OutfitHarmonizer:
 
     @property
     def last_prompt_tokens(self) -> int:
+        """최근 실행에서 소비된 프롬프트 토큰 수를 반환한다."""
         return _harmonizer_prompt_tokens_ctx.get()
 
     @last_prompt_tokens.setter
     def last_prompt_tokens(self, val: int) -> None:
+        """프롬프트 토큰 수를 컨텍스트 변수에 기록한다."""
         _harmonizer_prompt_tokens_ctx.set(int(val or 0))
 
     @property
     def last_completion_tokens(self) -> int:
+        """최근 실행에서 소비된 완성 토큰 수를 반환한다."""
         return _harmonizer_completion_tokens_ctx.get()
 
     @last_completion_tokens.setter
     def last_completion_tokens(self, val: int) -> None:
+        """완성 토큰 수를 컨텍스트 변수에 기록한다."""
         _harmonizer_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
+        """지연 초기화된 OpenAI 클라이언트 인스턴스를 반환한다."""
         if self._client is None:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
@@ -226,6 +234,7 @@ class OutfitHarmonizer:
             self,
             items: list[dict[str, Any]],
     ) -> float:
+        """코디 내 아이템 임베딩 벡터 간의 평균 코사인 유사도를 20~100점 척도로 환산한다."""
         vectors = []
         for item in items:
             vec = item.get("vector")
@@ -258,6 +267,7 @@ class OutfitHarmonizer:
     def calculate_avg_search_score(
             items: list[dict[str, Any]],
     ) -> float:
+        """코디 아이템들의 검색 점수 평균을 100점 만점 기준으로 계산한다."""
         if not items:
             return 0.0
 
@@ -277,6 +287,7 @@ class OutfitHarmonizer:
             total_price: int,
             budget_limit: int | None,
     ) -> float:
+        """코디 총액이 예산 상한을 초과한 비율에 따라 감점 점수를 계산한다."""
         if budget_limit is None or budget_limit <= 0:
             return 0.0
 
@@ -292,6 +303,7 @@ class OutfitHarmonizer:
             items: list[dict[str, Any]],
             tpo_context: str,
     ) -> dict[str, Any]:
+        """Vision LLM을 호출하여 단일 코디 후보의 시각적 조화도와 TPO 적합성을 심사한다."""
         items_desc_parts = []
         image_count = 0
 
@@ -434,6 +446,7 @@ class OutfitHarmonizer:
             total_budget: int | None = None,
             pre_filtered_combos: list[tuple] | None = None,
     ) -> list[dict[str, Any]]:
+        """슬롯별 후보 상품들의 조합을 구성하고 다양성 필터 및 Vision LLM 검수를 거쳐 최적 코디 세트를 반환한다."""
         start_total = time.perf_counter()
         self.reset_latencies()
         self.last_prompt_tokens = 0
@@ -624,6 +637,7 @@ class OutfitHarmonizer:
         )
 
         def _pick_diverse_outfits(outfits_list: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+            """상품 중복 상한(MAX_OVERLAP_ITEMS)을 준수하며 상위 코디를 최대 limit개 선발한다."""
             selected_outfits: list[dict[str, Any]] = []
             for outfit in outfits_list:
                 o_pids = _extract_product_ids(outfit["items"])
@@ -643,6 +657,7 @@ class OutfitHarmonizer:
                 remaining = [o for o in outfits_list if o not in selected_outfits]
                 if selected_outfits and remaining:
                     def _max_overlap(o: dict[str, Any]) -> int:
+                        """기선발된 코디들과의 최대 상품 중복 개수를 계산한다."""
                         pids = _extract_product_ids(o["items"])
                         return max(
                             len(pids & _extract_product_ids(s["items"]))

@@ -14,29 +14,35 @@ _responder_completion_tokens_ctx: ContextVar[int] = ContextVar("responder_comple
 
 class ResponseGenerator:
     def __init__(self, model_name: str = "gpt-6-sol"):
+        """LLM 기반 추천 응답 코멘트 생성기를 초기화한다."""
         self.model_name = model_name
         self._client: OpenAI | None = None
         self.last_latency: float = 0.0
         self.last_prompt_build_latency: float = 0.0
 
     def reset_latencies(self) -> None:
+        """측정된 프롬프트 조립 및 LLM 호출 지연 시간을 0으로 초기화한다."""
         self.last_latency = 0.0
         self.last_prompt_build_latency = 0.0
 
     @property
     def last_prompt_tokens(self) -> int:
+        """최근 응답 생성 호출에서 소비된 프롬프트 토큰 수를 반환한다."""
         return _responder_prompt_tokens_ctx.get()
 
     @last_prompt_tokens.setter
     def last_prompt_tokens(self, val: int) -> None:
+        """프롬프트 토큰 수를 컨텍스트 변수에 기록한다."""
         _responder_prompt_tokens_ctx.set(int(val or 0))
 
     @property
     def last_completion_tokens(self) -> int:
+        """최근 응답 생성 호출에서 소비된 완성 토큰 수를 반환한다."""
         return _responder_completion_tokens_ctx.get()
 
     @last_completion_tokens.setter
     def last_completion_tokens(self, val: int) -> None:
+        """완성 토큰 수를 컨텍스트 변수에 기록한다."""
         _responder_completion_tokens_ctx.set(int(val or 0))
 
     def _get_client(self) -> OpenAI:
