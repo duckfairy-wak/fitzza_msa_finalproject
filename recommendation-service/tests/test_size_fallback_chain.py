@@ -5,7 +5,7 @@ from app.services.size_resolver import SizeProfileResolver
 
 @pytest.fixture
 def resolver(tmp_path):
-    # 테스트용 독립 resolver 인스턴스
+    """테스트용 독립 SizeProfileResolver 인스턴스를 반환한다."""
     return SizeProfileResolver()
 
 

@@ -16,6 +16,7 @@ BUCKET = os.getenv("S3_PRODUCT_BUCKET_NAME", "fitzza-prod-foundation-databucket-
 PREFIX = os.getenv("S3_CURATED_PREFIX", "pipeline/runs/collection-20261025-01/curated/data/")
 
 def get_all_s3_keys(s3, bucket, prefix):
+    """지정된 S3 버킷과 프리픽스에서 모든 JSON 객체 키 목록을 조회한다."""
     paginator = s3.get_paginator("list_objects_v2")
     keys = []
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -24,32 +25,60 @@ def get_all_s3_keys(s3, bucket, prefix):
                 keys.append(obj["Key"])
     return keys
 
+def _valid_str(value) -> str | None:
+    """값이 공백이 아닌 유효한 문자열이면 strip된 문자열을 반환하고, 아니면 None을 반환한다."""
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped:
+            return stripped
+    return None
+
 def inspect_single_object(s3, bucket, key):
+    """단일 S3 상품 JSON 객체를 읽어 필수 필드와 카테고리·가격 스키마 정합성을 검사한다."""
     try:
         resp = s3.get_object(Bucket=bucket, Key=key)
         body = resp["Body"].read().decode("utf-8")
         data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError(f"최상위 JSON 구조가 객체(dict)가 아닙니다: {type(data).__name__}")
 
         top_keys = tuple(sorted(data.keys()))
-        has_product_id = data.get("product_id") is not None
-        has_name = bool(str(data.get("name") or "").strip())
+        raw_product_id = data.get("product_id")
+        if isinstance(raw_product_id, str):
+            has_product_id = bool(raw_product_id.strip())
+        elif isinstance(raw_product_id, bool):
+            has_product_id = False
+        elif isinstance(raw_product_id, int):
+            has_product_id = raw_product_id > 0
+        else:
+            has_product_id = False
+
+        raw_name = data.get("name")
+        has_name = bool(raw_name.strip()) if isinstance(raw_name, str) else False
 
         brand = data.get("brand") if isinstance(data.get("brand"), dict) else {}
-        brand_valid = bool(str(brand.get("name") or "").strip())
+        raw_brand_name = brand.get("name")
+        brand_valid = bool(raw_brand_name.strip()) if isinstance(raw_brand_name, str) else False
 
         cat = data.get("category") if isinstance(data.get("category"), dict) else {}
-        cat_depth1_code_valid = bool(str(cat.get("categoryDepth1Code") or "").strip())
-        cat_depth1_name_valid = bool(str(cat.get("categoryDepth1Name") or "").strip())
+        raw_cat_code = cat.get("categoryDepth1Code")
+        cat_depth1_code_valid = bool(raw_cat_code.strip()) if isinstance(raw_cat_code, str) else False
+
+        cat_depth1_str = _valid_str(cat.get("categoryDepth1Name"))
+        cat_depth1_name_valid = cat_depth1_str is not None
+
         cat_depth1 = (
-            cat.get("categoryDepth1Name")
-            or cat.get("categoryDepth1Title")
-            or "NONE"
+            cat_depth1_str
+            or _valid_str(cat.get("categoryDepth1Title"))
         )
-        cat_depth2 = (
-            cat.get("categoryDepth2Name")
-            or cat.get("categoryDepth2Title")
-            or "NONE"
+        raw_cat_depth2_code = _valid_str(cat.get("categoryDepth2Code"))
+        cat_depth2_name_str = _valid_str(cat.get("categoryDepth2Name"))
+        cat_depth2_str = (
+            cat_depth2_name_str
+            or _valid_str(cat.get("categoryDepth2Title"))
         )
+        cat_depth2_valid = (raw_cat_depth2_code is None) or (cat_depth2_name_str is not None)
+        cat_depth2 = cat_depth2_str
 
         price_obj = data.get("price")
         has_price = isinstance(price_obj, dict)
@@ -72,6 +101,7 @@ def inspect_single_object(s3, bucket, key):
             "brand_valid": brand_valid,
             "cat_depth1_code_valid": cat_depth1_code_valid,
             "cat_depth1_name_valid": cat_depth1_name_valid,
+            "cat_depth2_valid": cat_depth2_valid,
             "has_price": has_price,
             "price_valid": price_valid,
             "cat_depth1": cat_depth1,
@@ -86,6 +116,7 @@ def inspect_single_object(s3, bucket, key):
         }
 
 def main():
+    """S3 curated 상품 JSON 전체를 병렬 검사하고 정합성 검증 리포트를 출력한다."""
     print("=" * 80, flush=True)
     print("🔍 [AWS S3] curated 3,002개 상품 JSON 전수 정합성 검증 시작", flush=True)
     print(f"   - 버킷: {BUCKET}", flush=True)
@@ -109,7 +140,7 @@ def main():
 
     if total_files == 0:
         print("🚨 대상 JSON 파일이 없습니다.", flush=True)
-        return
+        sys.exit(1)
 
     print(f"\n[2] {total_files:,}개 파일 고속 병렬 다운로드 & 스키마 검증 중 (MaxWorkers=50)...", flush=True)
 
@@ -122,6 +153,7 @@ def main():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
         def task(k):
+            """단일 S3 키에 대해 inspect_single_object를 실행한다."""
             return inspect_single_object(s3, BUCKET, k)
 
         futures = [executor.submit(task, k) for k in keys]
@@ -137,8 +169,10 @@ def main():
                 errors.append(res)
             else:
                 schema_patterns[res["top_keys"]] += 1
-                cat_depth1_dist[res["cat_depth1"]] += 1
-                cat_depth2_dist[res["cat_depth2"]] += 1
+                if isinstance(res["cat_depth1"], str) and res["cat_depth1"]:
+                    cat_depth1_dist[res["cat_depth1"]] += 1
+                if isinstance(res["cat_depth2"], str) and res["cat_depth2"]:
+                    cat_depth2_dist[res["cat_depth2"]] += 1
                 if not res["has_product_id"]:
                     missing_fields["product_id"] += 1
                 if not res["has_name"]:
@@ -149,6 +183,8 @@ def main():
                     missing_fields["category.categoryDepth1Code"] += 1
                 if not res["cat_depth1_name_valid"]:
                     missing_fields["category.categoryDepth1Name"] += 1
+                if not res["cat_depth2_valid"]:
+                    missing_fields["category.categoryDepth2Name"] += 1
                 if not res["has_price"]:
                     missing_fields["price"] += 1
                 if not res["price_valid"]:
@@ -181,11 +217,11 @@ def main():
 
     print(f"\n🏷️ [대분류 카테고리(categoryDepth1) 분포]", flush=True)
     for cat, count in cat_depth1_dist.most_common():
-        print(f"   - {cat:10s}: {count:,}개 ({count/total_files*100:.2f}%)", flush=True)
+        print(f"   - {str(cat):10s}: {count:,}개 ({count/total_files*100:.2f}%)", flush=True)
 
     print(f"\n🏷️ [주요 중분류 카테고리(categoryDepth2) 상위 10개]", flush=True)
     for subcat, count in cat_depth2_dist.most_common(10):
-        print(f"   - {subcat:20s}: {count:,}개 ({count/total_files*100:.2f}%)", flush=True)
+        print(f"   - {str(subcat):20s}: {count:,}개 ({count/total_files*100:.2f}%)", flush=True)
 
     print(f"\n⚠️ [필수 필드 결측치(Missing) 현황]", flush=True)
     if not missing_fields:
@@ -195,6 +231,9 @@ def main():
             print(f"   - {f}: {cnt:,}건 누락", flush=True)
 
     print("=" * 80, flush=True)
+
+    if errors or missing_fields:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

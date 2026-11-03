@@ -133,11 +133,14 @@ class FashionSearchEngine:
         self.last_clip_latency: float = 0.0
         self.last_qdrant_latency: float = 0.0
         self.last_scoring_latency: float = 0.0
+        self.last_url_latency: float = 0.0
 
     def reset_latencies(self) -> None:
+        """측정된 구간별 지연 시간을 0으로 초기화한다."""
         self.last_clip_latency = 0.0
         self.last_qdrant_latency = 0.0
         self.last_scoring_latency = 0.0
+        self.last_url_latency = 0.0
 
     def _normalize(self, tensor: torch.Tensor) -> torch.Tensor:
         """임베딩 벡터 L2 정규화."""
@@ -544,6 +547,7 @@ class FashionSearchEngine:
         thickness_type: str | None = None,
         top_k: int = 3,
     ) -> list[dict[str, Any]]:
+        """Qdrant 벡터 후보군을 조회한 뒤 복합 점수로 정렬해 상위 top_k 상품을 반환한다."""
         category_map = {
             "top": "상의",
             "outer": "아우터",
@@ -611,6 +615,7 @@ class FashionSearchEngine:
         self.last_qdrant_latency += time.perf_counter() - t_qdrant
 
         t_scoring = time.perf_counter()
+        url_elapsed = 0.0
         results: list[dict[str, Any]] = []
 
         for hit in response.points:
@@ -678,6 +683,12 @@ class FashionSearchEngine:
 
                 composite_score -= over_ratio * 0.1
 
+            t_url = time.perf_counter()
+            resolved_image_url = self.storage_client.get_presigned_url(
+                payload.get("image_key") or payload.get("image_url")
+            )
+            url_elapsed += time.perf_counter() - t_url
+
             results.append(
                 {
                     "final_score": composite_score,
@@ -697,9 +708,7 @@ class FashionSearchEngine:
                     ) or [],
                     "features": payload.get("features") or {},
                     "sizes": payload.get("sizes") or [],
-                    "image_url": self.storage_client.get_presigned_url(
-                        payload.get("image_key") or payload.get("image_url")
-                    ),
+                    "image_url": resolved_image_url,
                     "product_url": payload.get("product_url"),
                     "vector": hit.vector,
                 }
@@ -710,6 +719,9 @@ class FashionSearchEngine:
             reverse=True,
         )
 
-        self.last_scoring_latency += time.perf_counter() - t_scoring
+        self.last_url_latency += url_elapsed
+        self.last_scoring_latency += max(
+            0.0, (time.perf_counter() - t_scoring) - url_elapsed
+        )
         return results[:top_k]
 

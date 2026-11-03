@@ -88,6 +88,7 @@ def is_general_fit(fit: Optional[str]) -> bool:
 
 class SizeProfileResolver:
     def __init__(self, data_path: Optional[str] = None, enable_mock_data: Optional[bool] = None):
+        """사이즈 프로필 리졸버를 초기화하고 설정에 따라 개발용 Mock 데이터를 로드한다."""
         explicit_data_path = data_path is not None
         if data_path is None:
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -110,6 +111,7 @@ class SizeProfileResolver:
         self.last_total_latency: float = 0.0
 
     def reset_latencies(self) -> None:
+        """측정된 사이즈 추천 지연 시간 지표를 0으로 초기화한다."""
         self.last_resolve_latency = 0.0
         self.last_calc_latency = 0.0
         self.last_total_latency: float = 0.0
@@ -525,6 +527,7 @@ FIT_SOURCE_EVIDENCE_MAP: dict[str, str] = {
 
 
 def parse_user_body(user_body: dict[str, Any] | None) -> dict[str, float] | None:
+    """사용자 신체 프로필 딕셔너리에서 키, 몸무게, 발 사이즈를 추출해 float 딕셔너리로 정규화한다."""
     if not user_body or not isinstance(user_body, dict):
         return None
     raw_height = user_body.get("height")
@@ -564,6 +567,7 @@ def sync_user_body(
     user_id: str,
     user_body: dict[str, Any] | None,
 ) -> None:
+    """사용자 신체 치수 정보를 리졸버 내부 메모리 저장소에 동기화한다."""
     if size_resolver is None:
         return
     parsed = parse_user_body(user_body)
@@ -594,6 +598,7 @@ def sync_user_size_preference(
     fit_type: str | None,
     pref_spec: dict[str, float] | None,
 ) -> None:
+    """사용자의 서브카테고리 및 핏별 선호 실측 데이터를 리졸버 내부 저장소에 동기화한다."""
     if size_resolver is None or not subcategory or not pref_spec:
         return
     mock_db = getattr(size_resolver, "mock_db", None)
@@ -643,6 +648,7 @@ def sync_user_size_preference(
 
 
 def infer_category_from_measurements(sizes: list[dict[str, Any]]) -> str:
+    """상품 사이즈별 실측 키 목록으로부터 대분류 카테고리(상의/하의/신발/모자)를 추론한다."""
     for entry in sizes:
         if not isinstance(entry, dict):
             continue
@@ -660,6 +666,7 @@ def infer_category_from_measurements(sizes: list[dict[str, Any]]) -> str:
 
 
 def extract_payload_metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    """Qdrant 상품 페이로드에서 상품명, 카테고리, 서브카테고리, 핏, 사이즈 목록을 추출한다."""
     product_name = str(payload.get("product_name") or "")
     raw_category = str(payload.get("category") or "").strip()
     raw_subcategory = str(payload.get("subcategory") or "").strip()
@@ -697,6 +704,7 @@ def fetch_qdrant_product_payload(
     collection_name: str,
     product_id: int,
 ) -> dict[str, Any] | None:
+    """Qdrant 컬렉션에서 지정된 product_id의 상품 페이로드를 조회한다."""
     if qdrant_client is None:
         return None
     try:
@@ -731,6 +739,7 @@ def resolve_product_for_size(
     product_client: Any = None,
     request_id_header: str | None = None,
 ) -> dict[str, Any] | None:
+    """Qdrant 및 product-service를 조회하여 사이즈 추천에 필요한 상품 메타데이터와 실측표를 반환한다."""
     payload = fetch_qdrant_product_payload(
         qdrant_client=qdrant_client,
         collection_name=collection_name,
@@ -799,6 +808,7 @@ def evaluate_single_product_size(
     product_data: dict[str, Any],
     request_id_header: str | None = None,
 ) -> dict[str, Any]:
+    """단일 상품에 대해 사용자 선호 실측 및 신체 정보를 바탕으로 추천 사이즈와 적합도(%)를 산출한다."""
     raw_sizes = product_data.get("sizes") or []
     if not raw_sizes:
         return {
@@ -929,6 +939,7 @@ def process_size_feedback(
     cache_service: Any = None,
     request_id_header: str | None = None,
 ) -> None:
+    """사용자의 구매 후 사이즈 피드백을 저장하고 선호 실측 프로필을 갱신한다."""
     purchased_spec: dict[str, float] | None = None
     if product_client is not None and hasattr(product_client, "find_option_measurement"):
         try:

@@ -22,6 +22,7 @@ USER_ID = 1
 
 
 def main():
+    """단일 질의에 대해 추천 파이프라인을 1회 실행하고 단계별 추출 결과를 상세 출력한다."""
     test_query = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_TEST_QUERY
     print("=" * 80)
     print("✨ [실시간 파이프라인 정밀 테스트 - 추출 내용 상세 출력]")

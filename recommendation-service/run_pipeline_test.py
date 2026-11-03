@@ -20,6 +20,7 @@ DEFAULT_USER_ID = 1
 
 
 def print_latency_report(latencies: dict[str, Any], result: dict[str, Any]):
+    """파이프라인 각 컴포넌트별 소요 시간과 토큰 사용량 요약을 콘솔에 출력한다."""
     print("\n" + "=" * 80)
     print(" ⏱️  [Fitzza AI 파이프라인 정밀 지연 시간(Latency) 프로파일링 리포트] ")
     print("=" * 80)
@@ -101,6 +102,7 @@ def print_latency_report(latencies: dict[str, Any], result: dict[str, Any]):
 
 
 def main():
+    """로컬 대화형 또는 단일 실행(--once) 모드로 추천 파이프라인 E2E 테스트를 수행한다."""
     print("=" * 80)
     print("✨ Fitzza AI 패션 추천 파이프라인 정밀 프로파일링 & E2E 테스트")
     print("=" * 80)
