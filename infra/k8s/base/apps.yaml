@@ -245,6 +245,8 @@ spec:
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: COMMUNITY_SERVICE_DB_USER } }
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom: { secretKeyRef: { name: fitzza-db-secrets, key: COMMUNITY_SERVICE_DB_PASSWORD } }
+            - name: TYPESAFE_API_KEY
+              valueFrom: { secretKeyRef: { name: fitzza-community-jev, key: TYPESAFE_API_KEY, optional: true } }
           envFrom:
             - configMapRef: { name: fitzza-app-config }
             - secretRef: { name: fitzza-app-secrets }
