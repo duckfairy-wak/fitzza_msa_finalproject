@@ -10,6 +10,7 @@ import com.fitzza.community.client.ComboResults.ComboResult;
 import com.fitzza.community.client.ProductCatalog.ProductSummary;
 import com.fitzza.community.client.VoteItemGateway.VoteItemSnapshot;
 import com.fitzza.community.domain.VoteItemType;
+import com.fitzza.community.domain.VoteOption;
 import com.fitzza.community.domain.VoteOptionSource;
 import com.fitzza.community.exception.CommunityApiException;
 import com.fitzza.community.exception.ErrorCode;
@@ -31,6 +32,8 @@ class VerifiedVoteItemGatewayTest {
     private static final Long OTHER_USER_ID = 8L;
     private static final String REQUEST_IMAGE = "https://cdn.example.com/request.png";
     private static final String PRODUCT_IMAGE = "https://cdn.example.com/55.png";
+    private static final String TOO_LONG_IMAGE =
+            "https://cdn.example.com/55.png?sig=" + "a".repeat(VoteOption.IMAGE_URL_MAX_LENGTH);
 
     private final FakeProductCatalog catalog = new FakeProductCatalog();
     private final ComboResults combos = mock(ComboResults.class);
@@ -58,6 +61,15 @@ class VerifiedVoteItemGatewayTest {
     void productWithoutAnImageKeepsTheRequestImage() {
         catalog.wishlist(USER_ID, 55L);
         catalog.product(new ProductSummary(55L, "Fitzza", "오버핏 셔츠", 39000, null, "ON_SALE"));
+
+        assertThat(resolveWishlist(USER_ID, 55L).imageUrl()).isEqualTo(REQUEST_IMAGE);
+    }
+
+    // 서비스 이미지가 저장 한도를 넘으면 저장 단계에서 실패하지 않도록 검증된 요청 이미지를 쓴다.
+    @Test
+    void aProductImageLongerThanTheColumnFallsBackToTheRequestImage() {
+        catalog.wishlist(USER_ID, 55L);
+        catalog.product(new ProductSummary(55L, "Fitzza", "오버핏 셔츠", 39000, TOO_LONG_IMAGE, "ON_SALE"));
 
         assertThat(resolveWishlist(USER_ID, 55L).imageUrl()).isEqualTo(REQUEST_IMAGE);
     }
@@ -122,6 +134,14 @@ class VerifiedVoteItemGatewayTest {
     void aComboWhoseFirstItemHasNoImageKeepsTheRequestImage() {
         when(combos.findCombo(31L, USER_ID)).thenReturn(Optional.of(new ComboResult(
                 true, List.of(new ResultProduct(1L, "셔츠", 39000, null)), 39000, null)));
+
+        assertThat(resolveRecommendedCombo(USER_ID, 31L).imageUrl()).isEqualTo(REQUEST_IMAGE);
+    }
+
+    @Test
+    void aComboFirstImageLongerThanTheColumnFallsBackToTheRequestImage() {
+        when(combos.findCombo(31L, USER_ID)).thenReturn(Optional.of(new ComboResult(
+                true, List.of(new ResultProduct(1L, "셔츠", 39000, TOO_LONG_IMAGE)), 39000, null)));
 
         assertThat(resolveRecommendedCombo(USER_ID, 31L).imageUrl()).isEqualTo(REQUEST_IMAGE);
     }
