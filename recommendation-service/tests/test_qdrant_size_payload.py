@@ -1,8 +1,9 @@
 """Size recommendation reads the sizes the data pipeline writes to Qdrant (2026-11-04).
 
 Qdrant payload sizes come from infra/data-pipeline/indexer/vector_points.normalize_sizes:
-measurements use English keys, and shoes or caps sold without a size chart keep their
-labels with empty measurements.
+measurements use the Korean standard fields, and shoes or caps sold without a size chart keep
+their labels with empty measurements. Collections loaded before 2026-11-04 use English keys,
+which are still read for compatibility.
 """
 
 import importlib.util
@@ -71,19 +72,39 @@ def empty_resolver() -> SizeProfileResolver:
     return SizeProfileResolver(enable_mock_data=False)
 
 
-def test_qdrant_keys_cover_every_pipeline_measurement_key() -> None:
+def load_pipeline_vector_points():
     if not VECTOR_POINTS.exists():
         pytest.skip("data pipeline source is not in this checkout")
     spec = importlib.util.spec_from_file_location("pipeline_vector_points", VECTOR_POINTS)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    for category, keys in module.MEASUREMENT_KEYS.items():
-        for korean, english in keys.items():
-            assert QDRANT_MEASUREMENT_KEY_TO_MUSINSA[english] == korean, (category, english)
-            assert korean in MUSINSA_CATEGORY_SPEC_FIELDS[category]
+    return module
 
 
-def test_qdrant_keys_are_normalized_to_musinsa_fields() -> None:
+def test_pipeline_measurement_fields_match_recommendation_fields() -> None:
+    pipeline = load_pipeline_vector_points()
+    assert {category: list(fields) for category, fields in pipeline.MEASUREMENT_FIELDS.items()} == (
+        MUSINSA_CATEGORY_SPEC_FIELDS
+    )
+
+
+def test_pipeline_payload_sizes_drive_recommendation_without_key_mapping() -> None:
+    pipeline = load_pipeline_vector_points()
+    rows = [
+        {"size": "S", "sequence": 0, "measurements": {"총장": 68, "어깨너비": 48, "가슴단면": 55}},
+        {"size": "M", "sequence": 1, "measurements": {"총장": 70, "어깨너비": 50, "가슴단면": 57}},
+        {"size": "L", "sequence": 2, "measurements": {"총장": 72, "어깨너비": 52, "가슴단면": 59}},
+    ]
+    sizes = pipeline.normalize_sizes("상의", rows)
+    assert all(not set(size["measurements"]) & set(QDRANT_MEASUREMENT_KEY_TO_MUSINSA) for size in sizes)
+    result = SizeCalculator.evaluate(
+        [{"product_id": 1, "sizes": sizes}], {"총장": 70.0, "어깨너비": 50.0, "가슴단면": 57.0}, "상의"
+    )
+    assert result["size_label"] == "M"
+    assert result["predicted_fit_score"] == 1.0
+
+
+def test_legacy_english_keys_are_normalized_to_musinsa_fields() -> None:
     assert normalize_measurement_spec({"top_length": 70, "shoulder": "50", "top_hem": 52}, category="상의") == {
         "총장": 70.0,
         "어깨너비": 50.0,
@@ -97,7 +118,7 @@ def test_qdrant_keys_are_normalized_to_musinsa_fields() -> None:
     assert normalize_measurement_spec({"foot_length": 26.5}, category="신발") == {"발길이": 265.0}
 
 
-def test_calculator_picks_closest_size_from_qdrant_payload() -> None:
+def test_calculator_picks_closest_size_from_legacy_qdrant_payload() -> None:
     result = SizeCalculator.evaluate(
         [{"product_id": 1, "sizes": QDRANT_TOP_SIZES}],
         {"총장": 72.0, "어깨너비": 52.0, "가슴단면": 59.0},

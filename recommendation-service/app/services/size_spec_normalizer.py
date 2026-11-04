@@ -19,8 +19,9 @@ MUSINSA_CATEGORY_SPEC_FIELDS: dict[str, list[str]] = {
     "모자": ["머리둘레", "챙길이", "깊이"],
 }
 
-# Qdrant 상품 payload(sizes[].measurements)는 데이터 파이프라인 vector_points.MEASUREMENT_KEYS의 영문 키로 저장된다.
-# 이 맵이 어긋나면 모든 사이즈의 비교 항목이 0개가 되어 추천이 첫 사이즈·적합도 0%로 고정된다.
+# 하위 호환: 2026-11-04 이전에 적재한 Qdrant 컬렉션(fitzza_products_20261025_01·_02 등)은 sizes[].measurements가
+# 영문 키(top_length 등)다. 이후 파이프라인(vector_points.MEASUREMENT_FIELDS)은 한글 표준 키를 그대로 적재하므로
+# 새 실측 항목은 여기에 추가하지 않는다. 영문 키 컬렉션이 alias에서 빠지고 정리되면 이 맵을 제거한다.
 QDRANT_MEASUREMENT_KEY_TO_MUSINSA: dict[str, str] = {
     "top_length": "총장",
     "bottom_length": "총장",
@@ -97,7 +98,7 @@ def normalize_measurement_spec(
 ) -> dict[str, float]:
     """
     무신사 크롤링 데이터 기준 실측 스펙 정규화 함수:
-    - Qdrant payload 영문 키(top_length 등)는 무신사 표준 한글 필드로 변환
+    - 이전 Qdrant 컬렉션의 영문 키(top_length 등)는 무신사 표준 한글 필드로 변환(하위 호환)
     - 지정된 카테고리의 무신사 표준 필드만 추출
     - 수치 파싱 및 신발(cm/mm) 단위 보정
     """

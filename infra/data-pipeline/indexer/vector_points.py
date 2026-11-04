@@ -19,15 +19,16 @@ COLORS = {"black", "white", "ivory", "beige", "gray", "charcoal", "navy", "blue"
           "khaki", "brown", "red", "pink", "purple", "yellow", "orange", "multi", "etc"}
 IMAGE_HOSTS = {"image.msscdn.net", "image.musinsa.com", "image.musinsa.co.kr"}
 IMAGE_BASE_URL = "https://image.msscdn.net"
-MEASUREMENT_KEYS = {
-    "상의": {"총장": "top_length", "어깨너비": "shoulder", "가슴단면": "chest", "소매길이": "sleeve",
-           "밑단단면": "top_hem", "소매부리단면": "cuff", "암홀": "armhole"},
-    "하의": {"총장": "bottom_length", "허리단면": "waist", "엉덩이단면": "hip", "허벅지단면": "thigh",
-           "밑위": "rise", "밑단단면": "bottom_hem"},
-    "신발": {"발길이": "foot_length", "발볼": "foot_width", "발목높이": "ankle_height", "굽높이": "heel_height"},
-    "모자": {"머리둘레": "head_circumference", "챙길이": "brim_length", "깊이": "depth"},
+# Standard size-chart fields per category, kept under the Korean names the crawler, product-service and
+# recommendation-service (MUSINSA_CATEGORY_SPEC_FIELDS) use. Collections loaded before 2026-11-04 hold
+# English keys (top_length, ...); recommendation-service still maps those.
+MEASUREMENT_FIELDS = {
+    "상의": ("총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"),
+    "하의": ("총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"),
+    "신발": ("발길이", "발볼", "발목높이", "굽높이"),
+    "모자": ("머리둘레", "챙길이", "깊이"),
 }
-MEASUREMENT_KEYS["아우터"] = MEASUREMENT_KEYS["상의"]
+MEASUREMENT_FIELDS["아우터"] = MEASUREMENT_FIELDS["상의"]
 # Keyword/integer indexes used by recommendation-service filters and the Qdrant contract.
 PAYLOAD_INDEXES = {"product_id": "integer", "price": "integer", "category": "keyword",
                    "subcategory": "keyword", "color_normalized": "keyword", "normalized_color": "keyword",
@@ -142,7 +143,7 @@ def normalize_sizes(category: str, rows: list) -> list[dict]:
     Shoes and caps sold without a size chart arrive as label-only rows. Their labels must
     stay in the payload: recommendation-service lists them and matches shoe labels directly.
     """
-    keys = MEASUREMENT_KEYS.get(category, {})
+    fields = MEASUREMENT_FIELDS.get(category, ())
     sizes = []
     for row in rows or []:
         label = str(row.get("size") or "").strip()
@@ -150,13 +151,13 @@ def normalize_sizes(category: str, rows: list) -> list[dict]:
             continue
         measured = {}
         for name, value in (row.get("measurements") or {}).items():
-            if name in keys:
+            if name in fields:
                 try:
                     number = float(value)
                 except (TypeError, ValueError):
                     continue
                 if math.isfinite(number) and number > 0:
-                    measured[keys[name]] = number
+                    measured[name] = number
         sizes.append({"size": label, "sequence": row.get("sequence", 0), "measurements": measured})
     return sizes
 
