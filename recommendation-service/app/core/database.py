@@ -879,22 +879,13 @@ class RecommendationRepository:
         size_feedback: str,
         subcategory: str | None = None,
         fit_type: str | None = None,
-        purchased_spec: dict[str, float] | None = None,
+        preference_spec: dict[str, float] | None = None,
     ) -> None:
+        """피드백 로그를 남기고, 피드백이 반영된 선호 실측(preference_spec)을 핏별 선호 실측에 합친다."""
         now = self._now_iso()
-        offset = 0.0
-        if size_feedback == "SMALL":
-            offset = 1.5
-        elif size_feedback == "BIG":
-            offset = -1.5
-
         adjusted_spec = (
-            {
-                k: round(float(v) + offset, 1)
-                for k, v in purchased_spec.items()
-                if isinstance(v, (int, float))
-            }
-            if purchased_spec
+            {k: round(float(v), 1) for k, v in preference_spec.items() if isinstance(v, (int, float))}
+            if preference_spec
             else None
         )
         pref_fit_type = self._normalize_preference_fit(fit_type)
@@ -1025,18 +1016,23 @@ class RecommendationRepository:
             finally:
                 self._close_sqlite_if_transient(conn)
 
-    @staticmethod
+    # 선호 실측 지수 이동평균에서 새 피드백이 차지하는 비중. 최근 피드백과 체형 변화를 빠르게 따라가게 한다.
+    PREFERENCE_EMA_NEW_WEIGHT: float = 0.3
+
+    @classmethod
     def _merge_preference_spec(
+        cls,
         existing: Any,
         adjusted_spec: dict[str, float],
     ) -> tuple[int, dict[str, float]]:
         n = int(existing["sample_count"])
         prev_spec = json.loads(existing["preference_spec_json"] or "{}")
         merged_spec: dict[str, float] = dict(prev_spec)
+        new_weight = cls.PREFERENCE_EMA_NEW_WEIGHT
         for key, val in adjusted_spec.items():
             if key in prev_spec and isinstance(prev_spec[key], (int, float)):
                 merged_spec[key] = round(
-                    (float(prev_spec[key]) * n + val) / (n + 1), 1
+                    float(prev_spec[key]) * (1.0 - new_weight) + val * new_weight, 1
                 )
             else:
                 merged_spec[key] = val

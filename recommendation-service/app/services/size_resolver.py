@@ -1191,6 +1191,130 @@ def evaluate_single_product_size(
     }
 
 
+# 같은 상품에 한 단계 위/아래 사이즈가 없을 때 SMALL/BIG 피드백을 핵심 항목에 반영하는 고정 보정 폭 (신발 mm, 그 외 cm)
+FEEDBACK_FALLBACK_OFFSET_CM: float = 1.5
+FEEDBACK_FALLBACK_OFFSET_SHOES_MM: float = 5.0
+
+
+def _size_scale_value(spec: dict[str, Any], rules: dict[str, tuple[float, float, bool]]) -> Optional[float]:
+    """사이즈 크기 순서를 정하기 위한 값으로 가중치가 가장 큰 핵심 항목의 실측을 쓴다."""
+    for field, _ in sorted(rules.items(), key=lambda item: item[1][1], reverse=True):
+        value = spec.get(field)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
+
+
+def build_feedback_preference_spec(
+    size_feedback: str,
+    purchased_spec: dict[str, Any] | None,
+    sibling_specs: list[dict[str, Any]] | None,
+    category_type: str | None,
+) -> dict[str, float] | None:
+    """사이즈 피드백을 선호 실측으로 바꾼다.
+
+    FIT은 구매 사이즈 실측 그대로, SMALL/BIG은 같은 상품의 한 단계 위/아래 사이즈 실측과의 중간값을 쓴다.
+    위/아래 사이즈가 없으면 핵심 항목에만 고정 보정 폭을 더하거나 뺀다.
+    """
+    category = str(category_type or "")
+    purchased = normalize_measurement_spec(purchased_spec or {}, category=category or None)
+    if not purchased:
+        return None
+    if size_feedback not in ("SMALL", "BIG"):
+        return purchased
+
+    rules = get_fit_scoring_rules(category)
+    direction = 1.0 if size_feedback == "SMALL" else -1.0
+    purchased_scale = _size_scale_value(purchased, rules)
+
+    neighbor: dict[str, float] | None = None
+    if purchased_scale is not None:
+        best_gap: float | None = None
+        for raw_sibling in sibling_specs or []:
+            sibling = normalize_measurement_spec(raw_sibling or {}, category=category or None)
+            sibling_scale = _size_scale_value(sibling, rules)
+            if sibling_scale is None:
+                continue
+            gap = (sibling_scale - purchased_scale) * direction
+            if gap > 0 and (best_gap is None or gap < best_gap):
+                best_gap = gap
+                neighbor = sibling
+
+    if neighbor is not None:
+        return {
+            field: round((value + neighbor[field]) / 2.0, 1) if field in neighbor else value
+            for field, value in purchased.items()
+        }
+
+    offset = FEEDBACK_FALLBACK_OFFSET_SHOES_MM if category in ("신발", "shoes") else FEEDBACK_FALLBACK_OFFSET_CM
+    return {
+        field: round(value + offset * direction, 1) if rules.get(field, (0.0, 0.0, False))[2] else value
+        for field, value in purchased.items()
+    }
+
+
+def _fetch_feedback_option_specs(
+    product_client: Any,
+    product_id: int,
+    option_id: int,
+    request_id_header: str | None,
+) -> tuple[dict[str, float] | None, list[dict[str, float]]]:
+    """구매 옵션 실측과 같은 상품의 다른 사이즈 실측 목록을 product-service에서 조회한다."""
+    if product_client is None:
+        return None, []
+
+    if hasattr(product_client, "get_product_measurements"):
+        try:
+            measurements_map = product_client.get_product_measurements(
+                [product_id],
+                request_id_header=request_id_header,
+            )
+        except Exception as exc:
+            logger.warning("상품 실측 조회 실패 (productId=%s): %s", product_id, exc)
+            measurements_map = None
+
+        if isinstance(measurements_map, dict):
+            purchased: dict[str, float] | None = None
+            purchased_size: str | None = None
+            options = [o for o in measurements_map.get(int(product_id)) or [] if isinstance(o, dict)]
+            for opt in options:
+                try:
+                    if int(opt.get("option_id")) == int(option_id):
+                        purchased = opt.get("measurements") or None
+                        purchased_size = str(opt.get("size") or "")
+                        break
+                except (TypeError, ValueError):
+                    continue
+
+            siblings: list[dict[str, float]] = []
+            seen_sizes: set[str] = {purchased_size} if purchased_size is not None else set()
+            for opt in options:
+                size_label = str(opt.get("size") or "")
+                if size_label in seen_sizes or not opt.get("measurements"):
+                    continue
+                seen_sizes.add(size_label)
+                siblings.append(opt["measurements"])
+
+            if purchased is not None:
+                return purchased, siblings
+
+    if hasattr(product_client, "find_option_measurement"):
+        try:
+            return product_client.find_option_measurement(
+                product_id=product_id,
+                option_id=option_id,
+                request_id_header=request_id_header,
+            ), []
+        except Exception as exc:
+            logger.warning(
+                "옵션 실측 조회 실패 (productId=%s, optionId=%s): %s",
+                product_id,
+                option_id,
+                exc,
+            )
+    return None, []
+
+
 def process_size_feedback(
     user_id: int,
     product_id: int,
@@ -1204,28 +1328,31 @@ def process_size_feedback(
     request_id_header: str | None = None,
 ) -> None:
     """사용자의 구매 후 사이즈 피드백을 저장하고 선호 실측 프로필을 갱신한다."""
-    purchased_spec: dict[str, float] | None = None
-    if product_client is not None and hasattr(product_client, "find_option_measurement"):
-        try:
-            purchased_spec = product_client.find_option_measurement(
-                product_id=product_id,
-                option_id=option_id,
-                request_id_header=request_id_header,
-            )
-        except Exception as exc:
-            logger.warning(
-                "옵션 실측 조회 실패 (productId=%s, optionId=%s): %s",
-                product_id,
-                option_id,
-                exc,
-            )
+    purchased_spec, sibling_specs = _fetch_feedback_option_specs(
+        product_client=product_client,
+        product_id=product_id,
+        option_id=option_id,
+        request_id_header=request_id_header,
+    )
 
     subcategory: str | None = None
     fit_type: str | None = None
+    raw_category = ""
     if qdrant_payload is not None:
         meta = extract_payload_metadata(qdrant_payload)
         subcategory = meta["subcategory"] or None
         fit_type = meta["fit_type"] or None
+        raw_category = meta["raw_category"]
+
+    category_type = raw_category or infer_category_from_measurements(
+        [{"measurements": spec} for spec in [purchased_spec, *sibling_specs] if spec]
+    )
+    preference_spec = build_feedback_preference_spec(
+        size_feedback=size_feedback,
+        purchased_spec=purchased_spec,
+        sibling_specs=sibling_specs,
+        category_type=category_type,
+    )
 
     repository.save_size_feedback(
         user_id=user_id,
@@ -1234,7 +1361,7 @@ def process_size_feedback(
         size_feedback=size_feedback,
         subcategory=subcategory,
         fit_type=fit_type,
-        purchased_spec=purchased_spec,
+        preference_spec=preference_spec,
     )
 
     if subcategory and size_resolver is not None:
