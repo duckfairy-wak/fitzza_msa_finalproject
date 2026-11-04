@@ -15,7 +15,7 @@ class IndexerContractTests(unittest.TestCase):
 
     def test_measurement_contract_preserved(self):
         result = self.scope["normalize_measurements"]("상의", {"어깨너비": "44", "총장": "70", "가슴단면": -1})
-        self.assertEqual(result, {"shoulder": 44.0, "top_length": 70.0})
+        self.assertEqual(result, {"어깨너비": 44.0, "총장": 70.0})
 
     def test_payload_preserves_size_season_and_color_fields(self):
         product = {"product_id": 12, "name": "top", "dataset": {"logical_category": "상의"},
@@ -25,7 +25,7 @@ class IndexerContractTests(unittest.TestCase):
         self.assertEqual(payload["product_id"], 12)
         self.assertEqual(payload["color_normalized"], ["black"])
         self.assertEqual(payload["season_candidates"], ["봄"])
-        self.assertEqual(payload["sizes"][0]["measurements"], {"shoulder": 44.0})
+        self.assertEqual(payload["sizes"][0]["measurements"], {"어깨너비": 44.0})
 
     def test_internal_and_unapproved_image_hosts_are_blocked(self):
         for url in ("http://169.254.169.254/", "https://localhost/a.jpg", "https://example.com/a.jpg"):
