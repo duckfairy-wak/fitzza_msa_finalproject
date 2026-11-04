@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 import os
 import time
@@ -338,8 +339,11 @@ class OutfitHarmonizer:
                 str(season) for season in seasons
             ) or "정보없음"
 
+            price_val = item.get("price")
+            price_text = f"{int(price_val):,}원" if price_val is not None and isinstance(price_val, (int, float)) else "가격 정보 없음"
+
             items_desc_parts.append(
-                f"- 상품 {index}: [{category} - {subcategory}] {brand_name} {product_name}\n"
+                f"- 상품 {index}: [{category} - {subcategory}] {brand_name} {product_name} (가격: {price_text})\n"
                 f"  색상 메타데이터: {color_text}\n"
                 f"  계절 정보: {season_text}"
             )
@@ -590,46 +594,58 @@ class OutfitHarmonizer:
         passed_outfits: list[dict[str, Any]] = []
         rejected_outfits: list[dict[str, Any]] = []
 
-        for candidate in candidates_to_review:
-            try:
-                gate_result = self.evaluate_final(
-                    candidate["items"],
-                    tpo_context,
-                )
-            except Exception as error:
-                logger.warning(
-                    "후보 코디 Vision 검수 실패로 해당 후보를 건너뜁니다: %s: %s",
-                    type(error).__name__,
-                    error,
-                )
-                continue
+        if candidates_to_review:
+            start_eval_parallel = time.perf_counter()
+            max_workers = min(len(candidates_to_review), MAX_CANDIDATES_TO_REVIEW)
 
-            self.last_prompt_tokens += int(gate_result.get("prompt_tokens", 0) or 0)
-            self.last_completion_tokens += int(gate_result.get("completion_tokens", 0) or 0)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_pairs = [
+                    (executor.submit(self.evaluate_final, candidate["items"], tpo_context), candidate)
+                    for candidate in candidates_to_review
+                ]
 
-            final_score = round(
-                gate_result["harmony_score"] - candidate["budget_penalty"],
-                2,
-            )
+                for future, candidate in future_pairs:
+                    try:
+                        gate_result = future.result()
+                    except Exception as error:
+                        logger.warning(
+                            "후보 코디 Vision 검수 실패로 해당 후보를 건너뜁니다: %s: %s",
+                            type(error).__name__,
+                            error,
+                        )
+                        continue
 
-            outfit_data = {
-                "harmony_score": gate_result["harmony_score"],
-                "final_score": final_score,
-                "budget_penalty": candidate["budget_penalty"],
-                "pass_status": gate_result["pass_status"],
-                "violated_rules": gate_result["violated_rules"],
-                "verdict": gate_result["feedback_summary"],
-                "styling_tip": gate_result["feedback_summary"],
-                "total_price": candidate["total_price"],
-                "avg_search_score": candidate["avg_search_score"],
-                "vector_score": candidate["vector_score"],
-                "items": candidate["items"],
-            }
+                    self.last_prompt_tokens += int(gate_result.get("prompt_tokens", 0) or 0)
+                    self.last_completion_tokens += int(gate_result.get("completion_tokens", 0) or 0)
 
-            if gate_result["pass_status"]:
-                passed_outfits.append(outfit_data)
-            else:
-                rejected_outfits.append(outfit_data)
+                    final_score = round(
+                        gate_result["harmony_score"] - candidate["budget_penalty"],
+                        2,
+                    )
+
+                    outfit_data = {
+                        "harmony_score": gate_result["harmony_score"],
+                        "final_score": final_score,
+                        "budget_penalty": candidate["budget_penalty"],
+                        "pass_status": gate_result["pass_status"],
+                        "violated_rules": gate_result["violated_rules"],
+                        "verdict": gate_result["feedback_summary"],
+                        "styling_tip": gate_result["feedback_summary"],
+                        "total_price": candidate["total_price"],
+                        "avg_search_score": candidate["avg_search_score"],
+                        "vector_score": candidate["vector_score"],
+                        "items": candidate["items"],
+                    }
+
+                    if gate_result["pass_status"]:
+                        passed_outfits.append(outfit_data)
+                    else:
+                        rejected_outfits.append(outfit_data)
+
+            self.last_llm_latency = time.perf_counter() - start_eval_parallel
+
+            if not passed_outfits and not rejected_outfits:
+                raise RuntimeError("모든 후보 코디의 Vision 검수가 실패했습니다.")
 
         passed_outfits.sort(
             key=lambda outfit: outfit["final_score"],

@@ -95,7 +95,7 @@ class NotificationServiceClient:
         self,
         user_id: int,
         fitting_id: int,
-        content: str = "가상 피팅 생성에 실패했습니다.",
+        content: str = "요청하신 가상 피팅이 실패했어요.",
         request_id_header: str | None = None,
     ) -> bool:
         return self.send_fitting_event(

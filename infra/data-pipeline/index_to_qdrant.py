@@ -113,51 +113,26 @@ class FashionCLIPRunner:
                 embeddings.extend(feats.cpu().numpy())
         return np.array(embeddings)
 
-# 상품 실측에 따른 정규화 함수
+# 상품 실측 정규화: 카테고리 표준 항목만 한글 키 그대로 남긴다(vector_points.MEASUREMENT_FIELDS와 같은 규칙)
 def normalize_measurements(category_name: str, raw_measurements: dict) -> dict:
-    mapped = {}
     if category_name in ["상의", "아우터"]:
-        key_map = {
-            "총장": "top_length",
-            "어깨너비": "shoulder",
-            "가슴단면": "chest",
-            "소매길이": "sleeve",
-            "밑단단면": "top_hem",
-            "소매부리단면": "cuff",
-            "암홀": "armhole"
-        }
+        fields = {"총장", "어깨너비", "가슴단면", "소매길이", "밑단단면", "소매부리단면", "암홀"}
     elif category_name == "하의":
-        key_map = {
-            "총장": "bottom_length",
-            "허리단면": "waist",
-            "엉덩이단면": "hip",
-            "허벅지단면": "thigh",
-            "밑위": "rise",
-            "밑단단면": "bottom_hem"
-        }
+        fields = {"총장", "허리단면", "엉덩이단면", "허벅지단면", "밑위", "밑단단면"}
     elif category_name == "신발":
-        key_map = {
-            "발길이": "foot_length",
-            "발볼": "foot_width",
-            "발목높이": "ankle_height",
-            "굽높이": "heel_height"
-        }
+        fields = {"발길이", "발볼", "발목높이", "굽높이"}
     elif category_name == "모자":
-        key_map = {
-            "머리둘레": "head_circumference",
-            "챙길이": "brim_length",
-            "깊이": "depth"
-        }
+        fields = {"머리둘레", "챙길이", "깊이"}
     else:
-        key_map = {}
+        fields = set()
 
+    mapped = {}
     for k, v in raw_measurements.items():
-        en_key = key_map.get(k)
-        if en_key is not None:
+        if k in fields:
             try:
                 val = float(v)
                 if val > 0.0:
-                    mapped[en_key] = val
+                    mapped[k] = val
             except (ValueError, TypeError):
                 pass
     return mapped
@@ -172,13 +147,15 @@ def make_payload(p, img_url, raw_color, norm_color):
     # 계절감
     season_candidates = p.get("season", {}).get("primary_candidates", [])
 
-    # 상품 실측
+    # 상품 실측: 실측표 없이 판매 옵션 라벨만 있는 신발·모자도 라벨은 남긴다(vector_points.normalize_sizes와 같은 규칙)
     raw_measurements_list = p.get("size", {}).get("measurements", [])
     normalized_sizes = []
     for size_item in raw_measurements_list:
-        norm_m = normalize_measurements(logical_cat, size_item.get("measurements", {}))
-        if norm_m:
-            normalized_sizes.append({"size": size_item.get("size"), "sequence": size_item.get("sequence", 0), "measurements": norm_m})
+        label = str(size_item.get("size") or "").strip()
+        if not label:
+            continue
+        norm_m = normalize_measurements(logical_cat, size_item.get("measurements") or {})
+        normalized_sizes.append({"size": label, "sequence": size_item.get("sequence", 0), "measurements": norm_m})
 
     payload = {
         "product_id": int(p["product_id"]),

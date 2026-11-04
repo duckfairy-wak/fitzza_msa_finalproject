@@ -6,6 +6,8 @@ Deployment mode makes no network calls. With --execute-approved-run it:
 2. with --exclude-unsellable-colors, re-reads the approved bundle the run embedded (SHA-256 must
    match report.json) and drops points whose color is not a sellable option, using the same rule
    as the embedding plan; vectors are reused, so a run embedded before that rule needs no re-embedding,
+   with --refresh-sizes, recomputes every payload's sizes from that same bundle with the current
+   normalize_sizes rule (vectors reused), so size labels dropped by an older rule come back,
 3. creates fitzza_products_<version> (512, Cosine) with payload indexes, or resumes it with --resume,
 4. upserts in batches with wait=true and exponential backoff, recording failed batches,
 5. validates counts, payloads, filters and search, then writes import-report-<collection>.json.
@@ -25,8 +27,8 @@ import re
 import sys
 import time
 
-from vector_points import (PAYLOAD_INDEXES, VECTOR_SIZE, color_key, invalid_vector_reason, part_name,
-                           payload_problems, sellable_color_keys)
+from vector_points import (PAYLOAD_INDEXES, VECTOR_SIZE, color_key, invalid_vector_reason, normalize_sizes,
+                           part_name, payload_problems, sellable_color_keys)
 
 COLLECTION_PATTERN = r"fitzza_products_[a-z0-9_]{1,48}"
 
@@ -60,8 +62,8 @@ def load_records(s3, bucket: str, prefix: str, report: dict) -> tuple[list[dict]
     return records, dict(problems)
 
 
-def approved_sellable_keys(s3, bucket: str, report: dict) -> dict[int, set[str]]:
-    """product_id -> sellable color keys, read from the exact approved bundle the run embedded."""
+def load_approved_products(s3, bucket: str, report: dict) -> dict[int, dict]:
+    """product_id -> product JSON, read from the exact approved bundle the run embedded."""
     from entrypoint import unpack_bundle
 
     work = Path(os.environ.get("WORK_DIR", "/work"))
@@ -70,26 +72,50 @@ def approved_sellable_keys(s3, bucket: str, report: dict) -> dict[int, set[str]]
     if hashlib.sha256(archive.read_bytes()).hexdigest() != report["approved_bundle_sha256"]:
         raise ValueError("Approved bundle differs from the one this vector run embedded")
     unpack_bundle(archive, bundle)
-    keys = {}
+    products = {}
     for path in sorted((bundle / "data").rglob("*.json")):
         product = json.loads(path.read_text(encoding="utf-8"))
-        keys[int(product["product_id"])] = sellable_color_keys(product)
-    return keys
+        products[int(product["product_id"])] = product
+    return products
 
 
-def exclude_unsellable(records: list[dict], keys: dict[int, set[str]]) -> tuple[list[dict], list[dict]]:
+def approved_product(products: dict[int, dict], record: dict) -> dict:
+    product_id = int(record["product_id"])
+    if product_id not in products:
+        raise ValueError(f"Product {product_id} is not in the approved bundle")
+    return products[product_id]
+
+
+def exclude_unsellable(records: list[dict], products: dict[int, dict]) -> tuple[list[dict], list[dict]]:
     kept, excluded = [], []
     for record in records:
         product_id = int(record["product_id"])
-        if product_id not in keys:
-            raise ValueError(f"Product {product_id} is not in the approved bundle")
+        sellable = sellable_color_keys(approved_product(products, record))
         raw = record["payload"]["color_raw"]
-        if color_key(raw) in keys[product_id]:
+        if color_key(raw) in sellable:
             kept.append(record)
         else:
             excluded.append({"point_id": record["point_id"], "product_id": product_id, "color_raw": raw,
                              "image_key": record.get("image_key")})
     return kept, excluded
+
+
+def refresh_sizes(records: list[dict], products: dict[int, dict]) -> dict:
+    """Recompute payload sizes from the approved bundle in place and summarize what changed."""
+    changed_points, changed_products, without_sizes = 0, set(), set()
+    for record in records:
+        product = approved_product(products, record)
+        payload = record["payload"]
+        sizes = normalize_sizes(payload["category"], (product.get("size") or {}).get("measurements"))
+        if sizes != payload.get("sizes"):
+            payload["sizes"] = sizes
+            changed_points += 1
+            changed_products.add(int(record["product_id"]))
+        if not sizes:
+            without_sizes.add(int(record["product_id"]))
+    return {"points_with_changed_sizes": changed_points,
+            "products_with_changed_sizes": len(changed_products),
+            "products_without_sizes": sorted(without_sizes)}
 
 
 def upsert_with_retry(client, models, collection: str, batch: list[dict], attempts: int = 5) -> None:
@@ -139,7 +165,7 @@ def validate_collection(client, models, collection: str, records: list[dict]) ->
         collection_name=collection, ids=[record["point_id"] for record in samples], with_payload=True)}
     checks["sample_payload_matches"] = all(
         stored.get(record["point_id"], {}).get(key) == record["payload"][key]
-        for record in samples for key in ("product_id", "color_variant", "normalized_color", "image_key"))
+        for record in samples for key in ("product_id", "color_variant", "normalized_color", "image_key", "sizes"))
     hits = client.query_points(collection_name=collection, query=samples[0]["vector"], limit=5,
                                with_payload=True).points if samples else []
     checks["sample_search_returns_payload"] = bool(hits) and all(hit.payload for hit in hits)
@@ -173,14 +199,19 @@ def run(args) -> dict:
         result.update(status="rejected_before_qdrant", passed=False)
         return result
     excluded = []
-    if getattr(args, "exclude_unsellable_colors", False):
+    exclude_colors = getattr(args, "exclude_unsellable_colors", False)
+    resize = getattr(args, "refresh_sizes", False)
+    products = load_approved_products(s3, args.bucket, report) if exclude_colors or resize else {}
+    if exclude_colors:
         loaded_products = {r["product_id"] for r in records}
-        records, excluded = exclude_unsellable(records, approved_sellable_keys(s3, args.bucket, report))
+        records, excluded = exclude_unsellable(records, products)
         result["sellable_filter"] = {
             "excluded_point_count": len(excluded),
             "products_with_excluded_points": len({item["product_id"] for item in excluded}),
             "products_without_points_after_filter": sorted(loaded_products - {r["product_id"] for r in records}),
             "excluded_points": excluded}
+    if resize:
+        result["size_refresh"] = refresh_sizes(records, products)
     result.update(import_point_count=len(records),
                   color_distribution=dict(Counter(r["payload"]["normalized_color"] for r in records)),
                   category_distribution=dict(Counter(r["payload"]["category"] for r in records)),
@@ -228,6 +259,8 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true", help="continue into a collection this run already created")
     parser.add_argument("--exclude-unsellable-colors", action="store_true",
                         help="drop points whose color is not an active option in the approved bundle")
+    parser.add_argument("--refresh-sizes", action="store_true",
+                        help="recompute payload sizes from the approved bundle with the current rule")
     parser.add_argument("--execute-approved-run", action="store_true")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", args.vector_run_id):

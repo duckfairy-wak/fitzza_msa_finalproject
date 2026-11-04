@@ -204,6 +204,14 @@ pilot은 종료·정지됐고 두 AI 앱의 replicas 및 CD 전환은 복구했�
 - 필터 이전에 임베딩한 run은 다시 임베딩하지 않는다. importer에 `--exclude-unsellable-colors`를 주면 run이 임베딩한
   승인본(SHA-256이 `report.json`과 같아야 함)을 다시 읽어 같은 규칙으로 비판매 색상 point를 빼고 새 버전 컬렉션에 적재한다.
   제외 목록은 import 보고서 `sellable_filter`에 남고, 검증 항목 `unsellable_points_absent`가 추가된다.
+- payload `sizes`는 라벨이 있는 모든 사이즈 행이다. 실측표 없이 판매 옵션 라벨만 있는 신발·모자는 `measurements: {}`로 남는다
+  (2026-11-04 이전 규칙은 실측이 없는 행을 버려 이런 상품의 `sizes`가 비었다). 이전 규칙으로 임베딩한 run은
+  importer에 `--refresh-sizes`를 주면 같은 승인본으로 `sizes`만 다시 계산해 새 버전 컬렉션에 적재한다(재임베딩 없음).
+  변경 수는 import 보고서 `size_refresh`에 남고, 표본 payload 대조에 `sizes`가 포함된다.
+- `sizes[].measurements` 키는 크롤링 원본·product-service·recommendation-service와 같은 한글 표준 항목이다
+  (`vector_points.MEASUREMENT_FIELDS`, recommendation-service `MUSINSA_CATEGORY_SPEC_FIELDS`와 같은 목록).
+  2026-11-04 이전 컬렉션은 영문 키(`top_length` 등)이고 추천 서비스가 하위 호환으로 함께 읽는다.
+  `--refresh-sizes` 재적재는 영문 키 컬렉션도 한글 키로 바꾼다.
 
 이미지 빌드(빌드 컨텍스트는 `infra/data-pipeline`). 베이스(`BASE_IMAGE`)는 노드에서 실행 중인 recommendation-service
 이미지 digest와 같아야 한다. 노드 디스크가 20GB라, 다른 베이스(3.4GB)를 받으면 디스크가 차서 Pod가 퇴거된다
