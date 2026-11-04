@@ -56,6 +56,7 @@ from app.services.size_resolver import (
     fetch_qdrant_product_payload,
     process_size_feedback,
     resolve_product_for_size,
+    resolve_size_evidence,
     sync_user_body,
     sync_user_size_preference,
 )
@@ -339,7 +340,7 @@ def _extract_sizes_list(item: dict[str, Any]) -> list[str] | None:
     return extracted if extracted else None
 
 
-def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
+def _map_product_item(item: dict[str, Any], user_service_error: bool = False) -> dict[str, Any]:
     size_rec = item.get("size_recommendation") or {}
     source_type = str(item.get("fit_source_type") or "none")
 
@@ -354,7 +355,19 @@ def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
         score_val = float(raw_fit_score)
         fit_percent = round(score_val * 100.0 if score_val <= 1.0 else score_val, 1)
 
-    evidence = item.get("evidence") or FIT_SOURCE_EVIDENCE_MAP.get(source_type)
+    if user_service_error:
+        recommended_size = None
+        fit_percent = None
+
+    evidence = resolve_size_evidence(
+        raw_sizes=item.get("sizes"),
+        recommended_size=recommended_size,
+        source_type=source_type,
+        existing_evidence=item.get("evidence"),
+        has_user_body=item.get("has_user_body"),
+        user_service_error=user_service_error,
+        category_type=item.get("category"),
+    )
 
     raw_product_id = item.get("product_id", item.get("productId", 0))
     try:
@@ -386,9 +399,9 @@ def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
     ).model_dump()
 
 
-def _map_combo_outfit(outfit: dict[str, Any]) -> dict[str, Any]:
+def _map_combo_outfit(outfit: dict[str, Any], user_service_error: bool = False) -> dict[str, Any]:
     raw_items = outfit.get("items") or []
-    mapped_items = [_map_product_item(item) for item in raw_items]
+    mapped_items = [_map_product_item(item, user_service_error=user_service_error) for item in raw_items]
 
     total_price = int(
         outfit.get("total_price")
@@ -455,11 +468,17 @@ def process_recommendation_request(
 
     notification_content = "요청하신 AI 패션 추천 결과가 도착했어요."
 
+    user_service_error = False
     try:
-        user_body = user_client.get_user_body(
-            user_id=user_id,
-            request_id_header=request_id_header,
-        )
+        try:
+            user_body = user_client.get_user_body(
+                user_id=user_id,
+                request_id_header=request_id_header,
+            )
+        except UserServiceUnavailableError as user_exc:
+            logger.warning("user-service 연동 불가, 기본 체형 정보로 파이프라인 진행 (userId=%s): %s", user_id, user_exc)
+            user_service_error = True
+            user_body = {}
         coordinator = _get_coordinator(app)
         _sync_user_body(
             size_resolver=getattr(coordinator, "size_resolver", None),
@@ -495,7 +514,7 @@ def process_recommendation_request(
 
         if result_type == "single":
             raw_items = pipeline_result.get("results") or []
-            mapped_items = [_map_product_item(item) for item in raw_items[:9]]
+            mapped_items = [_map_product_item(item, user_service_error=user_service_error) for item in raw_items[:9]]
             repository.complete_single_request(
                 request_id=request_id,
                 tpo_summary=tpo_summary,
@@ -506,7 +525,7 @@ def process_recommendation_request(
             )
         else:
             raw_outfits = pipeline_result.get("outfits") or []
-            mapped_combos = [_map_combo_outfit(outfit) for outfit in raw_outfits[:2]]
+            mapped_combos = [_map_combo_outfit(outfit, user_service_error=user_service_error) for outfit in raw_outfits[:2]]
             repository.complete_combo_request(
                 request_id=request_id,
                 user_id=user_id,

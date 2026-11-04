@@ -500,7 +500,8 @@ class SizeCalculator:
                                 except (ValueError, TypeError):
                                     pass
                     if valid_fields_count == 0:
-                        fit_score = 0.0
+                        # 비교할 실측이 없는 사이즈(실측표 없는 라벨 등)는 오차 0으로 다른 사이즈를 이기지 않도록 제외
+                        continue
                 elif penalty > 25.0:
                     fit_score = 0.0
                 else:
@@ -800,6 +801,54 @@ def resolve_product_for_size(
     }
 
 
+def resolve_size_evidence(
+    raw_sizes: list[Any] | None,
+    recommended_size: Optional[str] = None,
+    source_type: Optional[str] = None,
+    baseline_spec: Optional[dict[str, Any]] = None,
+    existing_evidence: Optional[str] = None,
+    has_user_body: Optional[bool] = None,
+    user_service_error: bool = False,
+    category_type: Optional[str] = None,
+) -> Optional[str]:
+    """상품 실측표 유무, 단일 사이즈 여부, 사용자 신체 프로필 유무 및 산출 결과를 바탕으로 일관된 안내 문구를 반환한다."""
+    if existing_evidence:
+        return existing_evidence
+
+    if user_service_error:
+        return "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
+
+    if recommended_size:
+        return FIT_SOURCE_EVIDENCE_MAP.get(str(source_type or "none"))
+
+    sizes = raw_sizes or []
+    if not sizes:
+        return "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다."
+
+    size_labels: list[str] = []
+    for s in sizes:
+        if isinstance(s, dict) and s.get("size") is not None:
+            val = str(s.get("size")).strip()
+            if val:
+                size_labels.append(val)
+        elif isinstance(s, str) and s.strip():
+            size_labels.append(s.strip())
+
+    if len(size_labels) == 1 and size_labels[0].upper() in {"FREE", "ONE SIZE", "ONESIZE"}:
+        return "단일 사이즈(FREE)로 제공되는 상품입니다."
+
+    norm_source = str(source_type or "none")
+    if norm_source == "none" or not baseline_spec:
+        if has_user_body:
+            return "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+        return "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다."
+
+    if not recommended_size:
+        return "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+
+    return "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다."
+
+
 def evaluate_single_product_size(
     size_resolver: Any,
     repository: Any,
@@ -852,6 +901,7 @@ def evaluate_single_product_size(
             )
 
     user_body: dict[str, Any] | None = None
+    user_service_error = False
     if not db_pref:
         if user_client is not None:
             try:
@@ -861,9 +911,12 @@ def evaluate_single_product_size(
                 )
             except Exception as exc:
                 logger.warning("user-service 신체 정보 조회 실패 (userId=%s): %s", user_id, exc)
+                user_service_error = True
                 user_body = {}
         else:
             user_body = {}
+
+    has_user_body = bool(parse_user_body(user_body)) or bool(db_pref)
 
     resolve_fn = size_resolver.resolve_and_calculate_size
     sig_params = inspect.signature(resolve_fn).parameters
@@ -899,18 +952,22 @@ def evaluate_single_product_size(
     baseline_spec = size_result.get("baseline_spec")
     recommendation = size_result.get("recommendation")
 
-    if source_type == "none" or baseline_spec is None:
-        return {
-            "recommendedSize": None,
-            "fitPercent": None,
-            "evidence": "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다.",
-        }
+    rec_size = str(recommendation["size_label"]) if (recommendation and recommendation.get("size_label")) else None
+    evidence = resolve_size_evidence(
+        raw_sizes=raw_sizes,
+        recommended_size=rec_size,
+        source_type=source_type,
+        baseline_spec=baseline_spec,
+        has_user_body=has_user_body,
+        user_service_error=user_service_error,
+        category_type=category_type,
+    )
 
-    if not recommendation or not recommendation.get("size_label"):
+    if user_service_error or rec_size is None or source_type == "none" or baseline_spec is None:
         return {
             "recommendedSize": None,
             "fitPercent": None,
-            "evidence": "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다.",
+            "evidence": evidence,
         }
 
     raw_fit_score = float(recommendation.get("predicted_fit_score") or 0.0)
@@ -921,9 +978,9 @@ def evaluate_single_product_size(
     fit_percent = max(0.0, min(100.0, fit_percent))
 
     return {
-        "recommendedSize": str(recommendation["size_label"]),
+        "recommendedSize": rec_size,
         "fitPercent": fit_percent,
-        "evidence": FIT_SOURCE_EVIDENCE_MAP.get(source_type),
+        "evidence": evidence,
     }
 
 
