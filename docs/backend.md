@@ -127,6 +127,19 @@ AI 추천 단품은 받은 추천인지 확인할 API가 없어 상품 존재만
 `POST /api/surveys` 저장 후 review-service가 `POST /recommendations/size-feedback`으로 전달합니다.  
 추천 장애여도 설문은 성공, 5분마다(`fitzza.size-feedback.retry-delay-ms`) 재시도. URL/토큰 비어 있으면 보내지 않음.
 
+recommendation-service는 피드백을 사용자·subcategory·핏별 선호 실측(`user_size_preferences`)에 지수 이동평균(새 값 30%)으로 합칩니다. SMALL/BIG은 같은 상품의 한 단계 위/아래 사이즈 실측과의 중간값으로 반영합니다.
+
+### 사이즈 추천 적합도 안내
+
+`GET /recommendations/{productId}/size`와 추천 결과의 `fitPercent`에 따라 `evidence` 문구가 달라집니다. 기준은 recommendation-service 환경 변수로 조정합니다.
+
+| 변수 | 기본값 | 의미 |
+| --- | --- | --- |
+| `SIZE_FIT_GOOD_THRESHOLD` | `70` | 이 값 이상이면 기준 출처 기본 문구만 안내 |
+| `SIZE_FIT_LOW_THRESHOLD` | `40` | GOOD 미만·LOW 이상이면 가장 어긋나는 핵심 항목 안내, LOW 미만이면 사이즈 범위 방향(가장 큰/작은 사이즈도 맞지 않음, 핏 차이) 안내 |
+
+추천 사이즈와 `fitPercent`는 구간과 관계없이 항상 내려갑니다.
+
 ---
 
 ## VTON

@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from app.services.size_spec_normalizer import (
     MUSINSA_CATEGORY_SPEC_FIELDS,
+    get_fit_scoring_rules,
     get_musinsa_spec_fields,
     normalize_measurement_spec,
     MusinsaSizeSpecResolver,
@@ -437,84 +438,160 @@ class SizeProfileResolver:
 
 
 class SizeCalculator:
+    # 가중치가 가장 큰 핵심 항목이 0점이면 다른 항목이 잘 맞아도 입기 어려우므로 적합도를 이 값으로 제한한다.
+    PRIMARY_FIELD_ZERO_CAP: float = 0.3
+
     @staticmethod
-    def evaluate(candidate_products: list[dict[str, Any]], baseline_spec: dict[str, float], category_type: str) -> Optional[dict[str, Any]]:
+    def _field_score(diff: float, tolerance: float) -> float:
+        """실측 차이를 허용치 기준 0~1 점수로 환산한다. 차이가 허용치의 2배 이상이면 0점이다."""
+        if tolerance <= 0:
+            return 0.0
+        return max(0.0, 1.0 - abs(diff) / (tolerance * 2.0))
+
+    @staticmethod
+    def _primary_field(rules: dict[str, tuple[float, float, bool]]) -> Optional[str]:
+        """가중치가 가장 큰 핵심 항목명을 반환한다."""
+        if not rules:
+            return None
+        return max(rules.items(), key=lambda item: item[1][1])[0]
+
+    @staticmethod
+    def _parse_shoe_label(size_label: Any) -> Optional[float]:
+        """'260', '26.5' 같은 신발 표기 사이즈를 mm 단위 발길이로 변환한다."""
+        m = re.search(r"\d+(?:\.\d+)?", str(size_label or ""))
+        if not m:
+            return None
+        try:
+            value = float(m.group())
+        except (TypeError, ValueError):
+            return None
+        return value * 10.0 if value < 50.0 else value
+
+    @classmethod
+    def _score_size_option(
+        cls,
+        size_option: dict[str, Any],
+        normalized_baseline: dict[str, float],
+        baseline_spec: dict[str, Any],
+        rules: dict[str, tuple[float, float, bool]],
+        category_type: str,
+    ) -> Optional[dict[str, Any]]:
+        """사이즈 옵션 하나의 가중 평균 적합도와 항목별 차이(상품 실측 - 기준 치수)를 계산한다."""
+        measurements = normalize_measurement_spec(size_option.get("measurements") or {}, category=category_type)
+        diffs: dict[str, float] = {}
+        for field, base_val in normalized_baseline.items():
+            rule = rules.get(field)
+            meas_val = measurements.get(field)
+            if rule is None or rule[1] <= 0:
+                continue
+            if isinstance(meas_val, (int, float)) and meas_val > 0 and isinstance(base_val, (int, float)) and base_val > 0:
+                diffs[field] = round(float(meas_val) - float(base_val), 1)
+
+        if not diffs and category_type in ("shoes", "신발") and "발길이" in rules:
+            # 상세 실측표 없이 표기 사이즈(260, 265 등)만 있는 신발은 라벨을 발길이로 보고 비교한다.
+            user_shoe = baseline_spec.get("shoe_size") or baseline_spec.get("발길이") or normalized_baseline.get("발길이")
+            opt_shoe = cls._parse_shoe_label(size_option.get("size"))
+            if user_shoe and opt_shoe is not None:
+                try:
+                    diffs["발길이"] = round(opt_shoe - float(user_shoe), 1)
+                except (TypeError, ValueError):
+                    pass
+
+        if not diffs:
+            # 비교할 실측이 없는 사이즈는 다른 사이즈를 이기지 않도록 제외한다.
+            return None
+
+        weighted_sum = 0.0
+        weight_total = 0.0
+        field_scores: dict[str, float] = {}
+        for field, diff in diffs.items():
+            tolerance, weight, _ = rules[field]
+            score = cls._field_score(diff, tolerance)
+            field_scores[field] = score
+            weighted_sum += score * weight
+            weight_total += weight
+
+        fit_score = weighted_sum / weight_total if weight_total > 0 else 0.0
+        if field_scores.get(cls._primary_field(rules)) == 0.0:
+            fit_score = min(fit_score, cls.PRIMARY_FIELD_ZERO_CAP)
+
+        weighted_error = sum(abs(diffs[f]) * rules[f][1] for f in diffs)
+        return {"fit_score": fit_score, "diffs": diffs, "weighted_error": weighted_error}
+
+    @classmethod
+    def _resolve_size_position(
+        cls,
+        scored_sizes: list[tuple[str, dict[str, Any]]],
+        rules: dict[str, tuple[float, float, bool]],
+    ) -> tuple[str, Optional[str]]:
+        """상품의 모든 사이즈가 기준 치수보다 작은지/큰지를 핵심 항목 차이 부호로 판정하고 경계 사이즈를 반환한다."""
+        core_fields = [f for f, (_, weight, is_core) in rules.items() if is_core and weight > 0]
+        if not scored_sizes or not core_fields:
+            return "in_range", None
+
+        core_diffs = [[result["diffs"][f] for f in core_fields if f in result["diffs"]] for _, result in scored_sizes]
+        if any(not diffs for diffs in core_diffs):
+            return "in_range", None
+
+        def size_scale(index: int) -> float:
+            return sum(core_diffs[index]) / len(core_diffs[index])
+
+        indexes = range(len(scored_sizes))
+        if all(d < 0 for diffs in core_diffs for d in diffs):
+            return "too_small", scored_sizes[max(indexes, key=size_scale)][0]
+        if all(d > 0 for diffs in core_diffs for d in diffs):
+            return "too_large", scored_sizes[min(indexes, key=size_scale)][0]
+        return "in_range", None
+
+    @classmethod
+    def evaluate(cls, candidate_products: list[dict[str, Any]], baseline_spec: dict[str, float], category_type: str) -> Optional[dict[str, Any]]:
         """
         [4. 수학적 산출 엔진]
-        상품 실측과 기준 치수를 비교하여 오차가 가장 적은 최적의 상품과 사이즈를 도출한다.
+        항목별 허용치·가중치로 사이즈별 가중 평균 적합도를 계산해 가장 잘 맞는 상품과 사이즈를 도출한다.
         """
         if not baseline_spec or not candidate_products:
             return None
 
-        best_match = None
-        min_penalty = float('inf')
-
-        fields = get_musinsa_spec_fields(category_type)
-        if not fields:
+        rules = get_fit_scoring_rules(category_type)
+        if not rules:
             return None
 
         normalized_baseline = normalize_measurement_spec(baseline_spec, category=category_type)
+
+        best_match: Optional[dict[str, Any]] = None
+        best_key: Optional[tuple[float, float]] = None
 
         for product in candidate_products:
             sizes = product.get("sizes")
             if not sizes:
                 continue
 
+            scored_sizes: list[tuple[str, dict[str, Any]]] = []
             for size_option in sizes:
-                penalty = 0.0
-                valid_fields_count = 0
+                if not isinstance(size_option, dict):
+                    continue
+                result = cls._score_size_option(size_option, normalized_baseline, baseline_spec, rules, category_type)
+                if result is not None:
+                    scored_sizes.append((str(size_option.get("size", "Unknown")), result))
 
-                raw_measurements = size_option.get("measurements", {})
-                measurements = normalize_measurement_spec(raw_measurements, category=category_type)
+            if not scored_sizes:
+                continue
 
-                for field in fields:
-                    meas_val = measurements.get(field)
-                    base_val = normalized_baseline.get(field)
-
-                    if (
-                            meas_val is not None and isinstance(meas_val, (int, float)) and meas_val > 0 and
-                            base_val is not None and isinstance(base_val, (int, float)) and base_val > 0
-                    ):
-                        penalty += abs(meas_val - base_val)
-                        valid_fields_count += 1
-
-                if valid_fields_count == 0:
-                    # 신발 특화: 상세 실측표가 없고 표기 사이즈(260, 265 등)만 제공되는 상품의 라벨 직접 매칭
-                    if category_type in ("shoes", "신발"):
-                        user_shoe = (
-                            baseline_spec.get("shoe_size")
-                            or baseline_spec.get("발길이")
-                            or normalized_baseline.get("발길이")
-                        )
-                        if user_shoe:
-                            m = re.search(r"\d+(?:\.\d+)?", str(size_option.get("size", "")))
-                            if m:
-                                try:
-                                    opt_shoe = float(m.group())
-                                    if opt_shoe < 50.0:
-                                        opt_shoe *= 10.0
-                                    diff = abs(opt_shoe - float(user_shoe))
-                                    penalty = diff * 0.8
-                                    valid_fields_count = 1
-                                    fit_score = max(0.0, 1.0 - (diff / 33.3))
-                                except (ValueError, TypeError):
-                                    pass
-                    if valid_fields_count == 0:
-                        # 비교할 실측이 없는 사이즈(실측표 없는 라벨 등)는 오차 0으로 다른 사이즈를 이기지 않도록 제외
-                        continue
-                elif penalty > 25.0:
-                    fit_score = 0.0
-                else:
-                    fit_score = max(0.0, 1.0 - (penalty / 25.0))
-
-                if penalty < min_penalty:
-                    min_penalty = penalty
-                    best_match = {
-                        "product_id": product.get("product_id"),
-                        "product_name": product.get("product_name"),
-                        "size_label": size_option.get("size", "Unknown"),
-                        "predicted_fit_score": round(fit_score, 2)
-                    }
+            # 적합도가 같으면 가중 오차가 작은 사이즈를 고른다.
+            size_label, result = max(scored_sizes, key=lambda entry: (entry[1]["fit_score"], -entry[1]["weighted_error"]))
+            key = (result["fit_score"], -result["weighted_error"])
+            if best_key is None or key > best_key:
+                position, boundary_label = cls._resolve_size_position(scored_sizes, rules)
+                best_key = key
+                best_match = {
+                    "product_id": product.get("product_id"),
+                    "product_name": product.get("product_name"),
+                    "size_label": size_label,
+                    "predicted_fit_score": round(result["fit_score"], 2),
+                    "field_diffs": result["diffs"],
+                    "size_position": position,
+                    "boundary_size_label": boundary_label,
+                }
 
         return best_match
 
@@ -525,6 +602,123 @@ FIT_SOURCE_EVIDENCE_MAP: dict[str, str] = {
     "similar_body_profile": "유사 체형 사용자의 실측 데이터를 기준으로 추천된 사이즈입니다.",
     "body_profile": "등록하신 사용자 신체 프로필 정보를 기준으로 추천된 사이즈입니다.",
 }
+
+# 낮은 적합도 안내 문구에서 "{기준}보다"에 들어갈 기준 치수 출처별 표현
+FIT_SOURCE_BASIS_MAP: dict[str, str] = {
+    "learned_preference": "평소 입으시는 실측",
+    "recent_purchase": "최근 구매하신 상품 실측",
+    "similar_body_profile": "비슷한 체형 고객의 실측",
+    "body_profile": "등록하신 사이즈",
+}
+
+# 실측 항목별 (안내용 이름, 클 때 표현, 작을 때 표현)
+FIT_FIELD_DIRECTION_LABELS: dict[str, tuple[str, str, str]] = {
+    "가슴단면": ("가슴", "넓어요", "좁아요"),
+    "어깨너비": ("어깨", "넓어요", "좁아요"),
+    "암홀": ("암홀", "넓어요", "좁아요"),
+    "밑단단면": ("밑단", "넓어요", "좁아요"),
+    "소매부리단면": ("소매부리", "넓어요", "좁아요"),
+    "허리단면": ("허리", "넓어요", "좁아요"),
+    "엉덩이단면": ("엉덩이", "넓어요", "좁아요"),
+    "허벅지단면": ("허벅지", "넓어요", "좁아요"),
+    "발볼": ("발볼", "넓어요", "좁아요"),
+    "총장": ("기장", "길어요", "짧아요"),
+    "소매길이": ("소매", "길어요", "짧아요"),
+    "밑위": ("밑위", "길어요", "짧아요"),
+    "발길이": ("발길이", "커요", "작아요"),
+    "머리둘레": ("머리둘레", "커요", "작아요"),
+    "깊이": ("깊이", "깊어요", "얕아요"),
+}
+
+# 영문·숫자로 끝나는 사이즈 라벨의 받침 여부 (L=엘, M=엠, N=엔, R=알 / 0=영, 1=일, 3=삼, 6=육, 7=칠, 8=팔)
+_BATCHIM_TRAILING_CHARS = set("LMNRlmnr013678")
+
+
+def _has_batchim(text: str) -> bool:
+    """문자열 마지막 글자의 한국어 발음에 받침이 있는지 판정한다."""
+    if not text:
+        return False
+    last = text.strip()[-1]
+    if "가" <= last <= "힣":
+        return (ord(last) - ord("가")) % 28 != 0
+    return last in _BATCHIM_TRAILING_CHARS
+
+
+def _format_measure(value: float) -> str:
+    """실측 차이를 안내 문구용 숫자로 표시한다. (2.0 -> '2', 1.5 -> '1.5')"""
+    rounded = round(abs(value), 1)
+    return str(int(rounded)) if rounded == int(rounded) else str(rounded)
+
+
+def _describe_worst_field(recommendation: dict[str, Any], category_type: Optional[str], basis: str) -> Optional[str]:
+    """가장 어긋나는 핵심 항목(없으면 전체 항목)을 '다만 어깨가 ...보다 2cm 넓어요.' 문장으로 만든다."""
+    diffs = recommendation.get("field_diffs")
+    rules = get_fit_scoring_rules(category_type or "")
+    if not isinstance(diffs, dict) or not diffs or not rules:
+        return None
+
+    candidates = {f: d for f, d in diffs.items() if f in rules and f in FIT_FIELD_DIRECTION_LABELS}
+    core = {f: d for f, d in candidates.items() if rules[f][2]}
+    pool = core or candidates
+    if not pool:
+        return None
+
+    field = max(pool, key=lambda f: abs(float(pool[f])) / rules[f][0])
+    diff = float(pool[field])
+    if abs(diff) < 0.5:
+        return None
+
+    name, bigger, smaller = FIT_FIELD_DIRECTION_LABELS[field]
+    particle = "이" if _has_batchim(name) else "가"
+    unit = "mm" if str(category_type or "").strip() in ("신발", "shoes") else "cm"
+    direction = bigger if diff > 0 else smaller
+    return f"다만 {name}{particle} {basis}보다 {_format_measure(diff)}{unit} {direction}."
+
+
+def _fit_thresholds() -> tuple[float, float]:
+    """설정값에서 사이즈 적합도 안내 구간(GOOD, LOW) 기준을 읽는다."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    return float(settings.size_fit_good_threshold), float(settings.size_fit_low_threshold)
+
+
+def build_fit_evidence(
+    source_type: Optional[str],
+    recommended_size: str,
+    fit_percent: Optional[float],
+    recommendation: Optional[dict[str, Any]] = None,
+    category_type: Optional[str] = None,
+) -> Optional[str]:
+    """적합도 구간에 따라 기본 근거 문구, 어긋나는 항목 안내, 사이즈 범위 방향 안내 중 하나를 만든다."""
+    source = str(source_type or "none")
+    base_text = FIT_SOURCE_EVIDENCE_MAP.get(source)
+    if fit_percent is None:
+        return base_text
+
+    good_threshold, low_threshold = _fit_thresholds()
+    if fit_percent >= good_threshold:
+        return base_text
+
+    basis = FIT_SOURCE_BASIS_MAP.get(source, "기준 실측")
+    rec = recommendation or {}
+
+    if fit_percent >= low_threshold:
+        detail = _describe_worst_field(rec, category_type, basis)
+        if base_text and detail:
+            return f"{base_text} {detail}"
+        return base_text
+
+    position = rec.get("size_position")
+    boundary = rec.get("boundary_size_label")
+    if position == "too_small" and boundary:
+        return f"가장 큰 사이즈인 {boundary}도 {basis}보다 작을 수 있어요. 구매 전 실측표를 확인해 주세요."
+    if position == "too_large" and boundary:
+        return f"가장 작은 사이즈인 {boundary}도 {basis}보다 클 수 있어요. 구매 전 실측표를 확인해 주세요."
+
+    basis_particle = "과" if _has_batchim(basis) else "와"
+    size_ending = "이에요" if _has_batchim(recommended_size) else "예요"
+    return f"{basis}{basis_particle} 핏 차이가 커요. 가장 가까운 사이즈는 {recommended_size}{size_ending}."
 
 
 def parse_user_body(user_body: dict[str, Any] | None) -> dict[str, float] | None:
@@ -810,6 +1004,8 @@ def resolve_size_evidence(
     has_user_body: Optional[bool] = None,
     user_service_error: bool = False,
     category_type: Optional[str] = None,
+    fit_percent: Optional[float] = None,
+    recommendation: Optional[dict[str, Any]] = None,
 ) -> Optional[str]:
     """상품 실측표 유무, 단일 사이즈 여부, 사용자 신체 프로필 유무 및 산출 결과를 바탕으로 일관된 안내 문구를 반환한다."""
     if existing_evidence:
@@ -819,7 +1015,13 @@ def resolve_size_evidence(
         return "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
 
     if recommended_size:
-        return FIT_SOURCE_EVIDENCE_MAP.get(str(source_type or "none"))
+        return build_fit_evidence(
+            source_type=source_type,
+            recommended_size=recommended_size,
+            fit_percent=fit_percent,
+            recommendation=recommendation,
+            category_type=category_type,
+        )
 
     sizes = raw_sizes or []
     if not sizes:
@@ -891,6 +1093,7 @@ def evaluate_single_product_size(
             db_pref = repository.get_user_size_preference(
                 user_id=user_id,
                 subcategory=subcategory,
+                fit_type=fit_type,
             )
         except Exception as exc:
             logger.warning(
@@ -953,6 +1156,15 @@ def evaluate_single_product_size(
     recommendation = size_result.get("recommendation")
 
     rec_size = str(recommendation["size_label"]) if (recommendation and recommendation.get("size_label")) else None
+    fit_percent: float | None = None
+    if recommendation and rec_size is not None:
+        raw_fit_score = float(recommendation.get("predicted_fit_score") or 0.0)
+        fit_percent = round(
+            raw_fit_score * 100.0 if raw_fit_score <= 1.0 else raw_fit_score,
+            1,
+        )
+        fit_percent = max(0.0, min(100.0, fit_percent))
+
     evidence = resolve_size_evidence(
         raw_sizes=raw_sizes,
         recommended_size=rec_size,
@@ -961,6 +1173,8 @@ def evaluate_single_product_size(
         has_user_body=has_user_body,
         user_service_error=user_service_error,
         category_type=category_type,
+        fit_percent=fit_percent,
+        recommendation=recommendation,
     )
 
     if user_service_error or rec_size is None or source_type == "none" or baseline_spec is None:
@@ -970,18 +1184,135 @@ def evaluate_single_product_size(
             "evidence": evidence,
         }
 
-    raw_fit_score = float(recommendation.get("predicted_fit_score") or 0.0)
-    fit_percent = round(
-        raw_fit_score * 100.0 if raw_fit_score <= 1.0 else raw_fit_score,
-        1,
-    )
-    fit_percent = max(0.0, min(100.0, fit_percent))
-
     return {
         "recommendedSize": rec_size,
         "fitPercent": fit_percent,
         "evidence": evidence,
     }
+
+
+# 같은 상품에 한 단계 위/아래 사이즈가 없을 때 SMALL/BIG 피드백을 핵심 항목에 반영하는 고정 보정 폭 (신발 mm, 그 외 cm)
+FEEDBACK_FALLBACK_OFFSET_CM: float = 1.5
+FEEDBACK_FALLBACK_OFFSET_SHOES_MM: float = 5.0
+
+
+def _size_scale_value(spec: dict[str, Any], rules: dict[str, tuple[float, float, bool]]) -> Optional[float]:
+    """사이즈 크기 순서를 정하기 위한 값으로 가중치가 가장 큰 핵심 항목의 실측을 쓴다."""
+    for field, _ in sorted(rules.items(), key=lambda item: item[1][1], reverse=True):
+        value = spec.get(field)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
+
+
+def build_feedback_preference_spec(
+    size_feedback: str,
+    purchased_spec: dict[str, Any] | None,
+    sibling_specs: list[dict[str, Any]] | None,
+    category_type: str | None,
+) -> dict[str, float] | None:
+    """사이즈 피드백을 선호 실측으로 바꾼다.
+
+    FIT은 구매 사이즈 실측 그대로, SMALL/BIG은 같은 상품의 한 단계 위/아래 사이즈 실측과의 중간값을 쓴다.
+    위/아래 사이즈가 없으면 핵심 항목에만 고정 보정 폭을 더하거나 뺀다.
+    """
+    category = str(category_type or "")
+    purchased = normalize_measurement_spec(purchased_spec or {}, category=category or None)
+    if not purchased:
+        return None
+    if size_feedback not in ("SMALL", "BIG"):
+        return purchased
+
+    rules = get_fit_scoring_rules(category)
+    direction = 1.0 if size_feedback == "SMALL" else -1.0
+    purchased_scale = _size_scale_value(purchased, rules)
+
+    neighbor: dict[str, float] | None = None
+    if purchased_scale is not None:
+        best_gap: float | None = None
+        for raw_sibling in sibling_specs or []:
+            sibling = normalize_measurement_spec(raw_sibling or {}, category=category or None)
+            sibling_scale = _size_scale_value(sibling, rules)
+            if sibling_scale is None:
+                continue
+            gap = (sibling_scale - purchased_scale) * direction
+            if gap > 0 and (best_gap is None or gap < best_gap):
+                best_gap = gap
+                neighbor = sibling
+
+    if neighbor is not None:
+        return {
+            field: round((value + neighbor[field]) / 2.0, 1) if field in neighbor else value
+            for field, value in purchased.items()
+        }
+
+    offset = FEEDBACK_FALLBACK_OFFSET_SHOES_MM if category in ("신발", "shoes") else FEEDBACK_FALLBACK_OFFSET_CM
+    return {
+        field: round(value + offset * direction, 1) if rules.get(field, (0.0, 0.0, False))[2] else value
+        for field, value in purchased.items()
+    }
+
+
+def _fetch_feedback_option_specs(
+    product_client: Any,
+    product_id: int,
+    option_id: int,
+    request_id_header: str | None,
+) -> tuple[dict[str, float] | None, list[dict[str, float]]]:
+    """구매 옵션 실측과 같은 상품의 다른 사이즈 실측 목록을 product-service에서 조회한다."""
+    if product_client is None:
+        return None, []
+
+    if hasattr(product_client, "get_product_measurements"):
+        try:
+            measurements_map = product_client.get_product_measurements(
+                [product_id],
+                request_id_header=request_id_header,
+            )
+        except Exception as exc:
+            logger.warning("상품 실측 조회 실패 (productId=%s): %s", product_id, exc)
+            measurements_map = None
+
+        if isinstance(measurements_map, dict):
+            purchased: dict[str, float] | None = None
+            purchased_size: str | None = None
+            options = [o for o in measurements_map.get(int(product_id)) or [] if isinstance(o, dict)]
+            for opt in options:
+                try:
+                    if int(opt.get("option_id")) == int(option_id):
+                        purchased = opt.get("measurements") or None
+                        purchased_size = str(opt.get("size") or "")
+                        break
+                except (TypeError, ValueError):
+                    continue
+
+            siblings: list[dict[str, float]] = []
+            seen_sizes: set[str] = {purchased_size} if purchased_size is not None else set()
+            for opt in options:
+                size_label = str(opt.get("size") or "")
+                if size_label in seen_sizes or not opt.get("measurements"):
+                    continue
+                seen_sizes.add(size_label)
+                siblings.append(opt["measurements"])
+
+            if purchased is not None:
+                return purchased, siblings
+
+    if hasattr(product_client, "find_option_measurement"):
+        try:
+            return product_client.find_option_measurement(
+                product_id=product_id,
+                option_id=option_id,
+                request_id_header=request_id_header,
+            ), []
+        except Exception as exc:
+            logger.warning(
+                "옵션 실측 조회 실패 (productId=%s, optionId=%s): %s",
+                product_id,
+                option_id,
+                exc,
+            )
+    return None, []
 
 
 def process_size_feedback(
@@ -997,28 +1328,31 @@ def process_size_feedback(
     request_id_header: str | None = None,
 ) -> None:
     """사용자의 구매 후 사이즈 피드백을 저장하고 선호 실측 프로필을 갱신한다."""
-    purchased_spec: dict[str, float] | None = None
-    if product_client is not None and hasattr(product_client, "find_option_measurement"):
-        try:
-            purchased_spec = product_client.find_option_measurement(
-                product_id=product_id,
-                option_id=option_id,
-                request_id_header=request_id_header,
-            )
-        except Exception as exc:
-            logger.warning(
-                "옵션 실측 조회 실패 (productId=%s, optionId=%s): %s",
-                product_id,
-                option_id,
-                exc,
-            )
+    purchased_spec, sibling_specs = _fetch_feedback_option_specs(
+        product_client=product_client,
+        product_id=product_id,
+        option_id=option_id,
+        request_id_header=request_id_header,
+    )
 
     subcategory: str | None = None
     fit_type: str | None = None
+    raw_category = ""
     if qdrant_payload is not None:
         meta = extract_payload_metadata(qdrant_payload)
         subcategory = meta["subcategory"] or None
         fit_type = meta["fit_type"] or None
+        raw_category = meta["raw_category"]
+
+    category_type = raw_category or infer_category_from_measurements(
+        [{"measurements": spec} for spec in [purchased_spec, *sibling_specs] if spec]
+    )
+    preference_spec = build_feedback_preference_spec(
+        size_feedback=size_feedback,
+        purchased_spec=purchased_spec,
+        sibling_specs=sibling_specs,
+        category_type=category_type,
+    )
 
     repository.save_size_feedback(
         user_id=user_id,
@@ -1027,7 +1361,7 @@ def process_size_feedback(
         size_feedback=size_feedback,
         subcategory=subcategory,
         fit_type=fit_type,
-        purchased_spec=purchased_spec,
+        preference_spec=preference_spec,
     )
 
     if subcategory and size_resolver is not None:
@@ -1035,6 +1369,7 @@ def process_size_feedback(
             updated_pref = repository.get_user_size_preference(
                 user_id=user_id,
                 subcategory=subcategory,
+                fit_type=fit_type,
             )
             sync_user_size_preference(
                 size_resolver=size_resolver,
@@ -1048,4 +1383,4 @@ def process_size_feedback(
 
     if cache_service is not None and hasattr(cache_service, "invalidate_user_pipeline"):
         cache_service.invalidate_user_pipeline(user_id=str(user_id))
-
+

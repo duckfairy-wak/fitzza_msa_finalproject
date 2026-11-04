@@ -1067,6 +1067,7 @@ def test_coordinator_attach_size_info_uses_learned_preference_from_repository() 
     mock_repo.get_user_size_preference.assert_called_once_with(
         user_id="user_77",
         subcategory="셔츠/블라우스",
+        fit_type=slot.fit_type,
     )
     coordinator.size_resolver.resolve_and_calculate_size.assert_called_once_with(
         user_id="user_77",
@@ -1266,6 +1267,26 @@ def test_user_service_error_clears_size_recommendations_and_sets_error_evidence(
     assert mapped_combo["items"][0]["recommendedSize"] is None
     assert mapped_combo["items"][0]["fitPercent"] is None
     assert mapped_combo["items"][0]["evidence"] == "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
+
+
+def test_map_combo_outfit_uses_has_user_body_for_evidence() -> None:
+    from app.api.recommendations import _map_combo_outfit
+
+    raw_item = {
+        "product_id": 5733672,
+        "product_name": "테스트 코트",
+        "sizes": [{"size": "M", "measurements": {"총장": 110}}, {"size": "L", "measurements": {"총장": 112}}],
+        "size_recommendation": None,
+        "fit_source_type": "none",
+    }
+    combo = {"items": [raw_item], "totalPrice": 149000}
+
+    with_body = _map_combo_outfit(combo, has_user_body=True)
+    assert with_body["items"][0]["recommendedSize"] is None
+    assert with_body["items"][0]["evidence"] == "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+
+    without_body = _map_combo_outfit(combo, has_user_body=False)
+    assert without_body["items"][0]["evidence"] == "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다."
 
 
 def test_resolve_size_evidence_matching_failure_with_baseline() -> None:
