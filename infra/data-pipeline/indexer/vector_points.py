@@ -29,6 +29,17 @@ MEASUREMENT_FIELDS = {
     "모자": ("머리둘레", "챙길이", "깊이"),
 }
 MEASUREMENT_FIELDS["아우터"] = MEASUREMENT_FIELDS["상의"]
+# Record of the English keys in collections loaded before 2026-11-04. Not used to write payloads; kept frozen
+# because recommendation-service's compatibility map is tested against it. Add new fields to MEASUREMENT_FIELDS only.
+MEASUREMENT_KEYS = {
+    "상의": {"총장": "top_length", "어깨너비": "shoulder", "가슴단면": "chest", "소매길이": "sleeve",
+           "밑단단면": "top_hem", "소매부리단면": "cuff", "암홀": "armhole"},
+    "하의": {"총장": "bottom_length", "허리단면": "waist", "엉덩이단면": "hip", "허벅지단면": "thigh",
+           "밑위": "rise", "밑단단면": "bottom_hem"},
+    "신발": {"발길이": "foot_length", "발볼": "foot_width", "발목높이": "ankle_height", "굽높이": "heel_height"},
+    "모자": {"머리둘레": "head_circumference", "챙길이": "brim_length", "깊이": "depth"},
+}
+MEASUREMENT_KEYS["아우터"] = MEASUREMENT_KEYS["상의"]
 # Keyword/integer indexes used by recommendation-service filters and the Qdrant contract.
 PAYLOAD_INDEXES = {"product_id": "integer", "price": "integer", "category": "keyword",
                    "subcategory": "keyword", "color_normalized": "keyword", "normalized_color": "keyword",
