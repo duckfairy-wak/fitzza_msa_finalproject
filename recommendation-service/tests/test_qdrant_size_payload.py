@@ -156,7 +156,34 @@ def test_label_only_sizes_are_listed_when_nothing_can_be_compared() -> None:
     }
 
 
-def test_product_service_measurements_replace_qdrant_labels_only_when_present() -> None:
+def test_label_only_sizes_are_listed_without_body_info_except_for_shoes() -> None:
+    cap = evaluate_single_product_size(
+        size_resolver=empty_resolver(),
+        repository=None,
+        user_client=BodyClient({}),
+        user_id=7,
+        product_data={"product_id": 502, "category_type": "모자", "subcategory": "캡/야구모자",
+                      "fit_type": "레귤러", "sizes": LABEL_ONLY_CAP_SIZES},
+    )
+    assert cap["evidence"] == "실측표가 없는 상품이라 맞춤 추천 대신 판매 사이즈를 안내합니다: S, M"
+
+    # 신발은 신발 사이즈를 등록하면 라벨로 추천할 수 있으므로 등록 안내를 유지한다.
+    shoe = evaluate_single_product_size(
+        size_resolver=empty_resolver(),
+        repository=None,
+        user_client=BodyClient({}),
+        user_id=7,
+        product_data={"product_id": 501, "category_type": "신발", "subcategory": "스니커즈",
+                      "fit_type": "레귤러", "sizes": LABEL_ONLY_SHOE_SIZES},
+    )
+    assert shoe == {
+        "recommendedSize": None,
+        "fitPercent": None,
+        "evidence": "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다.",
+    }
+
+
+def test_product_service_measurements_fill_qdrant_labels_without_dropping_them() -> None:
     qdrant = qdrant_returning(
         {"product_id": 503, "category": "모자", "subcategory": "캡/야구모자", "sizes": LABEL_ONLY_CAP_SIZES}
     )
@@ -164,9 +191,22 @@ def test_product_service_measurements_replace_qdrant_labels_only_when_present() 
         product_id=503,
         qdrant_client=qdrant,
         collection_name="musinsa_products",
+        product_client=MeasurementClient({503: [{"size": "M", "measurements": {"머리둘레": 58.0}},
+                                                {"size": "L", "measurements": {"머리둘레": 60.0}}]}),
+    )
+    assert measured["sizes"] == [
+        {"size": "S", "sequence": 1, "measurements": {}},
+        {"size": "M", "sequence": 2, "measurements": {"머리둘레": 58.0}},
+        {"size": "L", "measurements": {"머리둘레": 60.0}},
+    ]
+
+    without_qdrant_sizes = resolve_product_for_size(
+        product_id=503,
+        qdrant_client=qdrant_returning({"product_id": 503, "category": "모자", "sizes": []}),
+        collection_name="musinsa_products",
         product_client=MeasurementClient({503: [{"size": "M", "measurements": {"머리둘레": 58.0}}]}),
     )
-    assert measured["sizes"] == [{"size": "M", "measurements": {"머리둘레": 58.0}}]
+    assert without_qdrant_sizes["sizes"] == [{"size": "M", "measurements": {"머리둘레": 58.0}}]
 
     labels_only = resolve_product_for_size(
         product_id=503,

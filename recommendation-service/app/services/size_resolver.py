@@ -741,6 +741,23 @@ def has_size_measurements(sizes: list[dict[str, Any]]) -> bool:
     )
 
 
+def merge_service_measurements(
+    qdrant_sizes: list[dict[str, Any]],
+    service_sizes: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Qdrant 라벨을 순서대로 모두 유지하고, 같은 라벨은 product-service 실측으로 채우며, Qdrant에 없는 라벨은 뒤에 붙인다.
+
+    product-service는 실측이 있는 옵션만 돌려주므로, 그 결과로 Qdrant 라벨을 대체하면 실측 없는 판매 사이즈가 사라진다.
+    """
+    remaining = {str(entry["size"]): entry for entry in service_sizes}
+    merged: list[dict[str, Any]] = []
+    for entry in qdrant_sizes:
+        service_entry = remaining.pop(str(entry.get("size") or "").strip(), None)
+        merged.append({**entry, "measurements": service_entry["measurements"]} if service_entry else entry)
+    merged.extend(remaining.values())
+    return merged
+
+
 def resolve_product_for_size(
     product_id: int,
     qdrant_client: Any,
@@ -800,7 +817,7 @@ def resolve_product_for_size(
                     }
                 )
         if service_sizes:
-            raw_sizes = service_sizes
+            raw_sizes = merge_service_measurements(raw_sizes, service_sizes)
 
     if payload is None and not raw_sizes:
         return None
@@ -814,6 +831,18 @@ def resolve_product_for_size(
         "subcategory": subcategory,
         "fit_type": fit_type,
         "sizes": raw_sizes,
+    }
+
+
+SHOE_CATEGORY_TYPES = ("shoes", "신발")
+
+
+def sales_sizes_result(size_labels: list[str]) -> dict[str, Any]:
+    """실측표가 없어 비교할 수 없는 상품의 판매 사이즈 안내 응답."""
+    return {
+        "recommendedSize": None,
+        "fitPercent": None,
+        "evidence": f"실측표가 없는 상품이라 맞춤 추천 대신 판매 사이즈를 안내합니다: {', '.join(size_labels)}",
     }
 
 
@@ -852,6 +881,15 @@ def evaluate_single_product_size(
     subcategory: str | None = product_data.get("subcategory")
     fit_type = str(product_data.get("fit_type") or "레귤러")
     category_type = str(product_data.get("category_type") or "상의")
+
+    # 라벨만 있는 상품은 신체 정보가 있어도 비교할 수 없으므로 바로 판매 사이즈를 안내한다.
+    # 신발은 등록한 신발 사이즈로 라벨을 매칭할 수 있어 기존 흐름을 탄다.
+    if (
+        size_labels
+        and not has_size_measurements(raw_sizes)
+        and category_type not in SHOE_CATEGORY_TYPES
+    ):
+        return sales_sizes_result(size_labels)
 
     db_pref: dict[str, float] | None = None
     if subcategory and repository is not None:
@@ -925,11 +963,7 @@ def evaluate_single_product_size(
 
     if not recommendation or not recommendation.get("size_label"):
         if size_labels and not has_size_measurements(raw_sizes):
-            return {
-                "recommendedSize": None,
-                "fitPercent": None,
-                "evidence": f"실측표가 없는 상품이라 맞춤 추천 대신 판매 사이즈를 안내합니다: {', '.join(size_labels)}",
-            }
+            return sales_sizes_result(size_labels)
         return {
             "recommendedSize": None,
             "fitPercent": None,
