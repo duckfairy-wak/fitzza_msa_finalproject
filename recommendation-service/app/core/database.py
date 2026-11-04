@@ -75,6 +75,12 @@ class RecommendationRepository:
             with self._lock:
                 with self._get_pg_connection() as conn:
                     with conn.cursor() as cur:
+                        # 여러 인스턴스가 동시에 기동해도 스키마 생성·마이그레이션이 한 번에 하나씩 실행되도록
+                        # 커밋 시점까지 유지되는 트랜잭션 범위 advisory lock을 먼저 잡는다.
+                        cur.execute(
+                            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                            (f"{schema}.schema_init",),
+                        )
                         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema};")
                         cur.execute(
                             f"""
