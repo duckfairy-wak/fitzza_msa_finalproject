@@ -356,3 +356,55 @@ class TestWeightedFitScore:
         assert best is not None
         assert best["size_position"] == "in_range"
         assert best["boundary_size_label"] is None
+
+
+class TestTieredFitEvidence:
+    def test_good_fit_keeps_source_evidence(self):
+        from app.services.size_resolver import build_fit_evidence
+
+        text = build_fit_evidence("learned_preference", "L", 85.0, {"field_diffs": {"어깨너비": 2.0}}, "상의")
+        assert text == "기존 구매·설문 기반 선호 실측과 가장 유사한 사이즈입니다."
+
+    def test_fair_fit_appends_worst_core_field(self):
+        from app.services.size_resolver import build_fit_evidence
+
+        rec = {"field_diffs": {"가슴단면": 1.0, "어깨너비": 2.0, "총장": 5.0}}
+        text = build_fit_evidence("learned_preference", "L", 62.0, rec, "아우터")
+        assert text == (
+            "기존 구매·설문 기반 선호 실측과 가장 유사한 사이즈입니다. "
+            "다만 어깨가 평소 입으시는 실측보다 2cm 넓어요."
+        )
+
+    def test_low_fit_reports_largest_size_is_small(self):
+        from app.services.size_resolver import build_fit_evidence
+
+        rec = {"size_position": "too_small", "boundary_size_label": "XXL"}
+        text = build_fit_evidence("learned_preference", "XXL", 25.0, rec, "아우터")
+        assert text == "가장 큰 사이즈인 XXL도 평소 입으시는 실측보다 작을 수 있어요. 구매 전 실측표를 확인해 주세요."
+
+    def test_low_fit_reports_smallest_size_is_large_with_source_basis(self):
+        from app.services.size_resolver import build_fit_evidence
+
+        rec = {"size_position": "too_large", "boundary_size_label": "S"}
+        text = build_fit_evidence("similar_body_profile", "S", 20.0, rec, "상의")
+        assert text == "가장 작은 사이즈인 S도 비슷한 체형 고객의 실측보다 클 수 있어요. 구매 전 실측표를 확인해 주세요."
+
+    def test_low_fit_in_range_reports_closest_size(self):
+        from app.services.size_resolver import build_fit_evidence
+
+        rec = {"size_position": "in_range", "boundary_size_label": None}
+        assert build_fit_evidence("learned_preference", "L", 31.0, rec, "상의") == (
+            "평소 입으시는 실측과 핏 차이가 커요. 가장 가까운 사이즈는 L이에요."
+        )
+        assert build_fit_evidence("body_profile", "XS", 31.0, rec, "상의") == (
+            "등록하신 사이즈와 핏 차이가 커요. 가장 가까운 사이즈는 XS예요."
+        )
+
+    def test_thresholds_follow_settings(self, monkeypatch):
+        from app.services.size_resolver import build_fit_evidence
+
+        monkeypatch.setenv("SIZE_FIT_GOOD_THRESHOLD", "50")
+        rec = {"field_diffs": {"어깨너비": 2.0}}
+        assert build_fit_evidence("learned_preference", "L", 62.0, rec, "상의") == (
+            "기존 구매·설문 기반 선호 실측과 가장 유사한 사이즈입니다."
+        )

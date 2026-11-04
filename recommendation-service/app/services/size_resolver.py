@@ -603,6 +603,123 @@ FIT_SOURCE_EVIDENCE_MAP: dict[str, str] = {
     "body_profile": "등록하신 사용자 신체 프로필 정보를 기준으로 추천된 사이즈입니다.",
 }
 
+# 낮은 적합도 안내 문구에서 "{기준}보다"에 들어갈 기준 치수 출처별 표현
+FIT_SOURCE_BASIS_MAP: dict[str, str] = {
+    "learned_preference": "평소 입으시는 실측",
+    "recent_purchase": "최근 구매하신 상품 실측",
+    "similar_body_profile": "비슷한 체형 고객의 실측",
+    "body_profile": "등록하신 사이즈",
+}
+
+# 실측 항목별 (안내용 이름, 클 때 표현, 작을 때 표현)
+FIT_FIELD_DIRECTION_LABELS: dict[str, tuple[str, str, str]] = {
+    "가슴단면": ("가슴", "넓어요", "좁아요"),
+    "어깨너비": ("어깨", "넓어요", "좁아요"),
+    "암홀": ("암홀", "넓어요", "좁아요"),
+    "밑단단면": ("밑단", "넓어요", "좁아요"),
+    "소매부리단면": ("소매부리", "넓어요", "좁아요"),
+    "허리단면": ("허리", "넓어요", "좁아요"),
+    "엉덩이단면": ("엉덩이", "넓어요", "좁아요"),
+    "허벅지단면": ("허벅지", "넓어요", "좁아요"),
+    "발볼": ("발볼", "넓어요", "좁아요"),
+    "총장": ("기장", "길어요", "짧아요"),
+    "소매길이": ("소매", "길어요", "짧아요"),
+    "밑위": ("밑위", "길어요", "짧아요"),
+    "발길이": ("발길이", "커요", "작아요"),
+    "머리둘레": ("머리둘레", "커요", "작아요"),
+    "깊이": ("깊이", "깊어요", "얕아요"),
+}
+
+# 영문·숫자로 끝나는 사이즈 라벨의 받침 여부 (L=엘, M=엠, N=엔, R=알 / 0=영, 1=일, 3=삼, 6=육, 7=칠, 8=팔)
+_BATCHIM_TRAILING_CHARS = set("LMNRlmnr013678")
+
+
+def _has_batchim(text: str) -> bool:
+    """문자열 마지막 글자의 한국어 발음에 받침이 있는지 판정한다."""
+    if not text:
+        return False
+    last = text.strip()[-1]
+    if "가" <= last <= "힣":
+        return (ord(last) - ord("가")) % 28 != 0
+    return last in _BATCHIM_TRAILING_CHARS
+
+
+def _format_measure(value: float) -> str:
+    """실측 차이를 안내 문구용 숫자로 표시한다. (2.0 -> '2', 1.5 -> '1.5')"""
+    rounded = round(abs(value), 1)
+    return str(int(rounded)) if rounded == int(rounded) else str(rounded)
+
+
+def _describe_worst_field(recommendation: dict[str, Any], category_type: Optional[str], basis: str) -> Optional[str]:
+    """가장 어긋나는 핵심 항목(없으면 전체 항목)을 '다만 어깨가 ...보다 2cm 넓어요.' 문장으로 만든다."""
+    diffs = recommendation.get("field_diffs")
+    rules = get_fit_scoring_rules(category_type or "")
+    if not isinstance(diffs, dict) or not diffs or not rules:
+        return None
+
+    candidates = {f: d for f, d in diffs.items() if f in rules and f in FIT_FIELD_DIRECTION_LABELS}
+    core = {f: d for f, d in candidates.items() if rules[f][2]}
+    pool = core or candidates
+    if not pool:
+        return None
+
+    field = max(pool, key=lambda f: abs(float(pool[f])) / rules[f][0])
+    diff = float(pool[field])
+    if abs(diff) < 0.5:
+        return None
+
+    name, bigger, smaller = FIT_FIELD_DIRECTION_LABELS[field]
+    particle = "이" if _has_batchim(name) else "가"
+    unit = "mm" if str(category_type or "").strip() in ("신발", "shoes") else "cm"
+    direction = bigger if diff > 0 else smaller
+    return f"다만 {name}{particle} {basis}보다 {_format_measure(diff)}{unit} {direction}."
+
+
+def _fit_thresholds() -> tuple[float, float]:
+    """설정값에서 사이즈 적합도 안내 구간(GOOD, LOW) 기준을 읽는다."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    return float(settings.size_fit_good_threshold), float(settings.size_fit_low_threshold)
+
+
+def build_fit_evidence(
+    source_type: Optional[str],
+    recommended_size: str,
+    fit_percent: Optional[float],
+    recommendation: Optional[dict[str, Any]] = None,
+    category_type: Optional[str] = None,
+) -> Optional[str]:
+    """적합도 구간에 따라 기본 근거 문구, 어긋나는 항목 안내, 사이즈 범위 방향 안내 중 하나를 만든다."""
+    source = str(source_type or "none")
+    base_text = FIT_SOURCE_EVIDENCE_MAP.get(source)
+    if fit_percent is None:
+        return base_text
+
+    good_threshold, low_threshold = _fit_thresholds()
+    if fit_percent >= good_threshold:
+        return base_text
+
+    basis = FIT_SOURCE_BASIS_MAP.get(source, "기준 실측")
+    rec = recommendation or {}
+
+    if fit_percent >= low_threshold:
+        detail = _describe_worst_field(rec, category_type, basis)
+        if base_text and detail:
+            return f"{base_text} {detail}"
+        return base_text
+
+    position = rec.get("size_position")
+    boundary = rec.get("boundary_size_label")
+    if position == "too_small" and boundary:
+        return f"가장 큰 사이즈인 {boundary}도 {basis}보다 작을 수 있어요. 구매 전 실측표를 확인해 주세요."
+    if position == "too_large" and boundary:
+        return f"가장 작은 사이즈인 {boundary}도 {basis}보다 클 수 있어요. 구매 전 실측표를 확인해 주세요."
+
+    basis_particle = "과" if _has_batchim(basis) else "와"
+    size_ending = "이에요" if _has_batchim(recommended_size) else "예요"
+    return f"{basis}{basis_particle} 핏 차이가 커요. 가장 가까운 사이즈는 {recommended_size}{size_ending}."
+
 
 def parse_user_body(user_body: dict[str, Any] | None) -> dict[str, float] | None:
     """사용자 신체 프로필 딕셔너리에서 키, 몸무게, 발 사이즈를 추출해 float 딕셔너리로 정규화한다."""
@@ -887,6 +1004,8 @@ def resolve_size_evidence(
     has_user_body: Optional[bool] = None,
     user_service_error: bool = False,
     category_type: Optional[str] = None,
+    fit_percent: Optional[float] = None,
+    recommendation: Optional[dict[str, Any]] = None,
 ) -> Optional[str]:
     """상품 실측표 유무, 단일 사이즈 여부, 사용자 신체 프로필 유무 및 산출 결과를 바탕으로 일관된 안내 문구를 반환한다."""
     if existing_evidence:
@@ -896,7 +1015,13 @@ def resolve_size_evidence(
         return "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
 
     if recommended_size:
-        return FIT_SOURCE_EVIDENCE_MAP.get(str(source_type or "none"))
+        return build_fit_evidence(
+            source_type=source_type,
+            recommended_size=recommended_size,
+            fit_percent=fit_percent,
+            recommendation=recommendation,
+            category_type=category_type,
+        )
 
     sizes = raw_sizes or []
     if not sizes:
@@ -1030,6 +1155,15 @@ def evaluate_single_product_size(
     recommendation = size_result.get("recommendation")
 
     rec_size = str(recommendation["size_label"]) if (recommendation and recommendation.get("size_label")) else None
+    fit_percent: float | None = None
+    if recommendation and rec_size is not None:
+        raw_fit_score = float(recommendation.get("predicted_fit_score") or 0.0)
+        fit_percent = round(
+            raw_fit_score * 100.0 if raw_fit_score <= 1.0 else raw_fit_score,
+            1,
+        )
+        fit_percent = max(0.0, min(100.0, fit_percent))
+
     evidence = resolve_size_evidence(
         raw_sizes=raw_sizes,
         recommended_size=rec_size,
@@ -1038,6 +1172,8 @@ def evaluate_single_product_size(
         has_user_body=has_user_body,
         user_service_error=user_service_error,
         category_type=category_type,
+        fit_percent=fit_percent,
+        recommendation=recommendation,
     )
 
     if user_service_error or rec_size is None or source_type == "none" or baseline_spec is None:
@@ -1046,13 +1182,6 @@ def evaluate_single_product_size(
             "fitPercent": None,
             "evidence": evidence,
         }
-
-    raw_fit_score = float(recommendation.get("predicted_fit_score") or 0.0)
-    fit_percent = round(
-        raw_fit_score * 100.0 if raw_fit_score <= 1.0 else raw_fit_score,
-        1,
-    )
-    fit_percent = max(0.0, min(100.0, fit_percent))
 
     return {
         "recommendedSize": rec_size,

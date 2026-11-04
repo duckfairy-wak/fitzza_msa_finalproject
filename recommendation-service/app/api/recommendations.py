@@ -372,6 +372,8 @@ def _map_product_item(
         has_user_body=has_user_body if has_user_body is not None else item.get("has_user_body"),
         user_service_error=user_service_error,
         category_type=item.get("category"),
+        fit_percent=fit_percent,
+        recommendation=size_rec,
     )
 
     raw_product_id = item.get("product_id", item.get("productId", 0))
