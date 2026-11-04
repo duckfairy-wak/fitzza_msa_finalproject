@@ -1067,6 +1067,7 @@ def test_coordinator_attach_size_info_uses_learned_preference_from_repository() 
     mock_repo.get_user_size_preference.assert_called_once_with(
         user_id="user_77",
         subcategory="셔츠/블라우스",
+        fit_type=slot.fit_type,
     )
     coordinator.size_resolver.resolve_and_calculate_size.assert_called_once_with(
         user_id="user_77",

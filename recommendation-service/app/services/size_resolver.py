@@ -1093,6 +1093,7 @@ def evaluate_single_product_size(
             db_pref = repository.get_user_size_preference(
                 user_id=user_id,
                 subcategory=subcategory,
+                fit_type=fit_type,
             )
         except Exception as exc:
             logger.warning(
@@ -1241,6 +1242,7 @@ def process_size_feedback(
             updated_pref = repository.get_user_size_preference(
                 user_id=user_id,
                 subcategory=subcategory,
+                fit_type=fit_type,
             )
             sync_user_size_preference(
                 size_resolver=size_resolver,

@@ -109,6 +109,7 @@ class FashionPipelineCoordinator:
                 learned_pref = self.repository.get_user_size_preference(
                     user_id=user_id,
                     subcategory=slot.subcategory,
+                    fit_type=slot.fit_type,
                 )
             except Exception as exc:
                 logger.warning(

@@ -122,7 +122,7 @@ class RecommendationRepository:
                                 preference_spec_json TEXT NOT NULL,
                                 sample_count INTEGER NOT NULL DEFAULT 1,
                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                                PRIMARY KEY (user_id, subcategory)
+                                PRIMARY KEY (user_id, subcategory, fit_type)
                             );
 
                             CREATE TABLE IF NOT EXISTS {schema}.size_feedback_logs (
@@ -203,6 +203,29 @@ class RecommendationRepository:
                                     ALTER TABLE {schema}.recommendation_requests
                                         ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0;
                                 END IF;
+
+                                -- 선호 실측을 핏별로 저장하도록 기본키를 (user_id, subcategory, fit_type)으로 변경
+                                IF EXISTS (
+                                    SELECT 1 FROM pg_index i
+                                    JOIN pg_class c ON c.oid = i.indrelid
+                                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                                    WHERE n.nspname = '{schema}'
+                                      AND c.relname = 'user_size_preferences'
+                                      AND i.indisprimary
+                                      AND i.indnatts = 2
+                                ) THEN
+                                    UPDATE {schema}.user_size_preferences
+                                        SET fit_type = '레귤러'
+                                        WHERE fit_type = '';
+                                    EXECUTE (
+                                        SELECT format('ALTER TABLE %I.user_size_preferences DROP CONSTRAINT %I', '{schema}', conname)
+                                        FROM pg_constraint
+                                        WHERE conrelid = '{schema}.user_size_preferences'::regclass
+                                          AND contype = 'p'
+                                    );
+                                    ALTER TABLE {schema}.user_size_preferences
+                                        ADD PRIMARY KEY (user_id, subcategory, fit_type);
+                                END IF;
                             END $$;
                             """
                         )
@@ -257,7 +280,7 @@ class RecommendationRepository:
                         preference_spec_json TEXT NOT NULL,
                         sample_count INTEGER NOT NULL DEFAULT 1,
                         updated_at TEXT NOT NULL,
-                        PRIMARY KEY (user_id, subcategory)
+                        PRIMARY KEY (user_id, subcategory, fit_type)
                     );
 
                     CREATE TABLE IF NOT EXISTS size_feedback_logs (
@@ -284,6 +307,34 @@ class RecommendationRepository:
                 if "completion_tokens" not in columns:
                     conn.execute(
                         "ALTER TABLE recommendation_requests ADD COLUMN completion_tokens INTEGER NOT NULL DEFAULT 0"
+                    )
+                pref_pk_columns = {
+                    row["name"]
+                    for row in conn.execute("PRAGMA table_info(user_size_preferences)").fetchall()
+                    if row["pk"]
+                }
+                if "fit_type" not in pref_pk_columns:
+                    conn.executescript(
+                        """
+                        ALTER TABLE user_size_preferences RENAME TO user_size_preferences_legacy;
+                        CREATE TABLE user_size_preferences (
+                            user_id INTEGER NOT NULL,
+                            subcategory TEXT NOT NULL,
+                            fit_type TEXT NOT NULL DEFAULT '',
+                            preference_spec_json TEXT NOT NULL,
+                            sample_count INTEGER NOT NULL DEFAULT 1,
+                            updated_at TEXT NOT NULL,
+                            PRIMARY KEY (user_id, subcategory, fit_type)
+                        );
+                        INSERT INTO user_size_preferences (
+                            user_id, subcategory, fit_type, preference_spec_json, sample_count, updated_at
+                        )
+                        SELECT user_id, subcategory,
+                               CASE WHEN fit_type = '' THEN '레귤러' ELSE fit_type END,
+                               preference_spec_json, sample_count, updated_at
+                        FROM user_size_preferences_legacy;
+                        DROP TABLE user_size_preferences_legacy;
+                        """
                     )
                 conn.commit()
             finally:
@@ -846,6 +897,7 @@ class RecommendationRepository:
             if purchased_spec
             else None
         )
+        pref_fit_type = self._normalize_preference_fit(fit_type)
 
         if self._use_postgres:
             with self._lock:
@@ -862,13 +914,13 @@ class RecommendationRepository:
                         if subcategory and adjusted_spec:
                             cur.execute(
                                 """
-                                SELECT preference_spec_json, sample_count
+                                SELECT fit_type, preference_spec_json, sample_count
                                 FROM user_size_preferences
                                 WHERE user_id = %s AND subcategory = %s
                                 """,
                                 (user_id, subcategory),
                             )
-                            existing = cur.fetchone()
+                            existing = self._find_preference_row(cur.fetchall(), pref_fit_type, exact=True)
                             if existing is None:
                                 cur.execute(
                                     """
@@ -880,7 +932,7 @@ class RecommendationRepository:
                                     (
                                         user_id,
                                         subcategory,
-                                        fit_type or "",
+                                        pref_fit_type,
                                         json.dumps(adjusted_spec, ensure_ascii=False),
                                         now,
                                     ),
@@ -892,19 +944,18 @@ class RecommendationRepository:
                                 cur.execute(
                                     """
                                     UPDATE user_size_preferences
-                                    SET fit_type = COALESCE(NULLIF(%s, ''), fit_type),
-                                        preference_spec_json = %s,
+                                    SET preference_spec_json = %s,
                                         sample_count = %s,
                                         updated_at = %s
-                                    WHERE user_id = %s AND subcategory = %s
+                                    WHERE user_id = %s AND subcategory = %s AND fit_type = %s
                                     """,
                                     (
-                                        fit_type or "",
                                         json.dumps(merged, ensure_ascii=False),
                                         n + 1,
                                         now,
                                         user_id,
                                         subcategory,
+                                        existing["fit_type"],
                                     ),
                                 )
                     conn.commit()
@@ -923,14 +974,15 @@ class RecommendationRepository:
                 )
 
                 if subcategory and adjusted_spec:
-                    existing = conn.execute(
+                    rows = conn.execute(
                         """
-                        SELECT preference_spec_json, sample_count
+                        SELECT fit_type, preference_spec_json, sample_count
                         FROM user_size_preferences
                         WHERE user_id = ? AND subcategory = ?
                         """,
                         (user_id, subcategory),
-                    ).fetchone()
+                    ).fetchall()
+                    existing = self._find_preference_row(rows, pref_fit_type, exact=True)
 
                     if existing is None:
                         conn.execute(
@@ -943,7 +995,7 @@ class RecommendationRepository:
                             (
                                 user_id,
                                 subcategory,
-                                fit_type or "",
+                                pref_fit_type,
                                 json.dumps(adjusted_spec, ensure_ascii=False),
                                 now,
                             ),
@@ -955,19 +1007,18 @@ class RecommendationRepository:
                         conn.execute(
                             """
                             UPDATE user_size_preferences
-                            SET fit_type = COALESCE(NULLIF(?, ''), fit_type),
-                                preference_spec_json = ?,
+                            SET preference_spec_json = ?,
                                 sample_count = ?,
                                 updated_at = ?
-                            WHERE user_id = ? AND subcategory = ?
+                            WHERE user_id = ? AND subcategory = ? AND fit_type = ?
                             """,
                             (
-                                fit_type or "",
                                 json.dumps(merged_spec, ensure_ascii=False),
                                 n + 1,
                                 now,
                                 user_id,
                                 subcategory,
+                                existing["fit_type"],
                             ),
                         )
                 conn.commit()
@@ -991,44 +1042,66 @@ class RecommendationRepository:
                 merged_spec[key] = val
         return n, merged_spec
 
+    @staticmethod
+    def _normalize_preference_fit(fit_type: str | None) -> str:
+        """선호 실측 저장용 핏 값을 표준 명칭으로 맞춘다. 비어 있으면 레귤러로 본다."""
+        from app.services.size_resolver import normalize_fit_name
+
+        return normalize_fit_name(fit_type) or "레귤러"
+
+    @classmethod
+    def _find_preference_row(cls, rows: list[Any], fit_type: str | None, exact: bool = False) -> Any:
+        """같은 핏의 선호 실측 행을 찾고, exact가 아니면 없을 때 레귤러 행으로 폴백한다."""
+        target = cls._normalize_preference_fit(fit_type)
+        for row in rows:
+            if cls._normalize_preference_fit(row["fit_type"]) == target:
+                return row
+        if exact or target == "레귤러":
+            return None
+        for row in rows:
+            if cls._normalize_preference_fit(row["fit_type"]) == "레귤러":
+                return row
+        return None
+
     def get_user_size_preference(
         self,
         user_id: int,
         subcategory: str,
+        fit_type: str | None = None,
     ) -> dict[str, float] | None:
+        """사용자의 subcategory·핏별 선호 실측을 조회한다. 같은 핏 기록이 없으면 레귤러 기록을 쓴다."""
         if self._use_postgres:
             with self._lock:
                 with self._get_pg_connection() as conn:
                     with conn.cursor() as cur:
                         cur.execute(
                             """
-                            SELECT preference_spec_json
+                            SELECT fit_type, preference_spec_json
                             FROM user_size_preferences
                             WHERE user_id = %s AND subcategory = %s
                             """,
                             (user_id, subcategory),
                         )
-                        row = cur.fetchone()
-            if row is None:
-                return None
-            return json.loads(row["preference_spec_json"] or "{}")
+                        rows = cur.fetchall()
+        else:
+            with self._lock:
+                conn = self._get_sqlite_connection()
+                try:
+                    rows = conn.execute(
+                        """
+                        SELECT fit_type, preference_spec_json
+                        FROM user_size_preferences
+                        WHERE user_id = ? AND subcategory = ?
+                        """,
+                        (user_id, subcategory),
+                    ).fetchall()
+                finally:
+                    self._close_sqlite_if_transient(conn)
 
-        with self._lock:
-            conn = self._get_sqlite_connection()
-            try:
-                row = conn.execute(
-                    """
-                    SELECT preference_spec_json
-                    FROM user_size_preferences
-                    WHERE user_id = ? AND subcategory = ?
-                    """,
-                    (user_id, subcategory),
-                ).fetchone()
-                if row is None:
-                    return None
-                return json.loads(row["preference_spec_json"] or "{}")
-            finally:
-                self._close_sqlite_if_transient(conn)
+        row = self._find_preference_row(rows, fit_type)
+        if row is None:
+            return None
+        return json.loads(row["preference_spec_json"] or "{}")
 
     def get_analytics_data(
         self,
