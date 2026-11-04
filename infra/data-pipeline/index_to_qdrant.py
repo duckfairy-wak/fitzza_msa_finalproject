@@ -172,13 +172,15 @@ def make_payload(p, img_url, raw_color, norm_color):
     # 계절감
     season_candidates = p.get("season", {}).get("primary_candidates", [])
 
-    # 상품 실측
+    # 상품 실측: 실측표 없이 판매 옵션 라벨만 있는 신발·모자도 라벨은 남긴다(vector_points.normalize_sizes와 같은 규칙)
     raw_measurements_list = p.get("size", {}).get("measurements", [])
     normalized_sizes = []
     for size_item in raw_measurements_list:
-        norm_m = normalize_measurements(logical_cat, size_item.get("measurements", {}))
-        if norm_m:
-            normalized_sizes.append({"size": size_item.get("size"), "sequence": size_item.get("sequence", 0), "measurements": norm_m})
+        label = str(size_item.get("size") or "").strip()
+        if not label:
+            continue
+        norm_m = normalize_measurements(logical_cat, size_item.get("measurements") or {})
+        normalized_sizes.append({"size": label, "sequence": size_item.get("sequence", 0), "measurements": norm_m})
 
     payload = {
         "product_id": int(p["product_id"]),

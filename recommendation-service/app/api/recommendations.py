@@ -361,6 +361,7 @@ def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
         source_type=source_type,
         existing_evidence=item.get("evidence"),
         has_user_body=item.get("has_user_body"),
+        category_type=item.get("category"),
     )
 
     raw_product_id = item.get("product_id", item.get("productId", 0))
