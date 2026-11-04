@@ -192,7 +192,7 @@ class VectorRunTests(unittest.TestCase):
         payload = next(line["payload"] for line in lines if line["payload"]["color_variant"] == "BK")
         self.assertEqual((payload["product_id"], payload["color_normalized"], payload["normalized_color"]),
                          (101, ["black"], "black"))
-        self.assertEqual(payload["sizes"], [{"size": "M", "sequence": 1, "measurements": {"top_length": 70.0}}])
+        self.assertEqual(payload["sizes"], [{"size": "M", "sequence": 1, "measurements": {"총장": 70.0}}])
         self.assertEqual(payload["image_key"], f"{RUN}/images/products/101/002.png")
         self.assertEqual(payload["image_url"], f"{RUN}/images/products/101/002.png")
         self.assertEqual(payload["image_source_url"], "https://image.msscdn.net/a/101_bk2.jpg")
@@ -366,9 +366,13 @@ LABEL_ONLY_SHOE_ROWS = [{"size": "250", "sequence": 1, "measurements": {}},
                         {"size": "", "sequence": 3, "measurements": {}}]
 
 
-def drop_unmeasured_sizes(category: str, rows: list) -> list[dict]:
-    """The rule before 2026-11-04: rows without a positive standard measurement were dropped."""
-    return [size for size in REAL_NORMALIZE_SIZES(category, rows) if size["measurements"]]
+LEGACY_TOP_KEYS = {"총장": "top_length", "어깨너비": "shoulder"}
+
+
+def legacy_sizes(category: str, rows: list) -> list[dict]:
+    """The rule before 2026-11-04: English keys, and rows without a positive measurement were dropped."""
+    return [{**size, "measurements": {LEGACY_TOP_KEYS[name]: value for name, value in size["measurements"].items()}}
+            for size in REAL_NORMALIZE_SIZES(category, rows) if size["measurements"]]
 
 
 REAL_NORMALIZE_SIZES = vector_points.normalize_sizes
@@ -386,7 +390,7 @@ class SizeLabelTests(unittest.TestCase):
         rows = [{"size": "M", "sequence": 1, "measurements": {"총장": "70", "가슴단면": 0.0, "전체소매길이": 80}},
                 {"size": "L [기모]", "sequence": 2, "measurements": {"총장": 0.0, "어깨너비": "x"}}]
         self.assertEqual(vector_points.normalize_sizes("상의", rows),
-                         [{"size": "M", "sequence": 1, "measurements": {"top_length": 70.0}},
+                         [{"size": "M", "sequence": 1, "measurements": {"총장": 70.0}},
                           {"size": "L [기모]", "sequence": 2, "measurements": {}}])
 
     def test_sizes_match_index_to_qdrant(self):
@@ -416,7 +420,7 @@ class SizeRefreshReimportTests(unittest.TestCase):
         (self.root / "embed").mkdir()
         with patch.dict(os.environ, {"WORK_DIR": str(self.root / "embed")}), \
                 patch("boto3.client", return_value=self.s3), patch.object(embed_job, "FashionClip", FakeModel), \
-                patch.object(vector_points, "normalize_sizes", drop_unmeasured_sizes):
+                patch.object(vector_points, "normalize_sizes", legacy_sizes):
             self.report = embed_job.run(embed_args())
         self.assertIs(vector_points.normalize_sizes, REAL_NORMALIZE_SIZES)
 
@@ -435,24 +439,24 @@ class SizeRefreshReimportTests(unittest.TestCase):
                 patch("boto3.client", return_value=self.s3), \
                 patch("qdrant_client.QdrantClient", return_value=client):
             result = import_job.run(args)
-        points, _ = client.scroll(collection, with_payload=True, scroll_filter=models.Filter(must=[
-            models.FieldCondition(key="product_id", match=models.MatchValue(value=102))]))
-        return result, [point.payload["sizes"] for point in points]
+        points, _ = client.scroll(collection, with_payload=True)
+        return result, {point.payload["product_id"]: point.payload["sizes"] for point in points}
 
-    def test_refresh_restores_label_only_sizes(self):
+    def test_refresh_restores_labels_and_korean_keys(self):
         result, sizes = self.run_import("fitzza_products_test_03", refresh=True, exclude=True)
         self.assertTrue(result["passed"], result)
-        self.assertEqual(result["size_refresh"], {"points_with_changed_sizes": 1, "products_with_changed_sizes": 1,
+        self.assertEqual(result["size_refresh"], {"points_with_changed_sizes": 2, "products_with_changed_sizes": 2,
                                                   "products_without_sizes": []})
         self.assertEqual(result["import_point_count"], 2)
-        self.assertEqual(sizes, [[{"size": "250", "sequence": 1, "measurements": {}},
-                                  {"size": "260", "sequence": 2, "measurements": {}}]])
+        self.assertEqual(sizes, {101: [{"size": "M", "sequence": 1, "measurements": {"총장": 70.0}}],
+                                 102: [{"size": "250", "sequence": 1, "measurements": {}},
+                                       {"size": "260", "sequence": 2, "measurements": {}}]})
 
     def test_import_without_flag_keeps_embedded_sizes(self):
         result, sizes = self.run_import("fitzza_products_test_01", refresh=False)
         self.assertTrue(result["passed"], result)
         self.assertNotIn("size_refresh", result)
-        self.assertEqual(sizes, [[]])
+        self.assertEqual(sizes, {101: [{"size": "M", "sequence": 1, "measurements": {"top_length": 70.0}}], 102: []})
 
     def test_changed_bundle_is_rejected_before_qdrant(self):
         key = f"{RUN}/approved/bundle.tar.gz"

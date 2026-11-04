@@ -500,8 +500,7 @@ class SizeCalculator:
                                 except (ValueError, TypeError):
                                     pass
                     if valid_fields_count == 0:
-                        # 비교할 실측이 없는 사이즈(실측표 없는 라벨 등)는 오차 0으로 다른 사이즈를 이기지 않도록 제외
-                        continue
+                        fit_score = 0.0
                 elif penalty > 25.0:
                     fit_score = 0.0
                 else:
@@ -844,8 +843,6 @@ def resolve_size_evidence(
         return "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다."
 
     return "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다."
-
-
 def evaluate_single_product_size(
     size_resolver: Any,
     repository: Any,
