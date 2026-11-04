@@ -1282,5 +1282,34 @@ def test_resolve_size_evidence_matching_failure_with_baseline() -> None:
     assert evidence == "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
 
 
+def test_size_calculator_drops_unmeasured_size_options() -> None:
+    from app.services.size_resolver import SizeCalculator
+
+    # 1. 실측 없는 변형 'S [기모]'가 실측 있는 'M'을 이기지 못하는지 검증
+    product_top = {
+        "product_id": 1,
+        "sizes": [
+            {"size": "S [기모]", "measurements": {}},
+            {"size": "M", "measurements": {"총장": 70, "가슴단면": 55}},
+        ],
+    }
+    top_res = SizeCalculator.evaluate([product_top], {"총장": 70, "가슴단면": 55}, "상의")
+    assert top_res is not None
+    assert top_res["size_label"] == "M"
+    assert top_res["predicted_fit_score"] == 1.0
+
+    # 2. 모든 옵션이 실측 없는 모자의 경우 0% 억지 추천 없이 None 반환 검증
+    product_cap = {
+        "product_id": 2,
+        "sizes": [
+            {"size": "S", "measurements": {}},
+            {"size": "M", "measurements": {}},
+        ],
+    }
+    cap_res = SizeCalculator.evaluate([product_cap], {"머리둘레": 58}, "모자")
+    assert cap_res is None
+
+
+
 
 

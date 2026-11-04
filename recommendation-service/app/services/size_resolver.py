@@ -500,7 +500,8 @@ class SizeCalculator:
                                 except (ValueError, TypeError):
                                     pass
                     if valid_fields_count == 0:
-                        fit_score = 0.0
+                        # 비교할 실측이 없는 사이즈(실측표 없는 라벨 등)는 오차 0으로 다른 사이즈를 이기지 않도록 제외
+                        continue
                 elif penalty > 25.0:
                     fit_score = 0.0
                 else:
