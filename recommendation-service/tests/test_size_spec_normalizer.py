@@ -213,7 +213,7 @@ class TestSizeCalculatorWithMusinsaSpecs:
         assert best["predicted_fit_score"] == 1.0
 
     def test_shoes_label_matching_half_size_tolerance(self):
-        """5mm 차이 옵션(반업/반다운)에 대한 점수 감점(85%) 테스트"""
+        """5mm(한 사이즈) 차이 옵션은 발길이 허용치 기준 50%로 감점되는지 테스트"""
         candidate_shoes = [
             {
                 "product_id": 202,
@@ -233,7 +233,7 @@ class TestSizeCalculatorWithMusinsaSpecs:
         )
         assert best is not None
         assert best["size_label"] == "255"
-        assert best["predicted_fit_score"] == 0.85
+        assert best["predicted_fit_score"] == 0.5
 
     def test_shoes_with_detailed_measurements(self):
         """정밀 실측표가 있는 신발의 경우 실측 기반 채점 테스트"""
@@ -263,3 +263,96 @@ class TestSizeCalculatorWithMusinsaSpecs:
         assert best is not None
         assert best["size_label"] == "260"
         assert best["predicted_fit_score"] > 0.9
+
+
+class TestWeightedFitScore:
+    def test_outer_weighted_average_matches_agreed_example(self):
+        """아우터에서 가슴 +3, 어깨 +2, 총장 +5, 소매 +3 차이는 가중 평균 53%가 되어야 한다."""
+        product = {
+            "product_id": 301,
+            "sizes": [
+                {"size": "L", "measurements": {"가슴단면": 63.0, "어깨너비": 52.0, "총장": 105.0, "소매길이": 66.0}},
+            ],
+        }
+        baseline = {"가슴단면": 60.0, "어깨너비": 50.0, "총장": 100.0, "소매길이": 63.0}
+
+        best = SizeCalculator.evaluate([product], baseline, "아우터")
+
+        assert best is not None
+        assert best["size_label"] == "L"
+        assert best["predicted_fit_score"] == 0.53
+
+    def test_many_measured_fields_do_not_collapse_score_to_zero(self):
+        """항목이 많아도 합계 오차로 0%가 되지 않고 항목별 점수 평균을 유지해야 한다."""
+        product = {
+            "product_id": 302,
+            "sizes": [
+                {
+                    "size": "XL",
+                    "measurements": {
+                        "가슴단면": 61.0, "어깨너비": 51.0, "총장": 74.0, "소매길이": 64.0,
+                        "암홀": 26.0, "밑단단면": 57.0, "소매부리단면": 13.0,
+                    },
+                },
+            ],
+        }
+        baseline = {
+            "가슴단면": 60.0, "어깨너비": 50.0, "총장": 70.0, "소매길이": 61.0,
+            "암홀": 25.0, "밑단단면": 54.0, "소매부리단면": 12.0,
+        }
+
+        best = SizeCalculator.evaluate([product], baseline, "상의")
+
+        assert best is not None
+        assert best["predicted_fit_score"] > 0.5
+
+    def test_primary_field_zero_caps_score(self):
+        """가중치가 가장 큰 가슴단면이 0점이면 다른 항목이 맞아도 적합도는 30% 이하로 제한된다."""
+        product = {
+            "product_id": 303,
+            "sizes": [
+                {"size": "M", "measurements": {"가슴단면": 52.0, "어깨너비": 50.0, "총장": 70.0, "소매길이": 61.0}},
+            ],
+        }
+        baseline = {"가슴단면": 60.0, "어깨너비": 50.0, "총장": 70.0, "소매길이": 61.0}
+
+        best = SizeCalculator.evaluate([product], baseline, "상의")
+
+        assert best is not None
+        assert best["predicted_fit_score"] == 0.3
+
+    def test_size_position_reports_largest_size_when_all_sizes_are_small(self):
+        """모든 사이즈의 핵심 항목이 기준보다 작으면 가장 큰 사이즈를 경계 사이즈로 알려야 한다."""
+        product = {
+            "product_id": 304,
+            "sizes": [
+                {"size": "XL", "measurements": {"가슴단면": 58.0, "어깨너비": 50.0}},
+                {"size": "XXL", "measurements": {"가슴단면": 61.0, "어깨너비": 52.0}},
+            ],
+        }
+        baseline = {"가슴단면": 66.0, "어깨너비": 56.0}
+
+        best = SizeCalculator.evaluate([product], baseline, "아우터")
+
+        assert best is not None
+        assert best["size_label"] == "XXL"
+        assert best["size_position"] == "too_small"
+        assert best["boundary_size_label"] == "XXL"
+        assert best["field_diffs"] == {"가슴단면": -5.0, "어깨너비": -4.0}
+
+    def test_size_position_in_range_when_core_diffs_have_mixed_signs(self):
+        """핵심 항목 차이 부호가 섞이면 사이즈 범위 안의 핏 차이로 판정한다."""
+        product = {
+            "product_id": 305,
+            "sizes": [
+                {"size": "M", "measurements": {"가슴단면": 55.0, "어깨너비": 52.0}},
+                {"size": "L", "measurements": {"가슴단면": 58.0, "어깨너비": 54.0}},
+            ],
+        }
+        baseline = {"가슴단면": 60.0, "어깨너비": 50.0}
+
+        best = SizeCalculator.evaluate([product], baseline, "상의")
+
+        assert best is not None
+        assert best["size_position"] == "in_range"
+        assert best["boundary_size_label"] is None

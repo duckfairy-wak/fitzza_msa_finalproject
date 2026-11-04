@@ -19,6 +19,49 @@ MUSINSA_CATEGORY_SPEC_FIELDS: dict[str, list[str]] = {
     "모자": ["머리둘레", "챙길이", "깊이"],
 }
 
+# 카테고리별 실측 항목의 (허용치, 가중치, 핵심 항목 여부). 신발은 mm, 그 외는 cm 단위다.
+# 항목 점수는 차이가 허용치의 2배에 이르면 0이 되며, 가중치 0인 항목(디자인 요소)은 적합도 계산에서 빠진다.
+# 핵심 항목은 착용 가능 여부를 좌우하는 너비/길이 항목으로, 낮은 적합도의 방향 판정과 SMALL/BIG 고정 보정에 쓰인다.
+MUSINSA_FIT_SCORING_RULES: dict[str, dict[str, tuple[float, float, bool]]] = {
+    "상의": {
+        "가슴단면": (2.5, 3.0, True),
+        "어깨너비": (2.0, 2.5, True),
+        "총장": (4.0, 1.5, False),
+        "소매길이": (3.0, 1.5, False),
+        "암홀": (2.0, 1.0, False),
+        "밑단단면": (3.0, 0.5, False),
+        "소매부리단면": (1.5, 0.5, False),
+    },
+    "아우터": {
+        "가슴단면": (3.0, 3.0, True),
+        "어깨너비": (2.5, 2.5, True),
+        "소매길이": (3.0, 1.5, False),
+        "암홀": (2.5, 1.0, False),
+        "총장": (5.0, 1.0, False),
+        "밑단단면": (4.0, 0.5, False),
+        "소매부리단면": (2.0, 0.5, False),
+    },
+    "하의": {
+        "허리단면": (2.0, 3.0, True),
+        "엉덩이단면": (2.5, 2.5, True),
+        "허벅지단면": (2.0, 1.5, False),
+        "밑위": (2.0, 1.5, False),
+        "총장": (4.0, 1.0, False),
+        "밑단단면": (2.0, 0.5, False),
+    },
+    "신발": {
+        "발길이": (5.0, 4.0, True),
+        "발볼": (5.0, 1.5, False),
+        "발목높이": (5.0, 0.0, False),
+        "굽높이": (5.0, 0.0, False),
+    },
+    "모자": {
+        "머리둘레": (1.5, 4.0, True),
+        "깊이": (1.5, 1.0, False),
+        "챙길이": (1.5, 0.0, False),
+    },
+}
+
 # 하위 호환성을 위한 영문 보조 변환 맵 (안전장치)
 _LEGACY_EN_TO_KO: dict[str, str] = {
     "top": "상의",
@@ -36,6 +79,15 @@ def get_musinsa_spec_fields(category: str) -> list[str]:
     cat = category.strip()
     resolved_cat = _LEGACY_EN_TO_KO.get(cat.lower(), cat)
     return list(MUSINSA_CATEGORY_SPEC_FIELDS.get(resolved_cat, []))
+
+
+def get_fit_scoring_rules(category: str) -> dict[str, tuple[float, float, bool]]:
+    """카테고리별 실측 항목의 (허용치, 가중치, 핵심 항목 여부) 규칙을 반환한다."""
+    if not category:
+        return {}
+    cat = category.strip()
+    resolved_cat = _LEGACY_EN_TO_KO.get(cat.lower(), cat)
+    return dict(MUSINSA_FIT_SCORING_RULES.get(resolved_cat, {}))
 
 
 def parse_numeric_measurement(raw_val: Any, is_shoes: bool = False) -> Optional[float]:

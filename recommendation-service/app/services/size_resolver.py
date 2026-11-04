@@ -9,6 +9,7 @@ from typing import Any, Optional
 
 from app.services.size_spec_normalizer import (
     MUSINSA_CATEGORY_SPEC_FIELDS,
+    get_fit_scoring_rules,
     get_musinsa_spec_fields,
     normalize_measurement_spec,
     MusinsaSizeSpecResolver,
@@ -437,84 +438,160 @@ class SizeProfileResolver:
 
 
 class SizeCalculator:
+    # 가중치가 가장 큰 핵심 항목이 0점이면 다른 항목이 잘 맞아도 입기 어려우므로 적합도를 이 값으로 제한한다.
+    PRIMARY_FIELD_ZERO_CAP: float = 0.3
+
     @staticmethod
-    def evaluate(candidate_products: list[dict[str, Any]], baseline_spec: dict[str, float], category_type: str) -> Optional[dict[str, Any]]:
+    def _field_score(diff: float, tolerance: float) -> float:
+        """실측 차이를 허용치 기준 0~1 점수로 환산한다. 차이가 허용치의 2배 이상이면 0점이다."""
+        if tolerance <= 0:
+            return 0.0
+        return max(0.0, 1.0 - abs(diff) / (tolerance * 2.0))
+
+    @staticmethod
+    def _primary_field(rules: dict[str, tuple[float, float, bool]]) -> Optional[str]:
+        """가중치가 가장 큰 핵심 항목명을 반환한다."""
+        if not rules:
+            return None
+        return max(rules.items(), key=lambda item: item[1][1])[0]
+
+    @staticmethod
+    def _parse_shoe_label(size_label: Any) -> Optional[float]:
+        """'260', '26.5' 같은 신발 표기 사이즈를 mm 단위 발길이로 변환한다."""
+        m = re.search(r"\d+(?:\.\d+)?", str(size_label or ""))
+        if not m:
+            return None
+        try:
+            value = float(m.group())
+        except (TypeError, ValueError):
+            return None
+        return value * 10.0 if value < 50.0 else value
+
+    @classmethod
+    def _score_size_option(
+        cls,
+        size_option: dict[str, Any],
+        normalized_baseline: dict[str, float],
+        baseline_spec: dict[str, Any],
+        rules: dict[str, tuple[float, float, bool]],
+        category_type: str,
+    ) -> Optional[dict[str, Any]]:
+        """사이즈 옵션 하나의 가중 평균 적합도와 항목별 차이(상품 실측 - 기준 치수)를 계산한다."""
+        measurements = normalize_measurement_spec(size_option.get("measurements") or {}, category=category_type)
+        diffs: dict[str, float] = {}
+        for field, base_val in normalized_baseline.items():
+            rule = rules.get(field)
+            meas_val = measurements.get(field)
+            if rule is None or rule[1] <= 0:
+                continue
+            if isinstance(meas_val, (int, float)) and meas_val > 0 and isinstance(base_val, (int, float)) and base_val > 0:
+                diffs[field] = round(float(meas_val) - float(base_val), 1)
+
+        if not diffs and category_type in ("shoes", "신발") and "발길이" in rules:
+            # 상세 실측표 없이 표기 사이즈(260, 265 등)만 있는 신발은 라벨을 발길이로 보고 비교한다.
+            user_shoe = baseline_spec.get("shoe_size") or baseline_spec.get("발길이") or normalized_baseline.get("발길이")
+            opt_shoe = cls._parse_shoe_label(size_option.get("size"))
+            if user_shoe and opt_shoe is not None:
+                try:
+                    diffs["발길이"] = round(opt_shoe - float(user_shoe), 1)
+                except (TypeError, ValueError):
+                    pass
+
+        if not diffs:
+            # 비교할 실측이 없는 사이즈는 다른 사이즈를 이기지 않도록 제외한다.
+            return None
+
+        weighted_sum = 0.0
+        weight_total = 0.0
+        field_scores: dict[str, float] = {}
+        for field, diff in diffs.items():
+            tolerance, weight, _ = rules[field]
+            score = cls._field_score(diff, tolerance)
+            field_scores[field] = score
+            weighted_sum += score * weight
+            weight_total += weight
+
+        fit_score = weighted_sum / weight_total if weight_total > 0 else 0.0
+        if field_scores.get(cls._primary_field(rules)) == 0.0:
+            fit_score = min(fit_score, cls.PRIMARY_FIELD_ZERO_CAP)
+
+        weighted_error = sum(abs(diffs[f]) * rules[f][1] for f in diffs)
+        return {"fit_score": fit_score, "diffs": diffs, "weighted_error": weighted_error}
+
+    @classmethod
+    def _resolve_size_position(
+        cls,
+        scored_sizes: list[tuple[str, dict[str, Any]]],
+        rules: dict[str, tuple[float, float, bool]],
+    ) -> tuple[str, Optional[str]]:
+        """상품의 모든 사이즈가 기준 치수보다 작은지/큰지를 핵심 항목 차이 부호로 판정하고 경계 사이즈를 반환한다."""
+        core_fields = [f for f, (_, weight, is_core) in rules.items() if is_core and weight > 0]
+        if not scored_sizes or not core_fields:
+            return "in_range", None
+
+        core_diffs = [[result["diffs"][f] for f in core_fields if f in result["diffs"]] for _, result in scored_sizes]
+        if any(not diffs for diffs in core_diffs):
+            return "in_range", None
+
+        def size_scale(index: int) -> float:
+            return sum(core_diffs[index]) / len(core_diffs[index])
+
+        indexes = range(len(scored_sizes))
+        if all(d < 0 for diffs in core_diffs for d in diffs):
+            return "too_small", scored_sizes[max(indexes, key=size_scale)][0]
+        if all(d > 0 for diffs in core_diffs for d in diffs):
+            return "too_large", scored_sizes[min(indexes, key=size_scale)][0]
+        return "in_range", None
+
+    @classmethod
+    def evaluate(cls, candidate_products: list[dict[str, Any]], baseline_spec: dict[str, float], category_type: str) -> Optional[dict[str, Any]]:
         """
         [4. 수학적 산출 엔진]
-        상품 실측과 기준 치수를 비교하여 오차가 가장 적은 최적의 상품과 사이즈를 도출한다.
+        항목별 허용치·가중치로 사이즈별 가중 평균 적합도를 계산해 가장 잘 맞는 상품과 사이즈를 도출한다.
         """
         if not baseline_spec or not candidate_products:
             return None
 
-        best_match = None
-        min_penalty = float('inf')
-
-        fields = get_musinsa_spec_fields(category_type)
-        if not fields:
+        rules = get_fit_scoring_rules(category_type)
+        if not rules:
             return None
 
         normalized_baseline = normalize_measurement_spec(baseline_spec, category=category_type)
+
+        best_match: Optional[dict[str, Any]] = None
+        best_key: Optional[tuple[float, float]] = None
 
         for product in candidate_products:
             sizes = product.get("sizes")
             if not sizes:
                 continue
 
+            scored_sizes: list[tuple[str, dict[str, Any]]] = []
             for size_option in sizes:
-                penalty = 0.0
-                valid_fields_count = 0
+                if not isinstance(size_option, dict):
+                    continue
+                result = cls._score_size_option(size_option, normalized_baseline, baseline_spec, rules, category_type)
+                if result is not None:
+                    scored_sizes.append((str(size_option.get("size", "Unknown")), result))
 
-                raw_measurements = size_option.get("measurements", {})
-                measurements = normalize_measurement_spec(raw_measurements, category=category_type)
+            if not scored_sizes:
+                continue
 
-                for field in fields:
-                    meas_val = measurements.get(field)
-                    base_val = normalized_baseline.get(field)
-
-                    if (
-                            meas_val is not None and isinstance(meas_val, (int, float)) and meas_val > 0 and
-                            base_val is not None and isinstance(base_val, (int, float)) and base_val > 0
-                    ):
-                        penalty += abs(meas_val - base_val)
-                        valid_fields_count += 1
-
-                if valid_fields_count == 0:
-                    # 신발 특화: 상세 실측표가 없고 표기 사이즈(260, 265 등)만 제공되는 상품의 라벨 직접 매칭
-                    if category_type in ("shoes", "신발"):
-                        user_shoe = (
-                            baseline_spec.get("shoe_size")
-                            or baseline_spec.get("발길이")
-                            or normalized_baseline.get("발길이")
-                        )
-                        if user_shoe:
-                            m = re.search(r"\d+(?:\.\d+)?", str(size_option.get("size", "")))
-                            if m:
-                                try:
-                                    opt_shoe = float(m.group())
-                                    if opt_shoe < 50.0:
-                                        opt_shoe *= 10.0
-                                    diff = abs(opt_shoe - float(user_shoe))
-                                    penalty = diff * 0.8
-                                    valid_fields_count = 1
-                                    fit_score = max(0.0, 1.0 - (diff / 33.3))
-                                except (ValueError, TypeError):
-                                    pass
-                    if valid_fields_count == 0:
-                        # 비교할 실측이 없는 사이즈(실측표 없는 라벨 등)는 오차 0으로 다른 사이즈를 이기지 않도록 제외
-                        continue
-                elif penalty > 25.0:
-                    fit_score = 0.0
-                else:
-                    fit_score = max(0.0, 1.0 - (penalty / 25.0))
-
-                if penalty < min_penalty:
-                    min_penalty = penalty
-                    best_match = {
-                        "product_id": product.get("product_id"),
-                        "product_name": product.get("product_name"),
-                        "size_label": size_option.get("size", "Unknown"),
-                        "predicted_fit_score": round(fit_score, 2)
-                    }
+            # 적합도가 같으면 가중 오차가 작은 사이즈를 고른다.
+            size_label, result = max(scored_sizes, key=lambda entry: (entry[1]["fit_score"], -entry[1]["weighted_error"]))
+            key = (result["fit_score"], -result["weighted_error"])
+            if best_key is None or key > best_key:
+                position, boundary_label = cls._resolve_size_position(scored_sizes, rules)
+                best_key = key
+                best_match = {
+                    "product_id": product.get("product_id"),
+                    "product_name": product.get("product_name"),
+                    "size_label": size_label,
+                    "predicted_fit_score": round(result["fit_score"], 2),
+                    "field_diffs": result["diffs"],
+                    "size_position": position,
+                    "boundary_size_label": boundary_label,
+                }
 
         return best_match
 
@@ -1048,4 +1125,4 @@ def process_size_feedback(
 
     if cache_service is not None and hasattr(cache_service, "invalidate_user_pipeline"):
         cache_service.invalidate_user_pipeline(user_id=str(user_id))
-
+
