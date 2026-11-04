@@ -19,31 +19,6 @@ MUSINSA_CATEGORY_SPEC_FIELDS: dict[str, list[str]] = {
     "모자": ["머리둘레", "챙길이", "깊이"],
 }
 
-# Qdrant 상품 payload(sizes[].measurements)는 데이터 파이프라인 vector_points.MEASUREMENT_KEYS의 영문 키로 저장된다.
-# 이 맵이 어긋나면 모든 사이즈의 비교 항목이 0개가 되어 추천이 첫 사이즈·적합도 0%로 고정된다.
-QDRANT_MEASUREMENT_KEY_TO_MUSINSA: dict[str, str] = {
-    "top_length": "총장",
-    "bottom_length": "총장",
-    "shoulder": "어깨너비",
-    "chest": "가슴단면",
-    "sleeve": "소매길이",
-    "top_hem": "밑단단면",
-    "bottom_hem": "밑단단면",
-    "cuff": "소매부리단면",
-    "armhole": "암홀",
-    "waist": "허리단면",
-    "hip": "엉덩이단면",
-    "thigh": "허벅지단면",
-    "rise": "밑위",
-    "foot_length": "발길이",
-    "foot_width": "발볼",
-    "ankle_height": "발목높이",
-    "heel_height": "굽높이",
-    "head_circumference": "머리둘레",
-    "brim_length": "챙길이",
-    "depth": "깊이",
-}
-
 # 하위 호환성을 위한 영문 보조 변환 맵 (안전장치)
 _LEGACY_EN_TO_KO: dict[str, str] = {
     "top": "상의",
@@ -97,7 +72,6 @@ def normalize_measurement_spec(
 ) -> dict[str, float]:
     """
     무신사 크롤링 데이터 기준 실측 스펙 정규화 함수:
-    - Qdrant payload 영문 키(top_length 등)는 무신사 표준 한글 필드로 변환
     - 지정된 카테고리의 무신사 표준 필드만 추출
     - 수치 파싱 및 신발(cm/mm) 단위 보정
     """
@@ -115,7 +89,6 @@ def normalize_measurement_spec(
         if not field:
             continue
         clean_field = str(field).strip()
-        clean_field = QDRANT_MEASUREMENT_KEY_TO_MUSINSA.get(clean_field, clean_field)
 
         # 카테고리가 지정된 경우 해당 카테고리의 무신사 표준 필드만 허용
         if target_fields is not None and clean_field not in target_fields:
