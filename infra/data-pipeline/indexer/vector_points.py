@@ -137,9 +137,17 @@ def verify_bundle_against_manifest(data_root: Path, manifest: dict) -> dict[str,
 
 
 def normalize_sizes(category: str, rows: list) -> list[dict]:
+    """Every labeled size row, with only positive standard measurements (possibly none).
+
+    Shoes and caps sold without a size chart arrive as label-only rows. Their labels must
+    stay in the payload: recommendation-service lists them and matches shoe labels directly.
+    """
     keys = MEASUREMENT_KEYS.get(category, {})
     sizes = []
     for row in rows or []:
+        label = str(row.get("size") or "").strip()
+        if not label:
+            continue
         measured = {}
         for name, value in (row.get("measurements") or {}).items():
             if name in keys:
@@ -149,8 +157,7 @@ def normalize_sizes(category: str, rows: list) -> list[dict]:
                     continue
                 if math.isfinite(number) and number > 0:
                     measured[keys[name]] = number
-        if measured:
-            sizes.append({"size": row.get("size"), "sequence": row.get("sequence", 0), "measurements": measured})
+        sizes.append({"size": label, "sequence": row.get("sequence", 0), "measurements": measured})
     return sizes
 
 
