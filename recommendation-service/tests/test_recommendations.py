@@ -1223,4 +1223,64 @@ def test_harmonizer_select_best_outfits_parallel_execution() -> None:
     assert harmonizer.last_llm_latency >= 0.0
 
 
+def test_harmonizer_select_best_outfits_raises_when_all_vision_fail() -> None:
+    from unittest.mock import MagicMock
+    from app.services.harmonizer import OutfitHarmonizer
+    import pytest
+
+    mock_engine = MagicMock()
+    harmonizer = OutfitHarmonizer(search_engine=mock_engine)
+    harmonizer.evaluate_final = MagicMock(side_effect=Exception("Vision API 연결 실패"))
+
+    slot_candidates = {
+        "top": [{"product_id": 1, "product_name": "상의1", "price": 10000, "vector": [0.1, 0.2]}],
+        "bottom": [{"product_id": 2, "product_name": "하의1", "price": 10000, "vector": [0.1, 0.2]}],
+    }
+
+    with pytest.raises(RuntimeError, match="모든 후보 코디의 Vision 검수가 실패했습니다."):
+        harmonizer.select_best_outfits(
+            slot_candidates=slot_candidates,
+            tpo_context="데이트룩",
+            top_k=1,
+        )
+
+
+def test_user_service_error_clears_size_recommendations_and_sets_error_evidence() -> None:
+    from app.api.recommendations import _map_product_item, _map_combo_outfit
+
+    raw_item = {
+        "product_id": 101,
+        "product_name": "테스트 셔츠",
+        "sizes": [{"size": "L", "measurements": {"총장": 74}}],
+        "size_recommendation": {"size_label": "L", "predicted_fit_score": 0.95},
+        "fit_source_type": "standard_spec",
+    }
+
+    mapped = _map_product_item(raw_item, user_service_error=True)
+    assert mapped["recommendedSize"] is None
+    assert mapped["fitPercent"] is None
+    assert mapped["evidence"] == "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
+
+    combo = {"items": [raw_item], "totalPrice": 30000}
+    mapped_combo = _map_combo_outfit(combo, user_service_error=True)
+    assert mapped_combo["items"][0]["recommendedSize"] is None
+    assert mapped_combo["items"][0]["fitPercent"] is None
+    assert mapped_combo["items"][0]["evidence"] == "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
+
+
+def test_resolve_size_evidence_matching_failure_with_baseline() -> None:
+    from app.services.size_resolver import resolve_size_evidence
+
+    # 기준 치수는 존재하지만 상품 치수와 매칭되지 않아 추천 사이즈가 나오지 않은 경우
+    evidence = resolve_size_evidence(
+        raw_sizes=[{"size": "M", "measurements": {"총장": 70}}],
+        recommended_size=None,
+        source_type="standard_spec",
+        baseline_spec={"총장": 90},
+        has_user_body=True,
+    )
+    assert evidence == "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+
+
+
 

@@ -837,12 +837,17 @@ def resolve_size_evidence(
         return "단일 사이즈(FREE)로 제공되는 상품입니다."
 
     norm_source = str(source_type or "none")
-    if norm_source == "none" or (baseline_spec is not None and baseline_spec is None):
+    if norm_source == "none" or not baseline_spec:
         if has_user_body:
             return "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
         return "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다."
 
+    if not recommended_size:
+        return "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+
     return "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다."
+
+
 def evaluate_single_product_size(
     size_resolver: Any,
     repository: Any,
@@ -957,7 +962,7 @@ def evaluate_single_product_size(
         category_type=category_type,
     )
 
-    if rec_size is None or source_type == "none" or baseline_spec is None:
+    if user_service_error or rec_size is None or source_type == "none" or baseline_spec is None:
         return {
             "recommendedSize": None,
             "fitPercent": None,

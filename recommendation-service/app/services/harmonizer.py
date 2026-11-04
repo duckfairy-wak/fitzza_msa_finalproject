@@ -644,6 +644,9 @@ class OutfitHarmonizer:
 
             self.last_llm_latency = time.perf_counter() - start_eval_parallel
 
+            if not passed_outfits and not rejected_outfits:
+                raise RuntimeError("모든 후보 코디의 Vision 검수가 실패했습니다.")
+
         passed_outfits.sort(
             key=lambda outfit: outfit["final_score"],
             reverse=True,
