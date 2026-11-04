@@ -314,8 +314,11 @@ class RecommendationRepository:
                     if row["pk"]
                 }
                 if "fit_type" not in pref_pk_columns:
-                    conn.executescript(
-                        """
+                    # executescript는 문장마다 커밋하므로, 중간 실패 시 legacy 테이블만 남지 않도록 한 트랜잭션으로 묶는다.
+                    try:
+                        conn.executescript(
+                            """
+                        BEGIN;
                         ALTER TABLE user_size_preferences RENAME TO user_size_preferences_legacy;
                         CREATE TABLE user_size_preferences (
                             user_id INTEGER NOT NULL,
@@ -334,8 +337,13 @@ class RecommendationRepository:
                                preference_spec_json, sample_count, updated_at
                         FROM user_size_preferences_legacy;
                         DROP TABLE user_size_preferences_legacy;
-                        """
-                    )
+                        COMMIT;
+                            """
+                        )
+                    except sqlite3.Error:
+                        if conn.in_transaction:
+                            conn.rollback()
+                        raise
                 conn.commit()
             finally:
                 self._close_sqlite_if_transient(conn)

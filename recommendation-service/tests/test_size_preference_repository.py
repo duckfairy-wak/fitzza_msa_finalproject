@@ -149,3 +149,38 @@ def test_process_size_feedback_uses_sibling_size_measurements() -> None:
 
     assert repo.saved["preference_spec"] == {"가슴단면": 59.5, "어깨너비": 51.0}
     assert repo.saved["fit_type"] == "레귤러"
+
+
+def test_sqlite_preference_migration_rolls_back_on_failure(tmp_path) -> None:
+    import pytest
+
+    db_path = tmp_path / "broken.db"
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE user_size_preferences (
+            user_id INTEGER NOT NULL,
+            subcategory TEXT NOT NULL,
+            fit_type TEXT NOT NULL DEFAULT '',
+            preference_spec_json TEXT NOT NULL,
+            sample_count INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT,
+            PRIMARY KEY (user_id, subcategory)
+        );
+        INSERT INTO user_size_preferences VALUES (7, '셔츠', '', '{"가슴단면": 59.0}', 1, NULL);
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    # 새 테이블의 updated_at NOT NULL 제약 때문에 데이터 복사 단계에서 실패한다.
+    with pytest.raises(sqlite3.Error):
+        RecommendationRepository(db_path=str(db_path))
+
+    conn = sqlite3.connect(db_path)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    rows = conn.execute("SELECT user_id, subcategory FROM user_size_preferences").fetchall()
+    conn.close()
+
+    assert "user_size_preferences_legacy" not in tables
+    assert rows == [(7, "셔츠")]
