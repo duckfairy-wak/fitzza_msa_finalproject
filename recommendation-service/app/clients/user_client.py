@@ -75,11 +75,19 @@ class UserServiceClient:
                 response.raise_for_status()
                 data = response.json()
                 return data if isinstance(data, dict) else {}
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError) as exc:
             logger.warning(
                 "user-service 신체 정보 조회 실패 (userId=%s): %s: %s",
                 user_id,
                 type(exc).__name__,
                 exc,
             )
-            return {}
+            raise UserServiceUnavailableError() from exc
+        except Exception as exc:
+            logger.warning(
+                "user-service 신체 정보 조회 예외 (userId=%s): %s: %s",
+                user_id,
+                type(exc).__name__,
+                exc,
+            )
+            raise UserServiceUnavailableError() from exc

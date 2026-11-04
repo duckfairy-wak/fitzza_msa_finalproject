@@ -56,6 +56,7 @@ from app.services.size_resolver import (
     fetch_qdrant_product_payload,
     process_size_feedback,
     resolve_product_for_size,
+    resolve_size_evidence,
     sync_user_body,
     sync_user_size_preference,
 )
@@ -354,7 +355,13 @@ def _map_product_item(item: dict[str, Any]) -> dict[str, Any]:
         score_val = float(raw_fit_score)
         fit_percent = round(score_val * 100.0 if score_val <= 1.0 else score_val, 1)
 
-    evidence = item.get("evidence") or FIT_SOURCE_EVIDENCE_MAP.get(source_type)
+    evidence = resolve_size_evidence(
+        raw_sizes=item.get("sizes"),
+        recommended_size=recommended_size,
+        source_type=source_type,
+        existing_evidence=item.get("evidence"),
+        has_user_body=item.get("has_user_body"),
+    )
 
     raw_product_id = item.get("product_id", item.get("productId", 0))
     try:
@@ -456,10 +463,14 @@ def process_recommendation_request(
     notification_content = "요청하신 AI 패션 추천 결과가 도착했어요."
 
     try:
-        user_body = user_client.get_user_body(
-            user_id=user_id,
-            request_id_header=request_id_header,
-        )
+        try:
+            user_body = user_client.get_user_body(
+                user_id=user_id,
+                request_id_header=request_id_header,
+            )
+        except UserServiceUnavailableError as user_exc:
+            logger.warning("user-service 연동 불가, 기본 체형 정보로 파이프라인 진행 (userId=%s): %s", user_id, user_exc)
+            user_body = {}
         coordinator = _get_coordinator(app)
         _sync_user_body(
             size_resolver=getattr(coordinator, "size_resolver", None),

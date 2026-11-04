@@ -657,15 +657,29 @@ def test_map_product_item_includes_sizes() -> None:
     assert mapped["recommendedSize"] == "medium"
     assert mapped["availableSizes"] == ["small", "medium", "large"]
 
-    # sizes가 없는 경우
+    # sizes가 없는 경우 (fit_source_type이 있더라도 recommendedSize가 없으면 안내 문구 반환)
     item_without_sizes = {
         "product_id": 102,
         "product_name": "사이즈 없는 모자",
         "price": 20000,
+        "fit_source_type": "body_profile",
     }
     mapped_none = _map_product_item(item_without_sizes)
     assert mapped_none["recommendedSize"] is None
     assert mapped_none["availableSizes"] is None
+    assert mapped_none["evidence"] == "해당 상품의 상세 실측 정보가 없어 사이즈 추천을 제공할 수 없습니다."
+
+    # sizes가 단일 문자열 리스트인 경우 (FREE)
+    item_free_size = {
+        "product_id": 103,
+        "product_name": "프리사이즈 볼캡",
+        "price": 25000,
+        "sizes": ["FREE"],
+    }
+    mapped_free = _map_product_item(item_free_size)
+    assert mapped_free["recommendedSize"] is None
+    assert mapped_free["availableSizes"] == ["FREE"]
+    assert mapped_free["evidence"] == "단일 사이즈(FREE)로 제공되는 상품입니다."
 
 
 def test_recommendation_detail_with_null_query_text_falls_back_to_empty_string() -> None:
@@ -976,6 +990,41 @@ def test_get_product_size_recommendation_edge_cases() -> None:
             "evidence": "체형 정보를 등록하시면 맞춤 사이즈를 추천해 드립니다.",
         }
 
+        # 3-1. 체형 정보가 등록되어 있으나 매칭 실패 -> "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다."
+        class RegisteredUserClient:
+            def get_user_body(self, user_id: int, request_id_header: str | None = None) -> dict[str, Any]:
+                return {"height": 230.0, "weight": 150.0}
+
+        app.state.user_client = RegisteredUserClient()
+        registered_res = client.get(
+            "/api/recommendations/3002/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert registered_res.status_code == 200
+        assert registered_res.json() == {
+            "recommendedSize": None,
+            "fitPercent": None,
+            "evidence": "등록하신 체형 정보에 맞는 추천 사이즈 데이터를 찾지 못했습니다.",
+        }
+
+        # 3-2. user-service 연동 오류 발생 시 -> "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다."
+        class ErrorUserClient:
+            def get_user_body(self, user_id: int, request_id_header: str | None = None) -> dict[str, Any]:
+                from app.clients.user_client import UserServiceUnavailableError
+                raise UserServiceUnavailableError("user-service connection timeout")
+
+        app.state.user_client = ErrorUserClient()
+        error_res = client.get(
+            "/api/recommendations/3002/size",
+            headers={"X-User-Id": "999"},
+        )
+        assert error_res.status_code == 200
+        assert error_res.json() == {
+            "recommendedSize": None,
+            "fitPercent": None,
+            "evidence": "신체 정보 연동 서비스 오류로 사이즈 추천을 일시적으로 제공할 수 없습니다.",
+        }
+
         # 4. 유효하지 않은 productId (0 이하) -> 400 INVALID_REQUEST
         invalid_id_res = client.get(
             "/api/recommendations/0/size",
@@ -1127,5 +1176,51 @@ def test_coordinator_attach_size_info_assigns_size_recommendations() -> None:
     assert result[0]["fit_source_type"] == "standard_spec"
     assert result[1]["size_recommendation"] == {"size": "FREE"}
     assert result[1]["fit_source_type"] == "standard_spec"
+
+
+def test_harmonizer_select_best_outfits_parallel_execution() -> None:
+    from unittest.mock import MagicMock
+    from app.services.harmonizer import OutfitHarmonizer
+
+    mock_engine = MagicMock()
+    harmonizer = OutfitHarmonizer(search_engine=mock_engine)
+
+    def fake_evaluate(items, tpo):
+        p_id = items[0].get("product_id", 0)
+        return {
+            "harmony_score": 85 if p_id != 4 else 50,
+            "pass_status": p_id != 4,
+            "violated_rules": [] if p_id != 4 else ["TPO 부적합"],
+            "feedback_summary": "검수 결과",
+            "prompt_tokens": 100,
+            "completion_tokens": 20,
+        }
+
+    harmonizer.evaluate_final = MagicMock(side_effect=fake_evaluate)
+
+    slot_candidates = {
+        "top": [
+            {"product_id": 1, "product_name": "상의1", "price": 10000, "vector": [0.1, 0.2]},
+            {"product_id": 2, "product_name": "상의2", "price": 10000, "vector": [0.1, 0.2]},
+        ],
+        "bottom": [
+            {"product_id": 3, "product_name": "하의1", "price": 10000, "vector": [0.1, 0.2]},
+            {"product_id": 4, "product_name": "하의2", "price": 10000, "vector": [0.1, 0.2]},
+        ],
+    }
+
+    outfits = harmonizer.select_best_outfits(
+        slot_candidates=slot_candidates,
+        tpo_context="데이트룩",
+        top_k=2,
+    )
+
+    assert harmonizer.evaluate_final.call_count == 4
+    assert len(outfits) <= 2
+    assert all(o["pass_status"] is True for o in outfits)
+    assert harmonizer.last_prompt_tokens == 400
+    assert harmonizer.last_completion_tokens == 80
+    assert harmonizer.last_llm_latency >= 0.0
+
 
 
