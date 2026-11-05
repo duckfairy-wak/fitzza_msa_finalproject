@@ -112,6 +112,13 @@ class Settings:
     enable_dev_mock_size_data: bool = field(
         default_factory=lambda: os.getenv("ENABLE_DEV_MOCK_SIZE_DATA", "false").strip().lower() in ("true", "1", "yes")
     )
+    # 사이즈 적합도(%) 안내 구간 기준. 이상이면 기본 문구, 사이에 있으면 어긋나는 항목 안내, 미만이면 방향 안내를 붙인다.
+    size_fit_good_threshold: float = field(
+        default_factory=lambda: float(os.getenv("SIZE_FIT_GOOD_THRESHOLD", "70"))
+    )
+    size_fit_low_threshold: float = field(
+        default_factory=lambda: float(os.getenv("SIZE_FIT_LOW_THRESHOLD", "40"))
+    )
     enable_lifespan_warmup: bool = field(
         default_factory=lambda: os.getenv("ENABLE_LIFESPAN_WARMUP", "true").strip().lower() in ("true", "1", "yes")
     )
